@@ -1,0 +1,55 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.09.22.20.56;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	648425855332f58;
+kopt	kv;
+filename	@Semaphore.cpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@utils directory initial checkin
+@
+text
+@#include "Semaphore.hpp"
+#include <iostream>
+
+namespace SynerEdge
+{
+
+void Semaphore::post(size_t postnum)
+{
+	boost::mutex::scoped_lock lk(mtx, true);
+	count += postnum;
+	cnd.notify_one();
+}
+
+void Semaphore::wait()
+{
+	boost::mutex::scoped_lock lk(mtx, true);
+	while (count == 0)
+		cnd.wait(lk);
+	count--;
+}
+
+bool Semaphore::operator()()
+{
+	return (count > 0);
+}
+
+};
+@

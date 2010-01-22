@@ -1,0 +1,53 @@
+
+# This script compiles the policy code.  It has only been
+# compiled on Linux and requires MySQL 5.x to be installed.
+# The "BASE" environment variable may vary depending on where
+# MySQL is installed.
+
+echo
+#BASE=/home/irrer/utilities/mysql/mysql-standard-5.0.2-alpha-pc-linux-i686
+BASE=../tools/mysql
+
+CFG=$BASE/bin/mysql_config
+
+myname=`basename $0`
+
+export cflags=`$CFG --cflags`" -g -I."
+
+export libs=" -g "`$CFG --libs`
+
+for f in *.c ; do
+    file=`echo $f | sed "s/.c$//"`
+    if [ ${file}.c -nt ${file}.o ] ; then
+        echo Compiling $file.c ...
+        # echo gcc -c $file.c -o $file.o $cflags
+        gcc -c $file.c -o $file.o $cflags
+        if [ $? != 0 ] ; then
+            exit $?
+        fi
+    fi
+done
+
+for f in *.cpp ; do
+    file=`echo $f | sed "s/.cpp$//"`
+    if [ ${file}.cpp -nt ${file}.o ] ; then
+        echo Compiling $file.cpp ...
+        # echo g++ -c $file.cpp -o $file.o $cflags
+        g++ -c $file.cpp -o $file.o $cflags
+        if [ $? != 0 ] ; then
+            exit $?
+        fi
+    fi
+done
+
+objs=`ls *.o | grep -v syg_`
+
+for f in syg_*.cpp ; do
+    file=`echo $f | sed "s/.cpp$//"`
+    echo Linking $file ...
+    g++ -o $file $file.o $objs $libs
+    if [ $? != 0 ] ; then
+        exit $?
+    fi
+done
+

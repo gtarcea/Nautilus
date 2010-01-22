@@ -1,0 +1,133 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.04.13.18.43.41;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	d8425d6849419c;
+kopt	kv;
+filename	@cblocktest.cc@;
+
+1.1
+date	2005.04.08.17.49.32;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.32;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Move files that belong in the storprovider directory to that directory.
+@
+text
+@#include "cblocktest.h"
+#include "cblock.h"
+
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockTest) ;
+
+void
+BlockTest::setUp()
+{
+	//tb1 = new Block() ;
+	//tb2 = new Block() ;
+}
+
+void
+BlockTest::tearDown()
+{
+//	delete tb1 ;
+//	delete tb2 ;
+}
+
+void
+BlockTest::testConstructor()
+{
+	Block tb(1) ;
+
+	CPPUNIT_ASSERT(tb.getBlockNum() == 1) ;
+	CPPUNIT_ASSERT(tb.getNextBlock() == -1);
+	CPPUNIT_ASSERT(tb.getPrevBlock() == -1);
+	CPPUNIT_ASSERT(tb.getSize() == 0) ;
+	CPPUNIT_ASSERT(tb.getSize(1) == 0) ;
+	CPPUNIT_ASSERT(tb.getSize(4) == 0) ;
+	CPPUNIT_ASSERT(tb.getSize(7) == 0) ;
+	CPPUNIT_ASSERT(tb.getSize(0) == 0) ;
+	CPPUNIT_ASSERT(tb.getFreeChunk() == 0) ;
+}
+
+void
+BlockTest::testSetGet()
+{
+	Block tb(1) ;
+	char buf[1024] ;
+
+	tb.setNextBlock(10) ;
+	CPPUNIT_ASSERT(tb.getNextBlock() == 10) ;
+
+	tb.setPrevBlock(10) ;
+	CPPUNIT_ASSERT(tb.getPrevBlock() == 10) ;
+
+	tb.setBlockNum(-5) ;
+	CPPUNIT_ASSERT(tb.getBlockNum() == 1) ;
+
+	tb.setBlockNum(20) ;
+	CPPUNIT_ASSERT(tb.getBlockNum() == 20) ;
+
+	tb.setSize(3000) ;
+	CPPUNIT_ASSERT(tb.getSize() == 3000) ;
+
+	tb.setBytes(0, buf, 1024) ;
+	CPPUNIT_ASSERT(tb.getSize() == 3000) ;
+
+	tb.setSize(0) ;
+	CPPUNIT_ASSERT(tb.getSize() == 0) ;
+
+	tb.setBytes(0, buf, 1024) ;
+	CPPUNIT_ASSERT(tb.getSize() == 1024) ;
+
+	tb.setBytes(1024, buf, 1024) ;
+	CPPUNIT_ASSERT(tb.getSize() == 2048) ;
+
+	tb.setBytes(4098, buf, 1024) ;
+	CPPUNIT_ASSERT(tb.getSize() == 2048) ;
+}
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

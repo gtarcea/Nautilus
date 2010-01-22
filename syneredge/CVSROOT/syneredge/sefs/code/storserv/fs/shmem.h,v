@@ -1,0 +1,61 @@
+head     1.1;
+branch   1.1.1;
+access   ;
+symbols 
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks    ; strict;
+comment  @ * @;
+
+
+1.1
+date     2005.04.08.17.49.31;  author gtarcea;  state Exp;
+branches 1.1.1.1;
+next     ;
+deltatype   text;
+permissions	777;
+
+1.1.1.1
+date     2005.04.08.17.49.31;  author gtarcea;  state Exp;
+branches ;
+next     ;
+permissions	777;
+
+
+desc
+@@
+
+
+
+1.1
+log
+@Initial revision
+@
+text
+@
+#ifndef __SHMEM_INCLUDE_
+#define __SHMEM_INCLUDE_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int shmem_open() ;
+int shmem_close(int remove) ;
+void *shmem_get_memptr() ;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __SHMEM_INCLUDE_ */
+
+@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

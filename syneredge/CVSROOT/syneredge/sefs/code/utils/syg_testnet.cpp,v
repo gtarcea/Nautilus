@@ -1,0 +1,149 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.04.18.02.06.10;	author rdesai;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	4b04263159d4b92;
+kopt	kv;
+filename	@syg_testnet.cpp@;
+
+1.1
+date	2005.04.16.21.53.28;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	bc8426189353d13;
+kopt	kv;
+filename	@syg_testnet.cpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Update Net functions (and test functions) to be wide-string enabled.
+All of these functions now store and return wide strings.
+@
+text
+@#include "Net.hpp"
+#include "StringConversion.hpp"
+#include "StartupParameters.hpp"
+
+#include <iostream>
+#include <string>
+
+using namespace SynerEdge;
+
+int main(int argc, char **argv)
+{
+	std::wstring hname = L"syneredgecvs.dnsalias.com";
+	StartupParameters::instance()->storeStartupArgs(argc, argv);
+
+	StartupParameters::argsiterator argitor = StartupParameters::instance()->args_begin();
+	argitor++;
+	if (argitor != StartupParameters::instance()->args_end())
+	{
+		hname = *argitor;
+	}
+
+	std::wcout << "hname: " << hname << std::endl;
+
+	try
+	{
+	// add an IPv6 entry to your hosts table to see this work!
+	// ::1	localhost
+	Host local(L"localhost", true);
+	std::wcout << local.getIP().toString()
+		   << std::endl;
+
+	Host hst(hname, false);
+	std::wcout << hst.getName() << std::endl;
+	std::wcout << hst.getIP().toString() << std::endl;
+	std::list<IPAddress> addresses = hst.getAddresses();
+	for (std::list<IPAddress>::iterator itor = addresses.begin();
+	     itor != addresses.end();
+	     itor++)
+	{
+		std::wcout << L"address: " 
+			   << (*itor).toString()
+			   << std::endl;
+	}
+	std::list<std::wstring> aliases = hst.getAliases();
+	for (std::list<std::wstring>::iterator itor = aliases.begin();
+	     itor != aliases.end();
+	     itor++)	
+	{
+		std::wcout << L"alias: " 
+			   << (*itor) << std::endl;
+	}
+
+	Protocol proto(L"tcp");
+	std::wcout << L"Name: " 
+		   << proto.getName() 
+		   << L", Number: "
+		   << proto.getNumber() << std::endl;
+	
+	Service serv(L"finger", proto.getName());
+	std::wcout << L"Service Name: "
+		   << serv.getName()
+		   << L", Service Number: " 
+		   << serv.getPort() << std::endl;
+
+	} catch (SynerEdgeException &e) {
+	std::wcout << e.getMsg() << std::endl;
+	}
+
+}
+@
+
+
+1.1
+log
+@Cleaned Service (made port a short)
+added test program
+@
+text
+@d28 2
+a29 2
+	Host local("localhost", true);
+	std::wcout << StringConversion::toUTF16(local.getIP().toString())
+d32 3
+a34 3
+	Host hst(StringConversion::toUTF8(hname), false);
+	std::wcout << StringConversion::toUTF16(hst.getName()) << std::endl;
+	std::wcout << StringConversion::toUTF16(hst.getIP().toString()) << std::endl;
+d41 2
+a42 1
+			   << StringConversion::toUTF16((*itor).toString()) 				   << std::endl;
+d44 2
+a45 2
+	std::list<std::string> aliases = hst.getAliases();
+	for (std::list<std::string>::iterator itor = aliases.begin();
+d50 1
+a50 1
+			   << StringConversion::toUTF16(*itor) << std::endl;
+d53 4
+a56 4
+	Protocol proto("tcp");
+	std::wcout << "Name: " 
+		   << StringConversion::toUTF16(proto.getName()) 
+		   << ", Number: "
+d59 1
+a59 1
+	Service serv("finger", proto.getName());
+d61 1
+a61 1
+		   << StringConversion::toUTF16(serv.getName())
+@
+

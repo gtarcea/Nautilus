@@ -1,0 +1,115 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.2
+date	2005.06.02.19.38.57;	author irrer;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	555;
+commitid	97c429f60342e72;
+kopt	kv;
+filename	make_header;
+
+1.1
+date	2005.05.09.15.53.14;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+commitid	8a8427f86af2c7b;
+kopt	kv;
+filename	make_header;
+
+
+desc
+@@
+
+
+1.2
+log
+@Rework of policy engine.
+@
+text
+@
+# Make the header file for definining all fields in the
+# database.  This can be used by the C and C++ code when
+# referencing the database to ensure that the proper field
+# names, types, and sizes are being used.
+# 
+# Typical usage:
+# 
+#     make_header > SEDB.h
+
+DB_NAME=sedb
+
+# get list of tables
+tables=`echo 'show tables;' | mysql $DB_NAME | sed "s/^Tables_in_sedb *//"`
+
+# ----------------------------------------------------------------
+
+# process one row of the tables
+row()
+{
+    case "$2" in
+        bigint*)
+            echo "    int64 $1;"
+        ;;
+
+        float*)
+            echo "    float $1;"
+        ;;
+
+        int*)
+            echo "    int32 $1;"
+        ;;
+
+        text*)
+            echo "    char *$1;"
+        ;;
+
+        varchar*)
+            len=`echo "$2" | sed -e "s/.*(//" -e "s/).*//"`
+            len=`expr $len + 1`
+            echo "    char $1[${len}];"
+        ;;
+
+        *)
+            echo Unknown type: "$2"
+            exit 1
+        ;;
+    esac
+}
+
+# ----------------------------------------------------------------
+
+# process each table
+for t in $tables ; do
+    echo
+    echo "typedef struct SEDB_${t}_Struct {"
+    echo describe $t';' | mysql $DB_NAME | sed '1d' | \
+    while read r ; do
+        row $r
+    done
+    echo "} SEDB_${t};"
+done
+
+@
+
+
+1.1
+log
+@Made utility to generate typedefs based on database tables and fields.
+
+Updated files to use and test SEDB.h.
+
+Changed varchar(5000) field to text (in make_db) because
+mysql was converting it anyway.
+@
+text
+@@
+

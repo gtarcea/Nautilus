@@ -1,0 +1,436 @@
+head	1.6;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.6
+date	2005.06.12.23.17.21;	author aprakash;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	ea842acc20f61d9;
+kopt	kv;
+filename	@VirtualBlockFileUnitTest.cpp@;
+
+1.5
+date	2005.06.11.23.44.59;	author aprakash;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	d3442ab770f28f1;
+kopt	kv;
+filename	@VirtualBlockFileUnitTest.cpp@;
+
+1.4
+date	2005.06.10.17.38.02;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	8dc42a9cfef4331;
+kopt	kv;
+filename	@VirtualBlockFileUnitTest.cpp@;
+
+1.3
+date	2005.06.10.15.57.38;	author aprakash;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	f5842a9b83375b0;
+kopt	kv;
+filename	@VirtualBlockFileUnitTest.cpp@;
+
+1.2
+date	2005.06.09.17.02.38;	author aprakash;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	98042a875f55961;
+kopt	kv;
+filename	@VirtualBlockFileUnitTest.cpp@;
+
+1.1
+date	2005.05.01.21.57.52;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	e34427550d754c4;
+kopt	kv;
+filename	@VirtualBlockFileUnitTest.cpp@;
+
+
+desc
+@@
+
+
+1.6
+log
+@The VirtualDisk tests now work.
+There was a lot of code duplicated in various files in order to set up a virtual blockfile.
+I created a class TestUtils that contains some utilities to help create virtual blockfiles, etc.
+Add to that file any functions that are needed by more than one unit class.
+
+The cleanup of tmp files is also done in syg_unittest.cpp.
+@
+text
+@#include "VirtualBlockFileUnitTest.hpp"
+#include "VirtualBlockFile.hpp"
+#include "BlockFile.hpp"
+#include "Block.hpp"
+#include <stdlib.h>
+#include <iostream>
+#include "Testutils.hpp"
+using namespace std ;
+using namespace SynerEdge ;
+using SynerEdge::VirtualBlockFile ;
+
+// CPPUNIT_TEST_SUITE_REGISTRATION(VirtualBlockFileUnitTest) ;
+
+static BlockFile *bf1 = NULL;
+static BlockFile *bf2 = NULL;
+static BlockFile *bf3 = NULL;
+
+
+void
+VirtualBlockFileUnitTest::setUp()
+{
+//	cout << "VirtualBlockFileUnitTest::setUp()" << endl ;
+	// Start from a clean system
+
+
+	system("rm -f /tmp/bf1*");
+	system("rm -f /tmp/bf2*");
+	system("rm -f /tmp/bf3*");
+	system("rm -f /tmp/mybfe1*") ;
+	system("rm -f /tmp/myvbf*") ;
+
+
+	bf1 = new BlockFile("/tmp/bf1") ;
+	bf2 = new BlockFile("/tmp/bf2") ;
+	bf3 = new BlockFile("/tmp/bf3") ;
+
+	
+	CPPUNIT_ASSERT(bf1->create(1, 100, 1024)) ;
+	bf1->close() ;
+
+	CPPUNIT_ASSERT(bf2->create(1, 100, 1024)) ;
+	bf2->close() ;
+	CPPUNIT_ASSERT(bf3->create(1, 100, 1024));
+	bf3->close() ;
+
+	VirtualBlockFile::BlockFileList bflist ;
+	bflist.push_back(bf1) ;
+	bflist.push_back(bf2) ;
+	bflist.push_back(bf3) ;
+
+	// vbf = new VirtualBlockFile("vbf", bflist, 1024) ;
+	vbf = Testutils::makeTestVirtualBlockFile("vbf", 3, 100, 1024);
+
+	// The rest of the code assumes that everything is allocated. Allocate all the blocks.
+
+	CPPUNIT_ASSERT(vbf->open());
+	for (int i = 0; i < 300; i++) {
+		CPPUNIT_ASSERT(vbf->getFreeBlock() != 0);
+	}
+	CPPUNIT_ASSERT(vbf->getFreeBlock() == 0);
+		
+	
+	//tb1 = new Block() ;
+	//tb2 = new Block() ;
+}
+
+void
+VirtualBlockFileUnitTest::tearDown()
+{
+//	cout << "VirtualBlockFileUnitTest::tearDown()" << endl ;
+	if (vbf) {delete vbf ; vbf = NULL;}
+
+	if (bf1) {delete bf1; bf1 = NULL;}
+	if (bf2) {delete bf2; bf2 = NULL;}
+	if (bf3) {delete bf3; bf3 = NULL;}
+}
+
+void
+VirtualBlockFileUnitTest::testConstructor()
+{
+//	cout << "VirtualBlockFileUnitTest::testConstructor()" << endl ;
+
+	VirtualBlockFile::BlockFileList bflist ;
+	BlockFile bf("/tmp/mybfe1");
+	bflist.push_back(&bf) ;
+	VirtualBlockFile myvbf("myvbf", bflist, 1024) ;
+	VirtualBlockFile *newvbf = new VirtualBlockFile("newvbf", bflist, 1024) ;
+	CPPUNIT_ASSERT(newvbf != NULL);
+	if (newvbf) delete newvbf;
+
+
+}
+
+void
+VirtualBlockFileUnitTest::testCreateFile()
+{
+//	cout << "VirtualBlockFileUnitTest::testCreateFile()" << endl ;
+	CPPUNIT_ASSERT(vbf->open() == true) ;
+	// Test that 300 blocks were written
+	Block tb ;
+	// tests broken up to see behavior around disk boundaries
+	for (int i = 1 ; i <= 99 ; i++) {
+		CPPUNIT_ASSERT(vbf->readBlock(i, tb) == true) ;
+		CPPUNIT_ASSERT(tb.getBlockNum() == i) ;
+	}
+	CPPUNIT_ASSERT(vbf->readBlock(100, tb) == true) ;
+	CPPUNIT_ASSERT(tb.getBlockNum() == 100) ;
+
+	for (int i = 101 ; i <= 200 ; i++) {
+		CPPUNIT_ASSERT(vbf->readBlock(i, tb) == true) ;
+		CPPUNIT_ASSERT(tb.getBlockNum() == i) ;
+	}
+	for (int i = 201 ; i <= 300 ; i++) {
+		CPPUNIT_ASSERT(vbf->readBlock(i, tb) == true) ;
+		CPPUNIT_ASSERT(tb.getBlockNum() == i) ;
+	}
+	// out-of-bound check
+	CPPUNIT_ASSERT(vbf->readBlock(301, tb) == false);
+	CPPUNIT_ASSERT(vbf->readBlock(0, tb) == false);
+	// CPPUNIT_ASSERT(vbf->readBlock(-1, tb) == false); // Test not needed. unsigned val is passed
+}
+
+void VirtualBlockFileUnitTest::testOpenFile()
+{
+	//cout << "VirtualBlockFileUnitTest::testOpenFile()" << endl ;
+	// setUp has already run
+	CPPUNIT_ASSERT(vbf->open() == true) ;
+	CPPUNIT_ASSERT(vbf->getNumBlocks() == 300) ;
+	CPPUNIT_ASSERT(vbf->getNumFreeBlocks() == 0) ;
+	CPPUNIT_ASSERT(vbf->getBlockSize() == 1024) ;
+	//CPPUNIT_ASSERT(vbf->getStartingBlockNum() == 1) ;
+
+	// Test open of non-existent file
+	VirtualBlockFile::BlockFileList bflist ;
+	BlockFile bf("/tmp/doesnotexist");
+	bflist.push_back(&bf) ;
+	VirtualBlockFile nvbf("myvbf2", bflist, 1024) ;
+	CPPUNIT_ASSERT(nvbf.open() == false) ;
+}
+
+void VirtualBlockFileUnitTest::testReadWriteBlocks()
+{
+	char *buf = "DEF456123" ;
+	//cout << "VirtualBlockFileUnitTest::testReadWriteBlocks()" << endl ;
+	CPPUNIT_ASSERT(vbf->open() == true) ;
+	CPPUNIT_ASSERT(vbf->writeBlock(1, 0, 10, buf) == true) ;
+	Block b ;
+	CPPUNIT_ASSERT(vbf->readBlock(1, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+	CPPUNIT_ASSERT(vbf->writeBlock(2, 0, 10, buf) == true) ;
+	CPPUNIT_ASSERT(vbf->readBlock(2, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+	CPPUNIT_ASSERT(b.getBlockNum() == 2) ;
+	b.setBlockNum(3) ;
+	CPPUNIT_ASSERT(vbf->writeBlock(b) == true) ;
+	CPPUNIT_ASSERT(vbf->readBlock(3, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+	CPPUNIT_ASSERT(b.getBlockNum() == 3) ;
+}
+
+void
+VirtualBlockFileUnitTest::testZeroAndFreeBlocks()
+{
+	Block b ;
+	//cout << "VirtualBlockFileUnitTest::testZeroAndFreeBlocks()" << endl ;
+
+	char *buf = "DEF456123" ;
+	CPPUNIT_ASSERT(vbf->open() == true) ;
+	CPPUNIT_ASSERT(vbf->writeBlock(1, 0, 10, buf) == true) ;
+	CPPUNIT_ASSERT(vbf->readBlock(1, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() != 0) ;
+	CPPUNIT_ASSERT(vbf->zeroBlock(1) == true) ;
+	CPPUNIT_ASSERT(vbf->readBlock(1, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 0) ;
+	CPPUNIT_ASSERT(vbf->releaseBlock(1) == true) ;
+	CPPUNIT_ASSERT(vbf->readBlock(1, b) == false) ;
+}
+
+
+void
+VirtualBlockFileUnitTest::testFreeBlockListMethods()
+{
+	CPPUNIT_ASSERT(vbf->open() == true) ;
+
+	// Everything was allocated previously in setup.
+
+	CPPUNIT_ASSERT(vbf->releaseBlock(0) == false);
+	CPPUNIT_ASSERT(vbf->releaseBlock(301) == false);
+
+	for (int i = 1; i <= 300; i++) {
+		CPPUNIT_ASSERT(vbf->releaseBlock(i) == true);
+	}
+
+	int64 f = vbf->getNumFreeBlocks() ;
+	CPPUNIT_ASSERT(vbf->getNumFreeBlocks() == 300) ;
+	int64 bn = vbf->getFreeBlock() ;
+	CPPUNIT_ASSERT(vbf->getNumFreeBlocks() == 299) ;
+	CPPUNIT_ASSERT(vbf->releaseBlock(bn) == true) ;
+	CPPUNIT_ASSERT(vbf->getNumFreeBlocks() == 300) ;
+	bn = vbf->getFreeBlock() ;
+	CPPUNIT_ASSERT(vbf->getNumFreeBlocks() == 299) ;
+	vbf->close() ;
+	CPPUNIT_ASSERT(vbf->open() == true) ;
+	CPPUNIT_ASSERT(vbf->getNumFreeBlocks() == 299) ;
+	CPPUNIT_ASSERT(vbf->flushFreeBlockList() == true) ;
+
+	system("rm -f /tmp/bf*") ;
+}
+
+
+@
+
+
+1.5
+log
+@Added a test NetworkVirtualBlockFile (very slow currently) that builds
+a virtual disk out of two local blockfiles and a networkblockfile.
+
+Fixed VirtualBlockFile to be compatible with changed VirtualBlockFile.
+
+Commented out VirtualDiskUnitTest and BlockCacheStdUnitTest because
+they will not compile due to changes in VirtualBlockFile class. They need
+to be fixed and then checked in.
+@
+text
+@d7 1
+d51 2
+a52 1
+	vbf = new VirtualBlockFile("vbf", bflist, 1024) ;
+@
+
+
+1.4
+log
+@Change rm to rm -f
+@
+text
+@d3 1
+d13 5
+a30 3
+	BlockFile bf1("/tmp/bf1") ;
+	BlockFile bf2("/tmp/bf2") ;
+	BlockFile bf3("/tmp/bf3") ;
+d32 3
+d37 2
+a38 2
+	CPPUNIT_ASSERT(bf1.create(1, 100, 1024)) ;
+	bf1.close() ;
+d40 4
+a43 4
+	CPPUNIT_ASSERT(bf2.create(101, 100, 1024)) ;
+	bf2.close() ;
+	CPPUNIT_ASSERT(bf3.create(201, 100, 1024));
+	bf3.close() ;
+d46 3
+a48 3
+	bflist.push_back("/tmp/bf1") ;
+	bflist.push_back("/tmp/bf2") ;
+	bflist.push_back("/tmp/bf3") ;
+d69 5
+a73 1
+	delete vbf ;
+d82 2
+a83 1
+	bflist.push_back("/tmp/mybfe1") ;
+d86 4
+d99 9
+a107 1
+	for (int i = 1 ; i < 301 ; i++) {
+d111 8
+d133 2
+a134 1
+	bflist.push_back("/tmp/doesnotexist") ;
+d207 2
+@
+
+
+1.3
+log
+@Fixed the tests so that they are compliant with new assumptions.
+Also, each test is now independent of others. Rule:
+
+	setUp: cleans up old state.
+               establishes states for other tests.
+	each test: is independent of previous tests.
+@
+text
+@d19 5
+a23 5
+	system("rm /tmp/bf1*");
+	system("rm /tmp/bf2*");
+	system("rm /tmp/bf3*");
+	system("rm /tmp/mybfe1*") ;
+	system("rm /tmp/myvbf*") ;
+@
+
+
+1.2
+log
+@These are partially converted tests. Many will break because of the changes
+to how readBlock and writeBlock behave -- they will fail if blocks are
+not allocated.
+
+testOrder.cpp controls the order of tests.
+@
+text
+@d16 9
+a28 1
+	bool alreadycreated ;
+d30 2
+a31 1
+	alreadycreated = bf1.create(1, 100, 1024) ;
+d34 4
+a37 6
+	if (! alreadycreated) {
+		bf2.create(101, 100, 1024) ;
+		bf2.close() ;
+		bf3.create(201, 100, 1024) ;
+		bf3.close() ;
+	}
+d45 10
+d96 1
+a96 1
+	CPPUNIT_ASSERT(vbf->getNumFreeBlocks() == 300) ;
+d133 1
+d135 1
+a140 1
+	// CPPUNIT_ASSERT(b.isFree() == false) ;
+d142 1
+a142 2
+	CPPUNIT_ASSERT(vbf->readBlock(1, b) == true) ;
+	// CPPUNIT_ASSERT(b.isFree() == true) ;
+d145 1
+d150 10
+@
+
+
+1.1
+log
+@Unit Tests for VirtualBlockFile
+@
+text
+@d10 1
+a10 1
+CPPUNIT_TEST_SUITE_REGISTRATION(VirtualBlockFileUnitTest) ;
+d122 2
+a123 2
+	CPPUNIT_ASSERT(b.isFree() == false) ;
+	CPPUNIT_ASSERT(vbf->freeBlock(1) == true) ;
+d125 1
+a125 1
+	CPPUNIT_ASSERT(b.isFree() == true) ;
+@
+

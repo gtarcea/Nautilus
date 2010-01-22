@@ -1,0 +1,63 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.04.22.19.19.57;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	a2c42694e511cab;
+kopt	kv;
+filename	@FreeBlockMapUnitTest.hpp@;
+
+1.1
+date	2005.04.20.19.06.02;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	6a84266a80775a9;
+kopt	kv;
+filename	@FreeBlockMapUnitTest.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Moved unit tests to utest directory.
+@
+text
+@
+#include <cppunit/extensions/HelperMacros.h>
+class FreeBlockMapUnitTest : public CppUnit::TestFixture
+{
+	CPPUNIT_TEST_SUITE(FreeBlockMapUnitTest) ;
+	CPPUNIT_TEST(testConstructor) ;
+	CPPUNIT_TEST(testAllocateFreeMethods) ;
+	CPPUNIT_TEST(testOperators) ;
+	CPPUNIT_TEST_SUITE_END() ;
+public:
+	void setUp() ;
+	void tearDown() ;
+	void testConstructor() ;
+	void testAllocateFreeMethods() ;
+	void testOperators() ;
+} ;
+@
+
+
+1.1
+log
+@More unit tests, plus move over to new naming convention.
+@
+text
+@@
+

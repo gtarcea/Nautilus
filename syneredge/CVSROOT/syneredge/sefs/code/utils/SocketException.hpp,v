@@ -1,0 +1,52 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.12.23.23.43;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+commitid	f58425c587449ec;
+kopt	kv;
+filename	@SocketException.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@
+Add daemon and socket code.
+@
+text
+@// SocketException class
+
+
+#ifndef SocketException_class
+#define SocketException_class
+
+#include <string>
+
+class SocketException
+{
+ public:
+  SocketException ( std::string s ) : m_s ( s ) {};
+  ~SocketException (){};
+
+  std::string description() { return m_s; }
+
+ private:
+
+  std::string m_s;
+
+};
+
+#endif
+@

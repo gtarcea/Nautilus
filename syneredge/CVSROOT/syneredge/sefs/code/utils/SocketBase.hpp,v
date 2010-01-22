@@ -1,0 +1,339 @@
+head	1.6;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.6
+date	2005.06.15.03.20.15;	author rdesai;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	3fc42af9e61394c;
+kopt	kv;
+filename	@SocketBase.hpp@;
+
+1.5
+date	2005.06.13.20.53.21;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	e6042adf22442da;
+kopt	kv;
+filename	@SocketBase.hpp@;
+
+1.4
+date	2005.06.12.23.56.00;	author rdesai;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	a042accb76008d;
+kopt	kv;
+filename	@SocketBase.hpp@;
+
+1.3
+date	2005.06.07.14.56.02;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	dc842a5b56e5cb0;
+kopt	kv;
+filename	@SocketBase.hpp@;
+
+1.2
+date	2005.06.07.04.08.15;	author rdesai;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	88842a51d9f6cf2;
+kopt	kv;
+filename	@SocketBase.hpp@;
+
+1.1
+date	2005.05.06.10.21.31;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	9d4427b45114640;
+kopt	kv;
+filename	@SocketBase.hpp@;
+
+
+desc
+@@
+
+
+1.6
+log
+@Fix of some deadlock problems.
+@
+text
+@#ifndef SynerEdge_Socket_h__
+#define SynerEdge_Socket_h__
+
+#include "SynerEdge.hpp"
+#include "SocketAddress.hpp"
+#include "Net.hpp"
+#include "Observer.hpp"
+#include "boost/utility.hpp"
+//#include "SSLSocket.hpp"
+
+#include <sstream>
+
+namespace SynerEdge
+{
+
+typedef int socket_handle;
+
+class SocketException : public SynerEdgeException
+{
+public:
+	SocketException(const std::wstring &msg)
+	: SynerEdgeException(msg)
+	{}
+};
+
+class SocketTimeout : public SocketException
+{
+public:
+	SocketTimeout() : SocketException(L"Timeout") {}
+};
+
+class SocketBase : public Observable, private boost::noncopyable
+{
+public:
+	SocketBase(const Protocol &proto, bool isIP6);
+	SocketBase(socket_handle handle, const Protocol &proto, bool isIP6);
+	virtual ~SocketBase();
+
+	ObservableEvent<BaseEventArgs> socketClosing;
+
+	virtual void closeSocket();
+	virtual bool isClosed() const;
+	virtual void requestStop(); 
+	virtual bool isStopRequested() const;
+	void setBufferSize(unsigned int bufferSize);
+	void allocateSocket();
+
+	const Protocol &getProtocol() const;
+	bool isIP6() const;
+
+	boost::mutex &getMutex() { return mtx; }
+
+protected:
+	struct InnerData;
+
+	virtual void reallocate();
+	virtual void onSocketClosing(const BaseEventArgs &e);
+
+	InnerData &innerData;
+private:
+	unsigned int bufferSize;
+	boost::mutex mtx;
+
+	void applyBufferSize();
+
+	// non-copyable semantics
+	SocketBase(const SocketBase &copy);
+	SocketBase &operator=(const SocketBase &equal);
+};
+
+class ServerSocket : public SocketBase
+{
+public:
+	ServerSocket(const Service &serv, bool isBroadcast, bool isIP6);
+	virtual ~ServerSocket();
+
+	const Service &getService() const;
+	const SocketAddress &getSocketAddress() const;
+
+	void setReuseAddress(bool reuseIt);
+	void setNoDelay(bool nodelay) ;
+	void bindSocket();
+
+protected:
+	virtual void reallocate();
+
+private:
+	void applyReuse();
+	void applyNoDelay() ;
+
+	Service service;
+	SocketAddress address;
+	bool reuseAddress;
+	bool noDelay ;
+
+};
+
+class ClientSocket : public SocketBase
+{
+public:
+	ClientSocket(const SocketAddress &addr);
+	ClientSocket(int handle, const SocketAddress &addr);
+	virtual ~ClientSocket();
+
+	const SocketAddress &getSocketAddress() const;
+	void setTimeout(int millis);
+	int getTimeout() const;
+	virtual void connectSocket();
+
+	virtual std::string recvSocket(size_t numchars);
+	virtual bool sendSocket(std::string buffer);
+
+protected:
+	virtual void reallocate();
+
+private:
+	enum PollEnum { PollRead, PollWrite };
+
+	SocketAddress _sockaddr;
+	std::stringstream internalBuffer;
+	std::streamsize readPosition;
+	std::streamsize writePosition;
+	int timeout;
+
+	bool pollSocket(enum PollEnum pollType);
+	bool recvSocketInternal(size_t numchars);
+};
+
+/*class SSLClientSocket : public ClientSocket
+{
+public:
+	SSLClientSocket(const SocketAddress &addr, const SSLContext &context);
+	SSLClientSocket(int handle, const SocketAddress &addr, 
+	                const SSLContext &context);
+
+	virtual void connectSocket();
+
+	virtual std::string recvSocket(size_t numchars);
+	virtual bool sendSocket(std::string buffer);
+	
+protected:
+	virtual void reallocate();
+
+private:
+	SSLContext &ctx;
+};*/
+
+class TCPServerSocket : public ServerSocket
+{
+public:
+	TCPServerSocket(const Service &serv, bool isIP6, int queuelen);
+	virtual ~TCPServerSocket();
+
+	virtual ClientSocket *acceptSocket();
+	void listenSocket();
+
+protected:
+	virtual void reallocate();
+
+private:
+	int queuelen;
+};
+
+/*
+
+class SSLTCPServerSocket : public TCPServerSocket
+{
+public:
+	SSLTCPServerSocket(const Service &serv, bool isIP6, 
+	                   int queuelen, SSLContext &context);
+	virtual ~SSLTCPServerSocket();
+
+	virtual ClientSocket *acceptSocket();
+
+protected:
+	virtual void reallocate();
+
+private:
+	SSLContext &ctx;
+};*/
+
+}
+
+#endif
+
+@
+
+
+1.5
+log
+@Add support to set TCP_NODELAY flag. Hmmm... should probably use the #define
+for it rather than 1....
+@
+text
+@d26 6
+@
+
+
+1.4
+log
+@Cleanup of orb routines.  Mostly working the way I want now.
+@
+text
+@d75 1
+d83 1
+d88 1
+@
+
+
+1.3
+log
+@Comment out SSLSocket references - the needed includes don't exist.
+@
+text
+@d45 2
+d56 1
+@
+
+
+1.2
+log
+@Fixes for client orb stuff.
+@
+text
+@d9 1
+a9 1
+#include "SSLSocket.hpp"
+d117 1
+a117 1
+class SSLClientSocket : public ClientSocket
+d134 1
+a134 1
+};
+d152 2
+d168 1
+a168 1
+};
+@
+
+
+1.1
+log
+@Socket code, XDR and timers.
+@
+text
+@d4 1
+d9 1
+d96 1
+a96 1
+	void connectSocket();
+d98 2
+a99 2
+	std::string recvSocket(size_t numchars);
+	bool sendSocket(std::string buffer);
+d110 1
+d117 19
+d142 1
+a142 1
+	ClientSocket *acceptSocket();
+d150 16
+@
+

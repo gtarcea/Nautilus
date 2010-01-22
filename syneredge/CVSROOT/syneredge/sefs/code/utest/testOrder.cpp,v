@@ -1,0 +1,190 @@
+head	1.6;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.6
+date	2005.06.13.20.54.08;	author gtarcea;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	ac842adf24a4356;
+kopt	kv;
+filename	@testOrder.cpp@;
+
+1.5
+date	2005.06.13.13.00.17;	author aprakash;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	80842ad834f58ec;
+kopt	kv;
+filename	@testOrder.cpp@;
+
+1.4
+date	2005.06.13.12.09.04;	author aprakash;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	d6442ad772c3149;
+kopt	kv;
+filename	@testOrder.cpp@;
+
+1.3
+date	2005.06.13.00.49.19;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	b9042acd7ff297c;
+kopt	kv;
+filename	@testOrder.cpp@;
+
+1.2
+date	2005.06.11.23.44.59;	author aprakash;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	d3442ab770f28f1;
+kopt	kv;
+filename	@testOrder.cpp@;
+
+1.1
+date	2005.06.09.17.03.14;	author aprakash;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	15442a876445a63;
+kopt	kv;
+filename	@testOrder.cpp@;
+
+
+desc
+@@
+
+
+1.6
+log
+@Change Poll() timeout and call setNoDelay().
+
+Cleanup extra lines in testOrder.cpp
+@
+text
+@#include "BlockCacheStdUnitTest.hpp"
+#include "BlockFileIOUnitTest.hpp"
+#include "BlockFileUnitTest.hpp"
+#include "FaultyBlockFileUnitTest.hpp"
+#include "BlockUnitTest.hpp"
+#include "FileBlockMapUnitTest.hpp"
+#include "FreeBlockMapUnitTest.hpp"
+#include "NetworkBlockFileUnitTest.hpp"
+#include "StorProvSvrInterfaceUnitTest.hpp"
+#include "VirtualBlockFileUnitTest.hpp"
+#include "NetworkVirtualBlockFileUnitTest.hpp"
+#include "VirtualDiskUnitTest.hpp"
+#include "sygstorproviderUnitTest.hpp"
+
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockFileUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(FaultyBlockFileUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockFileIOUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(FileBlockMapUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(FreeBlockMapUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(VirtualBlockFileUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(NetworkVirtualBlockFileUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockCacheStdUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(VirtualDiskUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(NetworkBlockFileUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(StorProvSvrInterfaceUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(sygstorproviderUnitTest) ;
+@
+
+
+1.5
+log
+@Fixed BlockCacheStdUnitTest so that the code compiles.
+@
+text
+@a14 1
+
+a27 3
+
+
+
+@
+
+
+1.4
+log
+@Added unit tests for faulty disks. The tests are partial so far. They only
+simulate disks on which failures are rare or not enabled.
+@
+text
+@d1 1
+a1 1
+// #include "BlockCacheStdUnitTest.hpp"
+d24 1
+a24 4
+
+// Following commented out because they wouldn't compile right now
+// Due to updates to VirtualBlockFile interface.
+// CPPUNIT_TEST_SUITE_REGISTRATION(BlockCacheStdUnitTest) ;
+@
+
+
+1.3
+log
+@Add VirtualDiskUnitTest to tests to run.
+@
+text
+@d4 1
+d18 1
+d24 1
+@
+
+
+1.2
+log
+@Added a test NetworkVirtualBlockFile (very slow currently) that builds
+a virtual disk out of two local blockfiles and a networkblockfile.
+
+Fixed VirtualBlockFile to be compatible with changed VirtualBlockFile.
+
+Commented out VirtualDiskUnitTest and BlockCacheStdUnitTest because
+they will not compile due to changes in VirtualBlockFile class. They need
+to be fixed and then checked in.
+@
+text
+@d11 1
+a11 1
+// #include "VirtualDiskUnitTest.hpp"
+a23 1
+// CPPUNIT_TEST_SUITE_REGISTRATION(VirtualDiskUnitTest) ;
+d25 1
+@
+
+
+1.1
+log
+@Controls the order in which tests are run.
+@
+text
+@d1 1
+a1 1
+#include "BlockCacheStdUnitTest.hpp"
+d10 2
+a11 1
+#include "VirtualDiskUnitTest.hpp"
+d21 5
+a25 2
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockCacheStdUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(VirtualDiskUnitTest) ;
+@
+

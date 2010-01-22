@@ -1,0 +1,60 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.06.12.01.39.52;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	f3c42ab925401fe;
+kopt	kv;
+filename	@iBlockIO.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Rename BlockFileBase.hpp to iBlockIO.hpp, rename class, cleanup interfaces
+@
+text
+@
+#ifndef __iBlockIO_INCLUDE_
+#define __iBlockIO_INCLUDE_
+
+#include "SynerEdge.hpp"
+#include <Block.hpp>
+
+namespace SynerEdge {
+
+class iBlockIO {
+	public:
+		iBlockIO() {} ;
+		virtual ~iBlockIO() {} ;
+
+		virtual bool open() = 0 ;
+		virtual bool close() = 0 ;
+		virtual uint64 getNumBlocks() = 0 ;
+		virtual uint64 getNumFreeBlocks() = 0 ;
+		virtual uint64 getFreeBlock() = 0 ;
+		virtual bool releaseBlock(uint64 blocknum) = 0 ;
+		virtual bool flushFreeBlockList() = 0 ;
+		virtual int getBlockSize() const = 0 ;
+		virtual bool writeBlock(uint64 blocknum, int offset, int size, char *data) = 0 ;
+		virtual bool writeBlock(Block &block) = 0 ;
+		virtual bool readBlock(uint64 blocknum, Block &block) = 0 ;
+		virtual bool zeroBlock(uint64 blocknum) = 0 ;
+
+} ;
+
+} ; // namespace SynerEdge
+
+#endif /* __iBlockIO_INCLUDE_ */
+@

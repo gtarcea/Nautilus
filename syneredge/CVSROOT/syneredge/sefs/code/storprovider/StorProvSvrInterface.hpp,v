@@ -1,0 +1,85 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.01.18.52.27;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	b68429e03dc3ce7;
+kopt	kv;
+filename	@StorProvSvrInterface.hpp@;
+
+1.1
+date	2005.05.31.18.12.09;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	79c429ca8e34fd5;
+kopt	kv;
+filename	@StorProvSvrInterface.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Add getBlockSize() call support.
+@
+text
+@
+#ifndef __StorProvSvrInterface_INCLUDE_
+#define __StorProvSvrInterface_INCLUDE_
+
+#include "SynerEdge.hpp"
+#include "BlockFile.hpp"
+#include "XdrStream.hpp"
+#include "OrbBase.hpp"
+
+namespace SynerEdge {
+
+class StorProvSvrInterface
+{
+public:
+	StorProvSvrInterface(BlockFile &bf) ;
+
+        XdrStream *getNumBlocks(Context &ctx, XdrStream &xdrs) ;
+        XdrStream *getNumFreeBlocks(Context &ctx, XdrStream &xdrs) ;
+        XdrStream *getFreeBlock(Context &ctx, XdrStream &xdrs) ;
+        XdrStream *getBlockSize(Context &ctx, XdrStream &xdrs) ;
+        XdrStream *releaseBlock(Context &ctx, XdrStream &xdrs) ;
+        XdrStream *flushFreeBlockList(Context &ctx, XdrStream &xdrs) ;
+        XdrStream *writeBlock(Context &ctx, XdrStream &xdrs) ;
+        XdrStream *readBlock(Context &ctx, XdrStream &xdrs) ;
+        XdrStream *zeroBlock(Context &ctx, XdrStream &xdrs) ;
+
+private:
+	BlockFile &bf ;
+	int blockSize ;
+
+} ; // class StorProvSvrInterface
+
+} ; // namespace SynerEdge
+
+#endif // __StorProvSvrInterface_INCLUDE_
+@
+
+
+1.1
+log
+@Rename StorageProviderServerInterface to StorProvSvrInterface
+@
+text
+@d2 3
+d20 1
+d34 2
+@
+

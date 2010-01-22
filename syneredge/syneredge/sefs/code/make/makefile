@@ -1,0 +1,324 @@
+#
+# GNU makefile
+#
+# Requirements: 
+#	Windows: cl compiler v 13.x, GNU make v3.80
+#	All Unix: gcc v3.3.x compiler, GNU make v3.80
+#
+# Assumed directory structure:
+#	$(SYGHOME) -- which defaults to $(HOME)/syneredge
+#		build/
+#			<version>/
+#				obj/
+#					debug_32/
+#						binfo.obj
+#						<filname>.obj
+#					release_32/
+#						binfo.obj
+#						<filname>.obj
+#				lib/
+#					debug_32/
+#						libutils.so
+#						lib<dirname>.so
+#					release_32/
+#						libutils.ao
+#						lib<dirname>.so
+#				bin/
+#					debug_32/
+#						syn_test
+#					release_32/
+#						syn_test
+#		code/
+#			utils/
+#				syn_<exename>.cpp	-- executables.
+#				<anythingelse>.cpp	-- library routines
+#			<other-subdirs>/
+#				syn_<exename>.cpp	-- executables.
+#				<anythingelse>.cpp	-- library routines
+#
+# Command line switches:
+# 	BITS=32,64
+#		Build 32 bit or 64 bit executables
+#		Default is 32 on most platforms
+#	OPTIMIZE=release,debug,speed,size 
+#		Optimization switches for debug/release builds.
+#		Default is debug on all platforms
+#	THREADS=single,multi,nptl
+#		Indication of threadedness of compiled code
+#		Default is multi on all platforms
+#		nptl is an option only on RedHat Linux.  Builds using the NPTL.
+#	DISTDIR=<directory-path> 
+#		Distribution path to hold obj files, libraries, and executables.
+#		The $(OPTIMIZE)_$(BITS) directories are created under $(DISTDIR)
+#		Default is ".." (your current parent directory)
+#
+# Objects produced:
+#	Shared object libraries
+#		Name varies by operating system
+#		(pal.dll, lib.so, lib.sl, lib.dylib)
+#	Test suite executable
+#		testmain
+#
+# Targets:
+#	headers
+#		Copies API header files to distribution directory.  Allows
+#		us to point compiles at one place to pick up all headers.
+#
+#	all
+#		Builds all above objects into the distribution directory
+#		The current values of BITS and OPTIMIZE determine where
+#		in the distribution directory resulting files are placed.
+#
+#	package
+#		Recursively builds the PAL with the following switches-
+#			BITS=32 OPTIMIZE=debug THREADS=$(THREADS)
+#			BITS=32 OPTIMIZE=release THREADS=$(THREADS)
+#			BITS=64 OPTIMIZE=debug THREADS=$(THREADS)
+#			BITS=64 OPTIMIZE=release THREADS=$(THREADS)
+#		Certain combinations above are disabled for those operating
+#		systems where the build is not supported. Under IRIX, there
+#		is also an additional BITS=o32 combination that is supported.
+#
+#	binfo
+#		Generates the binfo.cpp and binfo.hpp files used to add version
+#		information to the produced binaries.  This information is
+#		accessible via the 'what' command.  This file should be re-
+#		generated whenever you are switching between BITS and
+#		OPTIMIZE values.
+#
+# Distribution directory:
+#	The distribution directory has the following layout:
+#		lib/
+#			debug_32
+#			debug_64
+#			release_32
+#			release_64
+#		bin/
+#			debug_32
+#			debug_64
+#			release_32
+#			release_64
+#		include/
+#
+#	When constructing any of the deliverable objects, the system works
+#	in the distribution directory indicated by the OPTIMIZE and BITS
+#	flags.  When building either of the libraries (for example), the
+#	object files are produced in the obj/$(OPTIMIZE)_$(BITS)/ directory.
+#	When producing executable files, any dependent object files that 
+#	are not already in a library, are placed in the obj/$(OPTIMIZE)_$(BITS)/
+#	directory.  
+#
+
+EXE_PREFIX := syg_
+
+lib_headers :=  $(filter-out %_internal.h, $(wildcard *.h)) $(filter-out %_internal.h, $(wildcard *.hpp))
+
+lib_csources := $(filter-out $(EXE_PREFIX)%.c, $(wildcard *.c))
+lib_cppsources := $(filter-out $(EXE_PREFIX)%.cpp, $(wildcard *.cpp))
+exe_csources := $(wildcard $(EXE_PREFIX)*.c)
+exe_cppsources := $(wildcard $(EXE_PREFIX)*.cpp)
+binfo_cppsource := binfo.cpp
+
+include $(SYGHOME)/code/make/makefile_platforms
+
+ifneq ($(REFERENCES), )
+REFINCS := $(addprefix -I$(SYGHOME)/code/, $(REFERENCES))
+REFS := $(subst /,_,$(REFERENCES))
+REFLIBS := $(addprefix $(libarea)$(PRELIB)syneredge_, $(REFS))
+ifeq ($(SUFSHRLINK),)
+REFLIBS := $(addsuffix $(SUFSHR), $(REFLIBS))
+else
+REFLIBS := $(addsuffix $(SUFSHRLINK), $(REFLIBS))
+endif
+else
+REFINCS :=
+endif
+
+sharedlib := $(sharedlibarea)$(PRELIB)syneredge_$(SUBDIR)$(SUFSHR)
+csharedlib := $(sharedlibarea)$(PRELIB)syneredge_$(SUBDIR)$(SUFSHR)
+sharedliblink = $(if $(SUFSHRLINK), $(libarea)$(PRELIB)syneredge_$(SUBDIR)$(SUFSHRLINK),)
+
+lib_cobjs := $(patsubst %.c, %$(SUFOBJ), $(lib_csources))
+lib_cobjs := $(addprefix $(objarea), $(lib_cobjs))
+binfo_cppobj := $(patsubst %.cpp, %$(SUFOBJ), $(binfo_cppsource))
+binfo_cppobj := $(addprefix $(objarea), $(binfo_cppobj))
+
+lib_cppobjs := $(patsubst %.cpp, %$(SUFOBJ), $(lib_cppsources))
+lib_cppobjs := $(addprefix $(objarea), $(lib_cppobjs))
+
+exe_cobjs := $(patsubst %.c, %$(SUFOBJ), $(exe_csources))
+exe_cobjs := $(addprefix $(objarea), $(exe_cobjs))
+exe_cbinaries := $(patsubst %.c, %$(SUFEXE), $(exe_csources))
+exe_cbinaries := $(addprefix $(binarea), $(exe_cbinaries))
+
+exe_cppobjs := $(patsubst %.cpp, %$(SUFOBJ), $(exe_cppsources))
+exe_cppobjs := $(addprefix $(objarea), $(exe_cppobjs))
+exe_cppbinaries := $(patsubst %.cpp, %$(SUFEXE), $(exe_cppsources))
+exe_cppbinaries := $(addprefix $(binarea), $(exe_cppbinaries))
+
+.SUFFIXES: 				# delete all suffix rules
+
+.PHONY : all clean clobber lib headers depends buildall unbuildall package unpackage test binfo
+
+all : $(sharedlib)  $(exe_cbinaries) $(exe_cppbinaries)
+
+clean :
+	@rm -f $(exe_cbinaries) $(exe_cppbinaries) $(lib_cobjs) $(lib_cppobjs) $(exe_cobjs) $(exe_cppobjs) $(sharedlib) $(sharedliblink) $(sharedlibarea)*.exp $(sharedlibarea)*.ilk $(sharedlibarea)*.pdb $(sharedlibarea)*.map $(libarea)*.exp $(libarea)*.ilk $(libarea)*.map $(libarea)*.pdb $(binarea)*.ilk $(binarea)*.map $(binarea)*.pdb *.ilk *.map *.pdb
+
+dump :
+	@echo "Sharedlib: " $(sharedlib)
+	@echo "libarea: " $(libarea)
+	@echo "binarea: " $(binarea)
+#	@echo $(lib_cobjs)
+	@echo "exe_cobjs: " $(exe_cobjs)
+	@echo "binfo source: " $(binfo_cppsource)
+	@echo "binfo obj: " $(binfo_cppobj)
+#	@echo $(exe_cbinaries)
+	@echo "Subdir: " $(SUBDIR)
+	@echo "Distrib:" $(DISTRIB)
+	@echo "Wilds: " $(wilds)
+	
+clobber : clean
+	@rm -f binfo.cpp binfo.hpp $(binfo_cppobj)
+
+$(objarea)%$(SUFOBJ) : %.c
+	@-mkdir -p $(objarea)
+	$(CC) $(CCFLAGS) $(REFINCS) $(MYINCS) $(OPTIM) $(COMPONLY) $(COMPOUT)$(@) $(MULTITHREAD) $(CCDEFS) $(CCHDRS) $(<)
+
+$(objarea)%$(SUFOBJ) : %.cpp
+	@-mkdir -p $(objarea)
+	$(C++) $(C++FLAGS) $(REFINCS) $(MYINCS) $(OPTIM) $(C++FLAGS_NONDLL) $(COMPONLY) $(COMPOUT)$(@) $(MULTITHREAD) $(CCDEFS) $(CCHDRS) $(<)
+
+%.dep : %.cpp
+	gcc -MM $(<) $(REFINCS) $(MYINCS) $(C++FLAGS) > $@.X
+	@sed "1s;^;$(objarea);g" $@.X > $@
+	@rm $(@).X
+
+%.dep : %.c
+	@gcc -MM $(<) $(REFINCS) $(MYINCS) $(CCFLAGS) > $@.X
+	@sed "1s;^;$(objarea);g" $@.X > $@
+	@rm $(@).X
+
+$(sharedlib) : $(binfo_cppobj) $(lib_cppobjs) $(REFLIBS)
+	@-mkdir -p $(libarea)
+	@-mkdir -p $(sharedlibarea)
+	$(LINK++_DLL) $(LINKFLAGS) $(LINKFLAGS_DLL) $(OPTIM_LINK) $(LINKOUT)$(@) $(UNDEFS) $(^) $(IMPLIB) $(REFLIBS) $(MYLIBS) $(LINKLIBS)
+
+$(csharedlib) :  $(lib_cobjs) $(REFLIBS)
+	@-mkdir -p $(libarea)
+	@-mkdir -p $(sharedlibarea)
+	$(LINK_DLL) $(LINKFLAGS) $(LINKFLAGS_DLL) $(OPTIM_LINK) $(LINKOUT)$(@) $(UNDEFS) $(^) $(IMPLIB) $(REFLIBS) $(MYLIBS) $(LINKLIBS)
+
+$(exe_cbinaries) : $(binarea)%$(SUFEXE) : $(objarea)%$(SUFOBJ) $(REFLIBS)
+	@-mkdir -p $(binarea)
+	$(LINK) $(LINKFLAGS) $(OPTIM_LINK) $(LINKOUT)$(@) $(UNDEFS) $(<) $(sharedlib) $(REFLIBS) $(MYLIBS) $(LINKLIBS)
+
+$(exe_cppbinaries) : $(binarea)%$(SUFEXE) : $(objarea)%$(SUFOBJ) $(binfo_cppobj) $(REFLIBS)
+	@-mkdir -p $(binarea)
+	$(LINK++) $(LINKFLAGS) $(OPTIM_LINK) $(LINKOUT)$(@) $(UNDEFS) $(<) $(sharedlib) $(REFLIBS) $(MYLIBS) $(LINKLIBS)
+
+$(REFLIBS) : $(sharedlibarea)$(PRELIB)syneredge_%$(SUFSHR) : $(subst _,/,%)
+
+$(REFS) :
+	@cd $(SYGHOME)/code/$(subst _,/,$(@)); \
+	$(MAKE) $(sharedlibarea)$(PRELIB)syneredge_$(@)$(SUFSHR)
+
+$(REFERENCES) : 
+	@cd $(SYGHOME)/code/$(@); \
+	$(MAKE) $(sharedlibarea)$(PRELIB)syneredge_$(subst /,_,$(@))$(SUFSHR)
+
+depends : $(patsubst %.cpp, %.dep, $(wildcard *.cpp)) $(patsubst %.c, %.dep, $(wildcard *.c)) 
+
+rmdepends : 
+	@rm -rf *.dep
+
+headers : $(lib_headers)
+	@rm -rf $(hdrarea)
+	@-mkdir -p $(hdrarea)
+	@cp $(lib_headers) $(hdrarea)
+	@chmod 555 $(hdrarea)*.h $(hdrarea)*.hpp
+
+buildall : 
+	rm -f $(DISTDIR)/$(TARBALL) $(if $(COMPRESS), $(DISTDIR)/$(TARBALL)$(COMPRESSEXT), );
+	@if [ $(HASO32BIT) -ne 0 ]; \
+	then \
+		$(MAKE) BITS=o32 OPTIMIZE=debug THREADS=$(THREADS) binfo all; \
+		$(MAKE) BITS=o32 OPTIMIZE=release THREADS=$(THREADS) binfo all; \
+	fi
+	@if [ $(HAS32BIT)  -ne 0 ]; \
+	then \
+		$(MAKE) BITS=32 OPTIMIZE=debug THREADS=$(THREADS) binfo all; \
+		$(MAKE) BITS=32 OPTIMIZE=release THREADS=$(THREADS) binfo all; \
+	fi
+	@if [ $(HAS64BIT) -ne 0 ]; \
+	then \
+		$(MAKE) BITS=64 OPTIMIZE=debug THREADS=$(THREADS) binfo all; \
+		$(MAKE) BITS=64 OPTIMIZE=release THREADS=$(THREADS) binfo all; \
+	fi
+
+unbuildall : 
+	rm -rf $(DISTDIR)/lib/*
+
+package : binfo buildall headers
+
+unpackage : unbuildall
+
+lib : $(sharedlib)
+
+test : 
+	@echo "detected compiler version: $(compiler_version)."
+	@echo "required compiler version: $(compare_compiler_version)."
+	@if [ $(compiler_version) -ge $(compare_compiler_version) ]; \
+	then echo "You should be good to go"; \
+	else  \
+		echo "May be a problem here."; \
+		exit 1; \
+	fi
+	
+
+binfo.cpp : binfo.hpp
+	@echo "/**" > binfo.cpp
+	@echo " *  File: binfo.cpp" >> binfo.cpp
+	@echo " *  This is a generated file based on the build." >> binfo.cpp
+	@echo " *  Do not modify this directly, instead modify" >> binfo.cpp
+	@echo " *  the makefile that generated it." >> binfo.cpp
+	@echo "*/" >> binfo.cpp
+	@echo "" >> binfo.cpp
+	@echo "#include \"binfo.hpp\"" >> binfo.cpp
+	@echo "" >> binfo.cpp
+	@echo "static char *product_header[] = {" >> binfo.cpp
+	@echo "	BUILD_PRODUCT," >> binfo.cpp
+	@echo "	BUILD_VERSION," >> binfo.cpp
+	@echo "	BUILD_DATE," >> binfo.cpp
+	@echo "	BUILD_OPTIM," >> binfo.cpp
+	@echo "	BUILD_BITS," >> binfo.cpp
+	@echo "	BUILD_OS," >> binfo.cpp
+	@echo "	0" >> binfo.cpp
+	@echo "};" >> binfo.cpp
+	@echo "" >> binfo.cpp
+	@echo "char **get_product_header() { return product_header; }" >> binfo.cpp
+	@echo "" >> binfo.cpp
+
+
+binfo.hpp :
+	@echo "/** " > binfo.hpp
+	@echo " *  File: binfo.hpp" >> binfo.hpp
+	@echo " *  This is a generated file based on the build." >> binfo.hpp
+	@echo " *  Do not modify this directly, instead modify" >> binfo.hpp
+	@echo " *  the GNUmakefile that generated it." >> binfo.hpp
+	@echo "*/" >> binfo.hpp
+	@echo "" >> binfo.hpp
+	@echo "#define BUILD_PRODUCT \"@(#) Product:  Syneredge\"" >> binfo.hpp
+	@echo "#define BUILD_VERSION \"@(#) Release:  $(VER)\"" >> binfo.hpp
+	@echo "#define BUILD_DATE    \"@(#) Date:     `date`\"" >> binfo.hpp
+	@echo "#define BUILD_OPTIM   \"@(#) Optimize: $(OPTIMIZE)\"" >> binfo.hpp
+	@echo "#define BUILD_BITS    \"@(#) Bits:     $(BITS) \"" >> binfo.hpp
+	@echo "#define BUILD_OS      \"@(#) OS:       $(os)_$(osver) \"" >> binfo.hpp
+	@echo "" >> binfo.hpp
+
+
+binfo:
+	@rm -f binfo.hpp binfo.cpp
+	$(MAKE) OPTIMIZE=$(OPTIMIZE) BITS=$(BITS) THREADS=$(THREADS) binfo.cpp 
+
+$(foreach depfile,$(wildcard *.dep),$(eval include $(depfile)))

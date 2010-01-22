@@ -1,0 +1,623 @@
+head	1.10;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.10
+date	2005.06.14.22.55.43;	author rdesai;	state Exp;
+branches;
+next	1.9;
+deltatype	text;
+permissions	666;
+commitid	d8042af605f6ece;
+kopt	kv;
+filename	@OrbBase.hpp@;
+
+1.9
+date	2005.06.13.10.44.32;	author rdesai;	state Exp;
+branches;
+next	1.8;
+deltatype	text;
+permissions	666;
+commitid	e5042ad6359708d;
+kopt	kv;
+filename	@OrbBase.hpp@;
+
+1.8
+date	2005.06.13.03.08.21;	author rdesai;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	666;
+commitid	d1842acf870136d;
+kopt	kv;
+filename	@OrbBase.hpp@;
+
+1.7
+date	2005.06.12.23.56.00;	author rdesai;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	a042accb76008d;
+kopt	kv;
+filename	@OrbBase.hpp@;
+
+1.6
+date	2005.06.12.21.25.09;	author rdesai;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	ad842aca81f0d25;
+kopt	kv;
+filename	@OrbBase.hpp@;
+
+1.5
+date	2005.06.12.12.00.16;	author rdesai;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	ab042ac23b15cb0;
+kopt	kv;
+filename	@OrbBase.hpp@;
+
+1.4
+date	2005.06.07.04.08.15;	author rdesai;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	88842a51d9f6cf2;
+kopt	kv;
+filename	@OrbBase.hpp@;
+
+1.3
+date	2005.05.24.17.45.50;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	e044293683b18cd;
+kopt	kv;
+filename	@OrbBase.hpp@;
+
+1.2
+date	2005.05.23.18.15.38;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	d042921dba6183;
+kopt	kv;
+filename	@OrbBase.hpp@;
+
+1.1
+date	2005.05.21.15.16.04;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	df4428f50a13bc6;
+kopt	kv;
+filename	@OrbBase.hpp@;
+
+
+desc
+@@
+
+
+1.10
+log
+@oops - apparently a check-in did not go thru
+@
+text
+@#ifndef SynerEdge_OrbBase_h__
+#define SynerEdge_OrbBase_h__
+
+#include "XdrStream.hpp"
+#include "SynerEdge.hpp"
+#include "SemaQueue.hpp"
+#include <map>
+#include <string>
+#include <list>
+#include "boost/utility.hpp"
+#include "boost/thread.hpp"
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/condition.hpp"
+
+namespace SynerEdge
+{
+
+class OrbException : public SynerEdgeException
+{
+public:
+	OrbException(const std::wstring &msg) : SynerEdgeException(msg) {}
+};
+
+struct LoginValues
+{
+	std::wstring username;
+	std::wstring password;
+
+};
+
+XdrStream &operator<<(XdrStream &xdr, const LoginValues &loginValues);
+XdrStream &operator>>(XdrStream &xdr, const LoginValues &loginValues);
+
+class AdditionalContextData
+{
+public:
+	AdditionalContextData() {}
+	virtual ~AdditionalContextData() {}
+};
+
+class Context
+{
+public:
+	Context() 
+	: clientSocket(0), additionalData(0), username(), password() 
+	{}
+
+	Context(ClientSocket *soc, 
+		const std::wstring &uname, 
+		const std::wstring &passwd) 
+	: clientSocket(soc), username(uname), password(passwd), 
+	  additionalData(0) 
+	{}
+	virtual ~Context() {}
+
+	std::wstring username;
+	std::wstring password;
+	ClientSocket *clientSocket;
+	AdditionalContextData *additionalData;
+};
+
+struct InvokeRequest
+{
+	InvokeRequest();
+	InvokeRequest(const InvokeRequest &copy);
+	InvokeRequest &operator=(const InvokeRequest &equal);
+
+	uint32_t requestId;
+	std::wstring interfaceName;
+	std::wstring versionNumber;
+	std::wstring methodName;
+	XdrStream parameters;
+};
+
+XdrStream &operator<<(XdrStream &xdr, const InvokeRequest &invokeReq);
+XdrStream &operator>>(XdrStream &xdr, InvokeRequest &invokeReq);
+
+struct InvokeResponse
+{
+	InvokeResponse();
+	InvokeResponse(const InvokeResponse &copy);
+	InvokeResponse &operator=(const InvokeResponse &equal);
+
+	uint32_t requestId;
+	std::wstring errorMessage; 
+	XdrStream results;
+};
+
+XdrStream &operator<<(XdrStream &xdr, const InvokeResponse &invokeResp);
+XdrStream &operator>>(XdrStream &xdr, InvokeResponse &invokeResp);
+
+struct InvokeRequestOrResponse
+{
+	InvokeRequestOrResponse();
+	InvokeRequestOrResponse(const InvokeRequest &ir);
+	InvokeRequestOrResponse(const InvokeResponse &ir);
+	bool isRequest;
+	InvokeRequest invokeRequest;
+	InvokeResponse invokeResponse;	
+};
+
+XdrStream &operator<<(XdrStream &xdr, const InvokeRequestOrResponse &invokeReqOrResp);
+XdrStream &operator>>(XdrStream &xdr, InvokeRequestOrResponse &invokeRequestOrResponse);
+
+ClientSocket &operator<<(ClientSocket &soc, const InvokeRequestOrResponse &invokeReqOrResp);
+ClientSocket &operator>>(ClientSocket &soc, InvokeRequestOrResponse &invokeRequestOrResponse);
+
+typedef XdrStream (*methodfn)(Context &ctx, XdrStream &parameters);
+
+struct InvokeResponseWithWait
+{
+	InvokeResponseWithWait() : signaled(0) {}
+
+	InvokeResponse invokeResponse;
+	boost::mutex mtx;
+	boost::condition cnd;
+	int signaled;
+};
+
+class ResponseMap : boost::noncopyable
+{
+public:
+	~ResponseMap() {}
+	static boost::once_flag _sentry;
+	static void createInstance();
+
+	static ResponseMap *instance();
+
+	void createEntry(InvokeRequest &ir);
+	InvokeResponse waitOnEntry(InvokeRequest &ir);
+	void flagResponse(InvokeResponse &ir);
+private:
+	static ResponseMap *instance_;
+
+	typedef std::map<int, InvokeResponseWithWait*> ResponseMapWithWait;
+
+	ResponseMapWithWait responseMap;
+
+	ResponseMap() {}
+	ResponseMap(const ResponseMap &copy);
+	ResponseMap &operator=(const ResponseMap &equal);
+};
+
+class MethodDelegateBase
+{
+public:
+	MethodDelegateBase();
+	virtual XdrStream *operator() (Context &ctx, XdrStream &params) = 0;
+	virtual MethodDelegateBase *clone() = 0;
+	virtual bool operator==(const MethodDelegateBase &equals)
+	{
+		return isEqual(equals);
+	}
+	virtual bool isEqual(const MethodDelegateBase &equals) = 0;
+	virtual std::wstring getName() const = 0;
+};
+
+template<class T> class MethodDelegate : public MethodDelegateBase
+{
+public:
+	typedef XdrStream *(T::*MemberPtr)(Context &ctx, XdrStream &params);
+
+	MethodDelegate() : mname(), mptr(0), obj(0) { }
+	MethodDelegate(const MethodDelegate &copy) : mname(copy.mname), mptr(copy.mptr), obj(copy.obj) {}
+	MethodDelegate(const std::wstring &mname_, T &obj_, MemberPtr mptr_) : mname(mname_), mptr(mptr_), obj(&obj_) { }
+
+	virtual ~MethodDelegate() {}
+	virtual XdrStream *operator()(Context &ctx, XdrStream &params)
+	{
+		return (obj->*mptr)(ctx, params);
+	}	
+	virtual MethodDelegateBase *clone()
+	{
+		return new MethodDelegate<T>(*this);
+	}
+	virtual bool isEqual(const MethodDelegateBase &equals)
+	{
+		bool result = false;
+		const MethodDelegate *test = 
+			dynamic_cast<const MethodDelegate *>(&equals);
+		if (test != 0)
+		{
+			result = ((obj == test->obj) && (mptr == test->mptr));
+		}
+		return result;
+	}
+	virtual std::wstring getName() const
+	{
+		return mname;
+	}
+private:
+	T *obj;
+	std::wstring mname;
+	MemberPtr mptr;
+};
+
+typedef std::pair< std::wstring, std::wstring> InterfaceVersionPair;
+
+class BaseInterface
+{
+public:
+	BaseInterface();
+	BaseInterface(const BaseInterface &copy);
+	BaseInterface(const std::wstring &interfaceName, const std::wstring &interfaceVersion);
+	BaseInterface &operator=(const BaseInterface &equal);
+	virtual ~BaseInterface();
+
+	void operator+=(MethodDelegateBase *method);
+	void operator-=(MethodDelegateBase *method);
+
+	virtual XdrStream *operator()(const std::wstring &methodName, Context &ctx, XdrStream &params) = 0;
+
+	virtual bool authorize(const Context &ctx);
+	InterfaceVersionPair getInterfaceVersion() const;
+
+protected:
+	static int requestCounter;
+	static boost::mutex mtx;
+	static int incrementRequestCounter();
+
+	typedef std::map< std::wstring, MethodDelegateBase*> MethodMap;
+
+	std::wstring interfaceName;
+	std::wstring interfaceVersion;
+
+	MethodMap methodMap;
+};
+
+class ServerInterface : public BaseInterface
+{
+public:
+	ServerInterface(const std::wstring &interfaceName, const std::wstring &versionNumber) : BaseInterface(interfaceName, versionNumber)
+	{}
+	ServerInterface() : BaseInterface() {}
+	ServerInterface(const ServerInterface &copy) : BaseInterface(copy) {}
+
+	virtual XdrStream *operator()(const std::wstring &methodName, Context &ctx, XdrStream &params);
+};
+
+class ClientInterface : public BaseInterface
+{
+public:
+	ClientInterface(const std::wstring &interfaceName, const std::wstring &versionNumber) : BaseInterface(interfaceName, versionNumber) {}
+	ClientInterface() : BaseInterface() {}
+	ClientInterface(const ServerInterface &copy) : BaseInterface(copy) {}
+
+	virtual XdrStream *operator()(const std::wstring &methodName, Context &ctx, XdrStream &params);
+};
+
+class OrbBase
+{
+public:
+	OrbBase();
+	virtual ~OrbBase();
+
+	void operator+=(ServerInterface &iface);
+	void operator-=(ServerInterface &iface);
+	
+	ServerInterface &find(const InterfaceVersionPair &interfaceVersion);
+
+	virtual bool authenticate(const LoginValues &loginValues);
+
+	void processContext(Context &ctx);
+protected:
+	bool stopRequested;
+
+private:
+	typedef std::map<InterfaceVersionPair, ServerInterface> 
+		ServerInterfaceMap;
+
+	ServerInterfaceMap serverInterfaceMap;
+
+};
+
+class ClientOrb : public OrbBase
+{
+public:
+	ClientOrb(SocketAddress &addr, const std::wstring &uname, const std::wstring &password);
+	void start();
+	void join();
+
+	void setTimeout(int timeout);
+	Context &getContext() { return context; }
+
+protected:
+	class ListenThread
+	{
+	public:
+		ListenThread(ClientOrb *instance_);
+		void operator()();
+	private:
+		ClientOrb *instance;
+	};
+
+private:
+	boost::thread *listenThread;
+	SocketAddress addr;
+	Context context;
+	int timeout;
+
+	void createListenThread();
+};
+
+class ServerOrb : public OrbBase
+{
+public:
+	ServerOrb(const Service &serv, bool isIP6, int queuelen);
+
+	void setTimeout(int milliseconds);
+
+	void start(unsigned threadcount);
+	void join();
+
+protected:
+	class ExecuteThread
+	{
+	public:
+		ExecuteThread(ServerOrb *instance);
+		void operator()();
+
+	private:
+		ServerOrb *instance;
+	};
+
+	class ListenThread
+	{
+	public:
+		ListenThread(ServerOrb *instance);
+		void operator()();
+	private:
+		ServerOrb *instance;
+	};
+
+private:
+	boost::thread *listenThread;
+
+	SemaQueue<Context> que;
+	TCPServerSocket tcpserv;
+	boost::thread_group thrgroup;
+	bool started;
+	int threadcount;
+	int timeout;
+
+	void createListenThread();
+
+};
+
+}
+
+#endif
+
+@
+
+
+1.9
+log
+@One final refactoring - moved the code that processes the context and responds to information arriving on a socket into OrbBase::processContext.
+@
+text
+@d105 3
+@
+
+
+1.8
+log
+@More cleanup of Orb routines.  Fixed a bug in return results, also refactored
+the ORB stuff.
+@
+text
+@d260 4
+a295 1
+	bool stopRequested;
+a332 1
+	bool stopRequested;
+@
+
+
+1.7
+log
+@Cleanup of orb routines.  Mostly working the way I want now.
+@
+text
+@d66 2
+d82 2
+@
+
+
+1.6
+log
+@Not completely fixed, but better at least!
+@
+text
+@d267 1
+a267 1
+	ClientOrb(ClientSocket *sock);
+d271 3
+d286 2
+a287 1
+	ClientSocket *clientSocket;
+d289 1
+@
+
+
+1.5
+log
+@Cleanup of XDR server code.  Getting closer to parking this.
+@
+text
+@d10 4
+d44 10
+a53 3
+	Context() : clientSocket(0), additionalData(0), username() {}
+	Context(ClientSocket *soc, std::wstring uname) 
+	: clientSocket(soc), username(uname), additionalData(0) {}
+d57 1
+d103 34
+d192 1
+a192 1
+class ServerInterface
+d195 5
+a199 5
+	ServerInterface();
+	ServerInterface(const ServerInterface &copy);
+	ServerInterface(const std::wstring &interfaceName, const std::wstring &interfaceVersion);
+	ServerInterface &operator=(const ServerInterface &equal);
+	virtual ~ServerInterface();
+d204 1
+a204 1
+	XdrStream *operator()(const std::wstring &methodName, Context &ctx, XdrStream &params);
+d209 5
+a213 1
+private:
+d222 21
+d262 25
+@
+
+
+1.4
+log
+@Fixes for client orb stuff.
+@
+text
+@d32 1
+d40 3
+a42 1
+	Context() {}
+d227 1
+a227 1
+	SemaQueue<ClientSocket *> que;
+@
+
+
+1.3
+log
+@Fixed bugs to get Orb working
+@
+text
+@d6 1
+d49 2
+d63 2
+d73 13
+d187 45
+@
+
+
+1.2
+log
+@Fixes to OrbBase
+@
+text
+@d89 1
+a89 1
+	MethodDelegate() : mname(), mptr(0), obj(0) { std::wcout << L"not in constructor i expect" << std::endl; }
+d91 1
+a91 1
+	MethodDelegate(const std::wstring &mname_, T &obj_, MemberPtr mptr_) : mname(mname_), mptr(mptr_), obj(&obj_) { std::wcout << L"in constructor I expect" << std::endl; }
+@
+
+
+1.1
+log
+@SSL Stuff + ORB stuff
+@
+text
+@d56 1
+a56 1
+XdrStream &operator>>(XdrStream &xdr, const InvokeRequest &invokeReq);
+d66 1
+a66 1
+XdrStream &operator>>(XdrStream &xdr, const InvokeResponse &invokeResp);
+d74 2
+a75 2
+	virtual XdrStream *operator() (Context &ctx, XdrStream &params);
+	virtual MethodDelegateBase *clone();
+d80 2
+a81 2
+	virtual bool isEqual(const MethodDelegateBase &equals);
+	virtual std::wstring getName() const;
+d89 1
+a89 1
+	MethodDelegate() : mname(), mptr(0), obj(0) {}
+d91 1
+a91 1
+	MethodDelegate(const std::wstring mname_, T &obj_, MemberPtr mptr_) : mname(mname_), mptr(mptr_), obj(obj_) {}
+@
+

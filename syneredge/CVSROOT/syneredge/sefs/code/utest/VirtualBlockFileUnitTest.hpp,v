@@ -1,0 +1,83 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.10.15.57.39;	author aprakash;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	f5842a9b83375b0;
+kopt	kv;
+filename	@VirtualBlockFileUnitTest.hpp@;
+
+1.1
+date	2005.05.01.21.57.52;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	e34427550d754c4;
+kopt	kv;
+filename	@VirtualBlockFileUnitTest.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Fixed the tests so that they are compliant with new assumptions.
+Also, each test is now independent of others. Rule:
+
+	setUp: cleans up old state.
+               establishes states for other tests.
+	each test: is independent of previous tests.
+@
+text
+@
+#include <cppunit/extensions/HelperMacros.h>
+#include "VirtualBlockFile.hpp"
+
+class VirtualBlockFileUnitTest : public CppUnit::TestFixture
+{
+	CPPUNIT_TEST_SUITE(VirtualBlockFileUnitTest) ;
+	CPPUNIT_TEST(testConstructor) ;
+	CPPUNIT_TEST(testCreateFile) ;
+	CPPUNIT_TEST(testOpenFile) ;
+	CPPUNIT_TEST(testReadWriteBlocks) ;
+	CPPUNIT_TEST(testZeroAndFreeBlocks) ; 
+	CPPUNIT_TEST(testFreeBlockListMethods) ;
+	CPPUNIT_TEST_SUITE_END() ;
+public:
+	void setUp() ;
+	void tearDown() ;
+	void testConstructor() ;
+	void testCreateFile() ;
+	void testOpenFile() ;
+	void testReadWriteBlocks() ;
+	void testZeroAndFreeBlocks() ;
+	void testFreeBlockListMethods() ;
+
+private:
+	SynerEdge::VirtualBlockFile *vbf ;
+	bool blockfilescreated ;
+} ;
+@
+
+
+1.1
+log
+@Unit Tests for VirtualBlockFile
+@
+text
+@d12 1
+a12 1
+	CPPUNIT_TEST(testZeroAndFreeBlocks) ;
+@
+

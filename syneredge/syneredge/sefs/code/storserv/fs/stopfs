@@ -1,0 +1,19 @@
+#!/bin/sh
+
+FSPID=`ps -ef | grep 'synfs ' | grep -v grep | awk '{print $2}'`
+BLOCKDPID=`ps -ef | grep 'synwrblockd$' | grep -v grep | awk '{print $2}'`
+
+if [ "$FSPID" = "" ] ; then
+	echo "The SynerEdge FileSafe FS service is not running"
+else
+	echo "Stopping SynerEdge FileSafe FS service"
+	kill $FSPID
+fi
+
+if [ "$BLOCKDPID" = "" ] ; then
+	echo "The SynerEdge FileSafe Block Device service is not running"
+else
+	echo "Stopping SynerEdge FileSafe Block Device service"
+	kill $BLOCKDPID
+fi
+

@@ -1,0 +1,95 @@
+
+# Make the header file for definining all fields in the
+# database.  This can be used by the C and C++ code when
+# referencing the database to ensure that the proper field
+# names, types, and sizes are being used.
+# 
+# Typical usage:
+# 
+#     gen_header > SEDB.h
+
+DB_NAME=sedb
+
+PREFIX=SEDB_
+JOIN=__
+
+# get list of tables
+tables=`echo 'show tables;' | mysql $DB_NAME | sed "s/^Tables_in_sedb *//"`
+
+defines=/tmp/defines_$$
+
+# ----------------------------------------------------------------
+
+# process one row of the tables
+row()
+{
+    case "$2" in
+        bigint*)
+            echo "    int64 $1;"
+            echo "typedef int64 ${PREFIX}${t}${JOIN}${1};" >> $defines
+        ;;
+
+        float*)
+            echo "    float $1;"
+            echo "typedef float ${PREFIX}${t}${JOIN}${1};" >> $defines
+        ;;
+
+        int*)
+            echo "    int32 $1;"
+            echo "typedef int32 ${PREFIX}${t}${JOIN}${1};" >> $defines
+        ;;
+
+        text*)
+            echo "    char *$1;"
+            echo "typedef char *${PREFIX}${t}${JOIN}${1};" >> $defines
+        ;;
+
+        varchar*)
+            len=`echo "$2" | sed -e "s/.*(//" -e "s/).*//"`
+            len=`expr $len + 1`
+            echo "    char $1[${len}];"
+            echo "typedef char ${PREFIX}${t}${JOIN}${1}[${len}];" >> $defines
+        ;;
+
+        *)
+            echo Unknown type: "$2"
+            exit 1
+        ;;
+    esac
+}
+
+# ----------------------------------------------------------------
+
+cat <<END_OF_HEADING
+
+#ifndef SEDB_H
+#define SEDB_H
+
+// Definitions for each table and field in the sedb database.
+// Generated: `date` by `whoami`
+// This file was automatically generated with `basename $0`.
+
+END_OF_HEADING
+
+# process each table
+for t in $tables ; do
+    echo "// Table $t " >> $defines
+    echo
+    echo "typedef struct SEDB_${t}_Struct {"
+    lines_before=`wc -l < $defines`
+    echo describe $t';' | mysql $DB_NAME | sed '1d' | \
+    while read r ; do
+        row $r
+    done
+    echo "} SEDB_${t};"
+    lines_after=`wc -l < $defines`
+    echo describe $t';' | mysql $DB_NAME | sed '1d' | \
+    echo "#define ${t}__num_field ("`expr $lines_after - $lines_before`")" | tr '[a-z]' '[A-Z]' | sed "s/^#DEFINE /#define /"
+    echo >> $defines
+done
+
+cat $defines
+rm -f $defines
+
+echo '#endif'
+

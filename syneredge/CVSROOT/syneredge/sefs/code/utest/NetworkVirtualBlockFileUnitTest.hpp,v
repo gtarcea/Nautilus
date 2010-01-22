@@ -1,0 +1,62 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.06.11.23.44.59;	author aprakash;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	d3442ab770f28f1;
+kopt	kv;
+filename	@NetworkVirtualBlockFileUnitTest.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Added a test NetworkVirtualBlockFile (very slow currently) that builds
+a virtual disk out of two local blockfiles and a networkblockfile.
+
+Fixed VirtualBlockFile to be compatible with changed VirtualBlockFile.
+
+Commented out VirtualDiskUnitTest and BlockCacheStdUnitTest because
+they will not compile due to changes in VirtualBlockFile class. They need
+to be fixed and then checked in.
+@
+text
+@
+#include <cppunit/extensions/HelperMacros.h>
+#include "VirtualBlockFile.hpp"
+
+class NetworkVirtualBlockFileUnitTest : public CppUnit::TestFixture
+{
+	CPPUNIT_TEST_SUITE(NetworkVirtualBlockFileUnitTest) ;
+	CPPUNIT_TEST(testConstructor) ;
+	CPPUNIT_TEST(testCreateFile) ;
+	CPPUNIT_TEST(testOpenFile) ;
+	CPPUNIT_TEST(testReadWriteBlocks) ;
+	CPPUNIT_TEST(testZeroAndFreeBlocks) ; 
+	CPPUNIT_TEST(testFreeBlockListMethods) ;
+	CPPUNIT_TEST_SUITE_END() ;
+public:
+	void setUp() ;
+	void tearDown() ;
+	void testConstructor() ;
+	void testCreateFile() ;
+	void testOpenFile() ;
+	void testReadWriteBlocks() ;
+	void testZeroAndFreeBlocks() ;
+	void testFreeBlockListMethods() ;
+
+private:
+	SynerEdge::VirtualBlockFile *vbf ;
+} ;
+@

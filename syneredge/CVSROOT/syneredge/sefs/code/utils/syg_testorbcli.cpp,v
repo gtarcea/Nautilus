@@ -1,0 +1,416 @@
+head	1.7;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.7
+date	2005.06.13.10.44.32;	author rdesai;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	e5042ad6359708d;
+kopt	kv;
+filename	@syg_testorbcli.cpp@;
+
+1.6
+date	2005.06.13.03.08.22;	author rdesai;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	d1842acf870136d;
+kopt	kv;
+filename	@syg_testorbcli.cpp@;
+
+1.5
+date	2005.06.12.23.56.01;	author rdesai;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	a042accb76008d;
+kopt	kv;
+filename	@syg_testorbcli.cpp@;
+
+1.4
+date	2005.06.12.21.25.10;	author rdesai;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	ad842aca81f0d25;
+kopt	kv;
+filename	@syg_testorbcli.cpp@;
+
+1.3
+date	2005.06.12.12.00.17;	author rdesai;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	ab042ac23b15cb0;
+kopt	kv;
+filename	@syg_testorbcli.cpp@;
+
+1.2
+date	2005.06.07.04.08.16;	author rdesai;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	88842a51d9f6cf2;
+kopt	kv;
+filename	@syg_testorbcli.cpp@;
+
+1.1
+date	2005.05.24.17.46.21;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	d34429368611949;
+kopt	kv;
+filename	@syg_testorbcli.cpp@;
+
+
+desc
+@@
+
+
+1.7
+log
+@One final refactoring - moved the code that processes the context and responds to information arriving on a socket into OrbBase::processContext.
+@
+text
+@#include "SocketBase.hpp"
+#include "SocketAddress.hpp"
+#include "Net.hpp"
+#include "StringConversion.hpp"
+#include "Timer.hpp"
+#include "OrbBase.hpp"
+#include "MyTestServerInterface.hpp"
+
+#include <iostream>
+
+using namespace SynerEdge;
+
+int main(int argc, char **argv)
+{
+	try
+	{
+		Protocol tcp(L"tcp");
+		std::wcout << L"make proto: " << &tcp << std::endl;
+		std::wcout << L"making host" << std::endl;
+		Host hst(L"localhost", false);
+		std::wcout << L"making serv" << std:: endl;
+		Service serv(L"sygsrv", tcp);
+
+		std::wcout << L"making addr" << std::endl;
+		SocketAddress addr(hst, serv);
+
+		std::wcout << hst.getIP().toString() << std::endl;
+		std::wcout << serv.getPort() << std::endl;
+
+		std::wcout << L"constructing orb" << std::endl;
+		ClientOrb orb(addr, L"", L"");
+		std::wcout << L"setting timeout" << std::endl;
+		orb.setTimeout(10000);
+		std::wcout << L"starting orb" << std::endl;
+		orb.start();
+
+		std::wcout << L"creating client interface" << std::endl;
+		MyTest_0_1_ClientInterface mytest(orb);
+
+		std::wcout << L"calling func1" << std::endl;
+		mytest.func1(L"ravi", 27);
+
+		std::wcout << L"calling func2" << std::endl;
+		std::wstring f2res = mytest.func2(17.5, 8);
+
+		std::wcout << L"f2res=" << f2res << std::endl;
+
+		Timer::sleep(5000);
+
+		std::wcout << L"at end of real statements" << std::endl;
+	}
+	catch (SynerEdgeException &e)
+	{
+		std::wcout << e.getMsg() << std::endl;
+	}
+
+	std::wcout << L"done" << std::endl;
+}
+@
+
+
+1.6
+log
+@More cleanup of Orb routines.  Fixed a bug in return results, also refactored
+the ORB stuff.
+@
+text
+@d30 1
+d32 1
+d34 1
+d37 1
+d40 1
+d43 1
+@
+
+
+1.5
+log
+@Cleanup of orb routines.  Mostly working the way I want now.
+@
+text
+@d38 1
+a38 6
+		//InvokeRequest ir;
+		//ir.requestId = 1;
+		//ir.interfaceName = L"MyTest";
+		//ir.versionNumber = L"0_1";
+		//ir.methodName = L"func1";
+		//(ir.parameters) << L"ravi" << 27;
+d40 1
+a40 34
+		//ir.parameters.reportSize();
+
+		//InvokeRequestOrResponse irr(ir);
+		//std::wcout << L"isrequest: " << irr.isRequest << std::endl;
+
+		//XdrStream xdr;
+		//std::wcout << L"encoding irr" << std::endl;
+		//xdr << irr;
+
+		//std::wcout << L"transmitting on socket" << std::endl;
+
+		//sock << xdr;
+
+
+		//XdrStream results;
+		//sock >> results;
+
+		//results >> irr;
+
+		//if (irr.isRequest)
+	//	{
+                //        std::wcout << L"Request" << std::endl;
+                //        std::wcout << L"RequestId: " << irr.invokeRequest.requestId << std::endl;
+                //        std::wcout << L"interfaceName: " << irr.invokeRequest.interfaceName << std::endl;
+                //        std::wcout << L"versionNumber: " << irr.invokeRequest.versionNumber << std::endl;
+                //        std::wcout << L"methodName: " << irr.invokeRequest.methodName << std::endl;
+
+		//}
+		//else
+	//	{
+                //        std::wcout << L"Response" << std::endl;
+                //        std::wcout << L"RequestId: " << irr.invokeResponse.requestId << std::endl;
+
+		//}
+@
+
+
+1.4
+log
+@Not completely fixed, but better at least!
+@
+text
+@d30 2
+a31 9
+		std::wcout << L"making socket" << std::endl;
+		ClientSocket sock(addr);
+		sock.setTimeout(10000);
+
+		std::wcout << L"connecting socket" << std::endl;
+		sock.connectSocket();
+
+		Context ctx(&sock, L"", L"");
+		ClientOrb orb(&sock);
+d34 1
+a34 1
+		MyTest_0_1_ClientInterface mytest(ctx);
+@
+
+
+1.3
+log
+@Cleanup of XDR server code.  Getting closer to parking this.
+@
+text
+@d7 1
+d37 3
+a39 6
+		InvokeRequest ir;
+		ir.requestId = 1;
+		ir.interfaceName = L"MyTest";
+		ir.versionNumber = L"0_1";
+		ir.methodName = L"func1";
+		(ir.parameters) << L"ravi" << 27;
+d41 1
+a41 1
+		ir.parameters.reportSize();
+d43 1
+a43 2
+		InvokeRequestOrResponse irr(ir);
+		std::wcout << L"isrequest: " << irr.isRequest << std::endl;
+d45 6
+a50 3
+		XdrStream xdr;
+		std::wcout << L"encoding irr" << std::endl;
+		xdr << irr;
+d52 1
+a52 1
+		std::wcout << L"transmitting on socket" << std::endl;
+d54 2
+a55 1
+		sock << xdr;
+d57 3
+d61 1
+a61 2
+		XdrStream results;
+		sock >> results;
+d63 1
+a63 1
+		results >> irr;
+a64 7
+		if (irr.isRequest)
+		{
+                        std::wcout << L"Request" << std::endl;
+                        std::wcout << L"RequestId: " << irr.invokeRequest.requestId << std::endl;
+                        std::wcout << L"interfaceName: " << irr.invokeRequest.interfaceName << std::endl;
+                        std::wcout << L"versionNumber: " << irr.invokeRequest.versionNumber << std::endl;
+                        std::wcout << L"methodName: " << irr.invokeRequest.methodName << std::endl;
+d66 2
+a67 5
+		}
+		else
+		{
+                        std::wcout << L"Response" << std::endl;
+                        std::wcout << L"RequestId: " << irr.invokeResponse.requestId << std::endl;
+d69 17
+a85 1
+		}
+@
+
+
+1.2
+log
+@Fixes for client orb stuff.
+@
+text
+@a35 1
+
+d38 6
+a43 3
+		ir.interfaceName = L"interfaceone";
+		ir.versionNumber = L"1_0_0";
+		ir.methodName = L"mymethod";
+d49 1
+d52 2
+d55 22
+@
+
+
+1.1
+log
+@Added example function on how to use Orb.
+@
+text
+@d1 5
+a5 1
+#include "SynerEdge.hpp"
+d7 2
+a8 6
+#include "XdrStream.hpp"
+#include "boost/format.hpp"
+#include "boost/thread/thread.hpp"
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/condition.hpp"
+#include "StringConversion.hpp"
+d14 10
+a23 11
+        try
+        {
+		//OrbBase orb;
+		//std::wcout << "Before si add" << std::endl;
+		//orb += si;
+		//std::wcout << "After si add" << std::endl;
+	
+
+                Protocol tcp(L"tcp");
+                Host hst(L"localhost", false);
+                Service serv(L"sygsrv", tcp);
+d26 10
+a35 3
+                ClientSocket cli(addr);
+                cli.setTimeout(10000);
+		cli.connectSocket();
+d38 16
+a53 59
+		ir.requestId = 112;
+		ir.interfaceName = L"si";
+		ir.versionNumber = L"0_1";
+		ir.methodName = L"func";
+		//std::string that = "Hello World" ;
+		ir.parameters << 7 ; //<< 12 ; 
+	//	ir.parameters << that ;
+
+		//std::wcout << "Past ir" << std::endl ;
+		XdrStream xd;
+		xd << ir;
+		/*InvokeRequest ir2 ;
+		xd >> ir2 ;
+		//std::wcout <<
+		//	"ir2.requestId = " << ir2.requestId << std::endl <<
+		//	"ir2.interfaceName = " << ir2.interfaceName << std::endl <<
+		//	"ir2.versionNumber = " << ir2.versionNumber << std::endl <<
+		//	"ir2.methodName = " << ir2.methodName << std::endl ;
+
+		XdrStream xd2 ;
+		int len ;
+		int i ;
+		int j ;
+		std::string hello ;
+		//std::wcout << "calling ir2.parameters >> xd2" << std::endl ;
+		ir2.parameters >> xd2 ;
+		//std::wcout << "Past ir2.parameters >> xd2" << std::endl ;
+		//std::wcout << "calling xd2 >> len" << std::endl ;
+		xd2 >> len ;
+		//std::wcout << "len = " << len << std::endl ;
+		xd2 >> i ;
+		//std::wcout << "i = " << i << std::endl ;
+		xd2 >> j ;
+		//std::wcout << "j = " << j << std::endl ;
+		xd2 >> hello ;
+		//std::wcout << "hello = " << StringConversion::toUTF16(hello) << std::endl ;
+
+		return 1;*/
+		cli << xd;
+
+		XdrStream resxd;
+		cli >> resxd;
+		InvokeResponse iresp;
+		resxd >> iresp;
+
+		std::wcout <<
+			"iresp.requestId = " << iresp.requestId << std::endl <<
+			"iresp.errorMessage = " << iresp.errorMessage << std::endl ;
+		int d;
+		int len ;
+		int len2 ;
+		iresp.results >> len ;
+		iresp.results >> len2 ;
+		iresp.results >> d;
+		std::wcout <<
+			"len = " << len << std::endl <<
+			"len2 = " << len2 << std::endl ;
+	
+		std::wcout << L"answer was: " << d << std::endl;
+d59 2
+a61 1
+
+@
+

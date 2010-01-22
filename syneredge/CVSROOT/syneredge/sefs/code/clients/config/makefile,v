@@ -1,0 +1,70 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.2
+date	2005.04.25.23.30.18;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	e0426d7d78469a;
+kopt	kv;
+filename	makefile;
+
+1.1
+date	2005.04.10.02.17.34;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	b7042588c486338;
+kopt	kv;
+filename	makefile;
+
+
+desc
+@@
+
+
+1.2
+log
+@Grrr.... no mcs and add clean
+@
+text
+@include $(SYGHOME)/code/make/makefile_platforms
+
+MONOLIB := $(sharedlibarea)mono
+
+all : $(binarea)cfgwin.exe
+
+$(binarea)cfgwin.exe : cfgwin.cs
+#	mcs -lib:$(MONOLIB) -r:System.Drawing -r:System -pkg:gtk-sharp -pkg:glade-sharp -out:$(@@) $(<)
+
+run : $(binarea)cfgwin.exe
+	mono $(binarea)cfgwin.exe
+
+clean:
+	echo "No clean"
+@
+
+
+1.1
+log
+@Important files in the config client directory.  Makefile stuff needs
+to be generalized and moved into make (for compiling mono-based cs files).
+
+I'm not sure what other cfgwin.* files are needed.  It seems like I only
+reference cfgwin.cs and cfgwin.glade, but there is a lot of other stuff
+being generated, and it's hard to tell what is important and what isn't.
+@
+text
+@d8 1
+a8 1
+	mcs -lib:$(MONOLIB) -r:System.Drawing -r:System -pkg:gtk-sharp -pkg:glade-sharp -out:$(@@) $(<)
+d12 3
+@
+

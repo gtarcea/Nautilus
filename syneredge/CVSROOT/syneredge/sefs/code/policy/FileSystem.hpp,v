@@ -1,0 +1,100 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.02.20.34.23;	author irrer;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	b08429f6d3658ec;
+kopt	kv;
+filename	@FileSystem.hpp@;
+
+1.1
+date	2005.06.02.19.38.53;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	97c429f60342e72;
+kopt	kv;
+filename	@FileSystem.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Renaming files to Pol* to avoid naming conflicts.
+@
+text
+@
+#ifndef FILE_SYSTEM_HPP
+#define FILE_SYSTEM_HPP
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <vector>
+
+#include <DBinterface.hpp>
+#include <DBexception.hpp>
+#include <PolicyUtil.hpp>
+#include <SEDB.h>
+
+// ------------------------------------------------------------------------
+
+class FileSystem
+{
+  private:
+    /** database handle */
+    DBinterface *db;
+
+    /** contains latest error message */
+    string errorMessage;
+
+    /** True if a Select has been performed and the result is
+     * still valid.  Any other query executed on the database will
+     * invalidate the result and set this to false.
+     */
+    bool selected;
+
+    bool initialize(void);
+    void setDefaultError(const char *msg, bool ok);
+    bool validateNewFileSystem(const char *fileSystemName);
+    bool virtualDisksExist(const char **virtualDisks);
+    bool virtualDisksUnused(const char **virtualDisks);
+    bool insert(const char *fileSystemName, const char **virtualDisks);
+
+  public:
+
+    FileSystem(void);
+    ~FileSystem(void);
+    bool Insert(const char *fileSystemName, const char **virtualDisks);
+    bool Delete(const char *fileSystemName);
+    bool Select(void);
+    bool Config(const char *fileSystemName, string *config);
+    const char *get(int row, int col);
+    const char *Error(void);
+
+
+};
+
+#endif
+@
+
+
+1.1
+log
+@Rework of policy engine.
+@
+text
+@@
+

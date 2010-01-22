@@ -1,0 +1,388 @@
+head	1.7;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.7
+date	2005.06.13.20.55.12;	author gtarcea;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	b042adf2a24475;
+kopt	kv;
+filename	@StorProvClntInterface.cpp@;
+
+1.6
+date	2005.06.12.23.36.41;	author gtarcea;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	e3c42acc6f271ce;
+kopt	kv;
+filename	@StorProvClntInterface.cpp@;
+
+1.5
+date	2005.06.10.17.43.19;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	b1c42a9d10946ca;
+kopt	kv;
+filename	@StorProvClntInterface.cpp@;
+
+1.4
+date	2005.06.06.20.13.32;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	be842a4ae6001aa;
+kopt	kv;
+filename	@StorProvClntInterface.cpp@;
+
+1.3
+date	2005.06.06.16.52.10;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	9d042a47f2f678e;
+kopt	kv;
+filename	@StorProvClntInterface.cpp@;
+
+1.2
+date	2005.06.01.18.52.26;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	b68429e03dc3ce7;
+kopt	kv;
+filename	@StorProvClntInterface.cpp@;
+
+1.1
+date	2005.06.01.14.31.16;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	ad0429dc6a374f9;
+kopt	kv;
+filename	@StorProvClntInterface.cpp@;
+
+
+desc
+@@
+
+
+1.7
+log
+@Indent PT() macro strings.
+@
+text
+@#include "XdrStream.hpp"
+#include "OrbBase.hpp"
+#include "StorProvClntInterface.hpp"
+#include "StringConversion.hpp"
+#include "PT.hpp"
+
+namespace SynerEdge {
+
+StorProvClntInterface::StorProvClntInterface(ClientSocket &socket)
+		: socket(socket), requestId(1)
+{
+}
+
+void
+StorProvClntInterface::constructIR(InvokeRequest &ir, std::wstring methodName)
+{
+	ir.requestId = requestId++ ;
+	ir.interfaceName = L"spsi" ;
+	ir.versionNumber = L"1_0" ;
+	ir.methodName = methodName ;
+}
+
+#define DECLAREVARS() \
+	XdrStream xd ; \
+	InvokeRequest ir ; \
+	XdrStream xdresult ; \
+	InvokeResponse resp ; \
+	int len ; \
+	int len2 ;
+
+#define DOREQUEST(name) \
+	PT("      start constructIR") ;\
+	constructIR(ir, name) ; \
+	PT("      past constructIR") ;\
+	PT("      start xd << ir") ; \
+	xd << ir ; \
+	PT("      past xd << ir") ; \
+	PT("      start socket << xd") ; \
+	socket << xd ; \
+	PT("      past socket << xd") ; \
+	PT("      start socket >> xdresult") ; \
+	socket >> xdresult ; \
+	PT("      past socket >> xdresult") ; \
+	PT("      start xdresult >> resp") ; \
+	xdresult >> resp ; 
+	
+
+int64 
+StorProvClntInterface::getNumBlocks()
+{
+	DECLAREVARS()
+	DOREQUEST(L"getNumBlocks")
+
+	int64 numblocks ;
+	resp.results >> numblocks ;
+
+	return numblocks ;
+}
+
+int64 
+StorProvClntInterface::getNumFreeBlocks()
+{
+	DECLAREVARS()
+	DOREQUEST(L"getNumFreeBlocks")
+
+	int64 numfreeblocks ;
+	resp.results >> numfreeblocks ;
+
+	return numfreeblocks ;
+}
+
+int
+StorProvClntInterface::getBlockSize()
+{
+	DECLAREVARS()
+	DOREQUEST(L"getBlockSize")
+
+	int blocksize ;
+	resp.results >> blocksize ;
+
+	return blocksize ;
+}
+
+int64 
+StorProvClntInterface::getFreeBlock()
+{
+	PT("Start getFreeBlock") ;
+	PT("  Start DECLAREVARS()") ;
+	DECLAREVARS()
+	PT("  End DECLAREVARS()") ;
+	PT("  START DOREQUEST") ;
+	DOREQUEST(L"getFreeBlock")
+	PT("  END DOREQUEST") ;
+
+	int64 blocktouse ;
+	resp.results >> blocktouse ;
+	PT("End getFreeBlock") ;
+
+	return blocktouse ;
+}
+
+bool 
+StorProvClntInterface::releaseBlock(int64 blocknum)
+{
+	DECLAREVARS()
+
+	ir.parameters << blocknum ;
+
+	DOREQUEST(L"releaseBlock")
+
+	bool rc ;
+	resp.results >> rc ;
+
+	return rc ;
+}
+
+bool 
+StorProvClntInterface::flushFreeBlockList()
+{
+	DECLAREVARS()
+	DOREQUEST(L"flushFreeBlockList")
+
+	bool rc ;
+	resp.results >> rc ;
+
+	return rc ;
+}
+
+bool 
+StorProvClntInterface::writeBlock(int64 blocknum, int offset, int size, string data)
+{
+	DECLAREVARS()
+
+	ir.parameters << blocknum << offset << size << data ;
+
+	DOREQUEST(L"writeBlock")
+
+	bool rc ;
+	resp.results >> rc ;
+
+	return rc ;
+}
+
+bool 
+StorProvClntInterface::readBlock(int64 blocknum, Block &block)
+{
+	DECLAREVARS()
+
+	ir.parameters << blocknum ;
+
+	DOREQUEST(L"readBlock") ;
+	bool rc ;
+	resp.results >> rc ;
+	if (! rc) {
+		return false ;
+	}
+	int64 blocknum2 ;
+ 	resp.results >> blocknum2 ;
+	//bool isfree ;
+	//resp.results >>  isfree ;
+	int numbytes ;
+	resp.results >> numbytes ;
+	int size ;
+	resp.results >> size ;
+	string data ;
+	resp.results >> data ;
+
+	block.setSize(size) ;
+	block.setBytes(0, const_cast<char *>(data.c_str()), numbytes) ;
+	block.setNumBytes(numbytes) ;
+	//block.setIsFree(isfree) ;
+	block.setBlockNum(blocknum2) ;
+
+	return rc ;
+}
+
+bool 
+StorProvClntInterface::zeroBlock(int64 blocknum)
+{
+	DECLAREVARS()
+
+	ir.parameters << blocknum ;
+
+	DOREQUEST(L"zeroBlock") ;
+
+	bool rc ;
+	resp.results >> rc ;
+
+	return rc ;
+}
+
+} // namespace SynerEdge
+@
+
+
+1.6
+log
+@Get RPC interfaces working with new Orb changes. Still need to move to
+threaded Orb.
+@
+text
+@d32 1
+a32 1
+	PT("start constructIR") ;\
+d34 2
+a35 2
+	PT("past constructIR") ;\
+	PT("start xd << ir") ; \
+d37 2
+a38 2
+	PT("past xd << ir") ; \
+	PT("start socket << xd") ; \
+d40 2
+a41 2
+	PT("past socket << xd") ; \
+	PT("start socket >> xdresult") ; \
+d43 2
+a44 2
+	PT("past socket >> xdresult") ; \
+	PT("start xdresult >> resp") ; \
+d87 2
+a88 1
+	PT("Start DECLAREVARS()") ;
+d90 2
+a91 2
+	PT("End DECLAREVARS()") ;
+	PT("START DOREQUEST") ;
+d93 1
+a93 1
+	PT("END DOREQUEST") ;
+d97 1
+@
+
+
+1.5
+log
+@Remove isfree >> and << passing. Clean up readBlock() to return false on failure
+rather than trying to read nonexistant parameters.
+@
+text
+@d5 1
+d32 1
+d34 2
+d37 2
+d40 2
+d43 3
+a45 3
+	xdresult >> resp ; \
+	resp.results >> len ; \
+	resp.results >> len2 ; 
+d87 1
+d89 2
+d92 1
+@
+
+
+1.4
+log
+@Make sure that numbytes is set on readBlock()
+@
+text
+@d140 3
+d145 2
+a146 2
+	bool isfree ;
+	resp.results >>  isfree ;
+d157 1
+a157 1
+	block.setIsFree(isfree) ;
+@
+
+
+1.3
+log
+@Fix up debugging output
+@
+text
+@d153 1
+@
+
+
+1.2
+log
+@Add getBlockSize() call support.
+@
+text
+@d4 1
+d37 1
+a37 1
+	resp.results >> len2 ;
+@
+
+
+1.1
+log
+@Add client side calls for StorProv interface.
+@
+text
+@d63 11
+@
+

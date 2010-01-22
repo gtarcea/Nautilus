@@ -1,0 +1,83 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.05.20.15.17.08;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	948428dff656e82;
+kopt	kv;
+filename	Changes;
+
+
+desc
+@@
+
+
+1.1
+log
+@Add Python WebDAV server
+@
+text
+@Changes since 0.5.1
+-------------------
+Updated to work with latest 4Suite 
+(thanks to Itamar Shtull-Trauring <itamar(at)shtull-trauring.org> and
+Titus Brown <titus@@caltech.edu> for doing that :-)
+
+Changes since 0.5
+-----------------
+
+- added constants.py 
+- data.py must now return COLLECTION or OBJECT when getting asked for
+  resourcetype. propfind.py will automatically generate the right xml 
+  element.
+- <href> now only contains the path
+- changed HTTP/1.0 header to HTTP/1.1 which makes it work with WebFolders
+- added DO_AUTH constant to AuthServer.py to control whether authentication
+  should be done or not.
+- added chunked responses in davserver.py
+  One step in order to get a server with keep-alive one day.
+- we now use 4DOM instead if PyDOM
+- the URI in a href is quoted
+- complete rewrite of the PROPFIND stuff:
+    - error responses are now generated when a property if not found
+      or not accessible
+    - namespace handling is now better. We forget any prefix and
+      create them ourselves later in the response.
+- added superclass iface.py in DAV/ in order to make implementing
+  interface classes easier. See data.py for how to use it.
+  Also note that the way data.py handles things might have changed from
+  the previous release (if you don't like it wait for 1.0!)
+- added functions to iface.py which format creationdate and lastmodified
+- implemented HEAD
+
+- lots of bugfixes
+
+
+Changes since 0.3
+-----------------
+
+- removed hard coded base uri from davserver.py and replaced by
+  a reference to the dataclass. Added this to iface.py where you
+  have to define it in your subclass.
+- added davcmd.py which contains utility functions for copy and move
+- reimplemented DELETE and removed dependencies to pydom. move actual
+  delete method to davcmd.
+- implemented COPY
+- implemented MOVE
+- fixed bugs in errors.py, needs revisiting anyway..
+- URIs are now unquoted in davserver.py before being used
+- paths in data.py are quoted in system calls in order to support
+  blanks in pathnames (e.g. mkdir '%s' )
+- switched to exceptions when catching errors from the interface class
+- added exists() method to data.py
+- added more uri utility functions to utils.py
+- millenium bugfixes ;-)
+@

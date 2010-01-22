@@ -1,0 +1,142 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.13.00.40.22;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	f0c42acd5ee22bd;
+kopt	kv;
+filename	@Testutils.cpp@;
+
+1.1
+date	2005.06.12.23.17.20;	author aprakash;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	ea842acc20f61d9;
+kopt	kv;
+filename	@Testutils.cpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Add -f on rm statement.
+@
+text
+@#include "BlockFile.hpp"
+#include "VirtualBlockFile.hpp"
+#include "Testutils.hpp"
+
+/*******************
+ * Initialize a virtual blockfile using tmp files, consisting of
+ * bfcount blockfiles, each with blockcount blocks, with each 
+ * block of blocksize bytes
+ *******************/
+
+using namespace SynerEdge;
+
+
+
+static char *nameprefix = "/tmp/vbftestfiles";      // prefix for all test file names
+static int namesuffix = 1;
+
+SynerEdge::BlockFile*
+Testutils::makeTestBlockFile(SynerEdge::uint64 blockcount, int blocksize)
+{
+	char blockfilename[32];
+	memset(blockfilename, 0, sizeof(blockfilename));
+	int i = 0;
+	for (i = 0; i < 1000;  i++)  {  // Find an availble filename
+		sprintf(blockfilename, "%s%d", nameprefix, namesuffix);
+		if (SynerEdge::BlockFile::exists(blockfilename)) {
+			namesuffix++;
+		} else {
+			break;
+		}
+	}
+
+	if (i == 1000) return NULL;
+	
+	SynerEdge::BlockFile *bf = new SynerEdge::BlockFile(blockfilename) ;
+	if (!bf->create(1, blockcount, blocksize)) {
+		delete bf; 
+		return NULL;
+	}
+	bf->close();
+	namesuffix++;
+	return bf;
+}
+
+
+void Testutils::deleteTestBlockFiles()
+{
+	char command[32];
+	sprintf(command, "rm -f %s*", nameprefix);
+	cout << "deleteTestBlockFiles executing command: " << command << endl;
+	system(command); 
+}
+
+
+
+
+VirtualBlockFile *Testutils::makeTestVirtualBlockFile(char *name, int bfcount, uint64 blockcount, int blocksize)
+{
+	// Allocate an array of BlockFile pointers
+
+	BlockFile *bf;
+	VirtualBlockFile::BlockFileList bflist;
+
+	for (int i = 0; i < bfcount; i++) {
+		bf = makeTestBlockFile(blockcount, blocksize);
+		if (bf == NULL) {
+			return NULL;
+		}
+		bflist.push_back(bf);
+	}
+
+	VirtualBlockFile *vbf = new VirtualBlockFile(name, bflist, blocksize);
+	
+
+	return vbf;
+}
+
+
+/***************
+ * Delete all virtual block files used for testing
+ ***************/
+
+void Testutils::deleteTestVirtualBlockFiles()
+{
+	deleteTestBlockFiles();
+}
+
+@
+
+
+1.1
+log
+@The VirtualDisk tests now work.
+There was a lot of code duplicated in various files in order to set up a virtual blockfile.
+I created a class TestUtils that contains some utilities to help create virtual blockfiles, etc.
+Add to that file any functions that are needed by more than one unit class.
+
+The cleanup of tmp files is also done in syg_unittest.cpp.
+@
+text
+@d49 1
+a49 1
+	sprintf(command, "rm %s*", nameprefix);
+@
+

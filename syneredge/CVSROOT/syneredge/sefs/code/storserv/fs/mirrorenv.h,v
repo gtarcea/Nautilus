@@ -1,0 +1,96 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2005.04.19.20.54.37;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	d6842656fd77a30;
+kopt	kv;
+filename	@mirrorenv.h@;
+
+1.1
+date	2005.04.08.17.49.30;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.30;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+New BlockFile interface and corresponding unit tests. These build, not all
+unit tests run. But this has not yet been integrated into the filesystem so
+that still runs.
+@
+text
+@
+#ifndef __MIRRORENV_INCLUDE_
+#define __MIRRORENV_INCLUDE_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct MIRRORENV ;
+typedef struct MIRRORENV MIRRORENV ;
+typedef MIRRORENV *MIRRORENVP ;
+
+typedef struct MIRRORENTRY {
+	char *file ;
+	int blocksize ;
+	int blockcount ;
+	char *host ;
+} MIRRORENTRY, *MIRRORENTRYP ;
+
+MIRRORENVP mirrorenv_open(char *basedir) ;
+MIRRORENTRYP mirrorenv_getnextmirror(MIRRORENVP mdb, int next) ;
+int mirrorenv_destroy(MIRRORENVP mdb) ;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __MIRRORENV_INCLUDE_ */
+
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d14 3
+a16 1
+	char *directory ;
+@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

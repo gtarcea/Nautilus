@@ -1,0 +1,68 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@# @;
+
+
+1.2
+date	2005.04.26.14.28.54;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	555;
+commitid	65c426e5014765c;
+kopt	kv;
+filename	@utblockssetup.sh@;
+
+1.1
+date	2005.04.08.17.49.31;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	777;
+
+1.1.1.1
+date	2005.04.08.17.49.31;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+
+
+desc
+@@
+
+
+1.2
+log
+@Move all test files to utest directory
+@
+text
+@#!/bin/sh
+
+rm -f /etc/syneredge/nextblocknum
+test -f /etc/syneredge/mirrors.bak || cp /etc/syneredge/mirrors /etc/syneredge/mirrors.bak
+echo spelljammer /tmp/syneredgeblocks > /etc/syneredge/mirrors
+echo buford /tmp/syneredgeblocks2 >> /etc/syneredge/mirrors
+
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

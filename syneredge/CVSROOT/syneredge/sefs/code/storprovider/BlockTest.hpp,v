@@ -1,0 +1,64 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.04.21.16.48.37;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	2fc4267d9355a40;
+kopt	kv;
+filename	@BlockTest.hpp@;
+
+1.1
+date	2005.04.14.21.04.22;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	728425edab37b3a;
+kopt	kv;
+filename	@BlockTest.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Move Unit Tests to utest directory. Move FreeBlockMap to storprovider. Fix up
+BlockFile to call FreeBlockMap to get freeblocks.
+@
+text
+@
+#include <cppunit/extensions/HelperMacros.h>
+class BlockTest : public CppUnit::TestFixture
+{
+	CPPUNIT_TEST_SUITE(BlockTest) ;
+	CPPUNIT_TEST(testConstructor) ;
+	CPPUNIT_TEST(testSetGet) ;
+	CPPUNIT_TEST_SUITE_END() ;
+public:
+	void setUp() ;
+	void tearDown() ;
+	void testConstructor() ;
+	void testSetGet() ;
+} ;
+@
+
+
+1.1
+log
+@
+Write interfaces and unit tests for new block interface. The next step will
+be to port the filesystem over to the new interface.
+@
+text
+@@
+

@@ -1,0 +1,576 @@
+head	1.8;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.8
+date	2005.04.28.21.11.12;	author gtarcea;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	666;
+commitid	da442715151465f;
+kopt	kv;
+filename	@FileBlockMap.cpp@;
+
+1.7
+date	2005.04.27.21.37.44;	author gtarcea;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	afc427006120ca9;
+kopt	kv;
+filename	@FileBlockMap.cpp@;
+
+1.6
+date	2005.04.26.22.56.13;	author gtarcea;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	eb4426ec6fe7aaf;
+kopt	kv;
+filename	@FileBlockMap.cpp@;
+
+1.5
+date	2005.04.25.23.19.33;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	fa0426d7afa3e76;
+kopt	kv;
+filename	@FileBlockMap.cpp@;
+
+1.4
+date	2005.04.25.23.05.25;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	c68426d77923357;
+kopt	kv;
+filename	@FileBlockMap.cpp@;
+
+1.3
+date	2005.04.22.18.44.51;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	288426945fa016f;
+kopt	kv;
+filename	@FileBlockMap.cpp@;
+
+1.2
+date	2005.04.20.19.06.01;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	6a84266a80775a9;
+kopt	kv;
+filename	@FileBlockMap.cpp@;
+
+1.1
+date	2005.04.19.20.54.35;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	d6842656fd77a30;
+kopt	kv;
+filename	@FileBlockMap.cpp@;
+
+
+desc
+@@
+
+
+1.8
+log
+@Debug switch to hash_map for faster lookups.
+@
+text
+@
+#include "FileBlockMap.hpp"
+#include "fileblockmap.h"
+#include "PT.hpp"
+#include <iostream>
+
+using namespace std ;
+
+namespace SynerEdge {
+
+FileBlockMap::FileBlockMap(string filename) : fbname(filename), deleted(false), bytecount(0), currentindex(1), rebuildbyindex(false)
+{
+	int create = 0 ;
+
+//	cout << "FileBlockMap: " << filename << endl ;
+	if (! exists(filename)) {
+		create = 1 ;
+	}
+
+	fbmap = fileblockmap_open(const_cast<char *>(filename.c_str()), create) ;
+	if (fbmap == NULL) {
+//		cout << "fileblockmap_open() failed" << endl ;
+	}
+
+	if (! create) {
+		// File exists, so lets populate the hash map
+		FILEBLOCKP fblock ;
+		fblock = fileblockmap_getnextblock(fbmap, LSTART) ;
+		while (1) {
+			if (! fblock) {
+				break ;
+			}
+			int blocknum = fileblock_getblocknum(fblock) ;
+			FileBlockMapHashVal val(fblock) ;
+			blocksetByIndex[currentindex] = val ;
+			blocksetByBlocknum[blocknum] = val ;
+			bytecount += fileblock_getbytesused(fblock) ;
+			currentindex++ ;
+			fblock = fileblockmap_getnextblock(fbmap, LNEXT) ;
+		}
+	}
+}
+
+FileBlockMap::~FileBlockMap()
+{
+	int save = 1 ;
+
+	if ( deleted ) {
+		save = 0 ;
+	}
+
+	//blocksetByBlocknum.clear() ;
+	//blocksetByIndex.clear() ;
+
+	//cout << "Saving fbmap " << fbname << " save flag = " << save << endl ;
+	fileblockmap_close(fbmap, save) ;
+}
+
+bool
+FileBlockMap::save()
+{
+	int rc ;
+
+	PT("FileBlockMap::save()") ;
+	rc = fileblockmap_save(fbmap) ;
+	if (rc == 1) {
+		PT("Leaving FileBlockMap::save()") ;
+		return true ;
+	}
+
+	return false ;
+}
+
+bool
+FileBlockMap::exists(string filename)
+{
+	int rc ;
+
+	rc = fileblockmap_exists(const_cast<char *>(filename.c_str())) ;
+
+	return (rc == 1) ? true : false ;
+}
+
+bool
+FileBlockMap::deleteMap()
+{
+	if (! deleted) {
+		deleted = true ;
+		int rc = fileblockmap_delete(const_cast<char *>(fbname.c_str())) ;
+		return (rc == 1) ? true : false ;
+	}
+
+	return false ;
+}
+
+bool
+FileBlockMap::blocknumExists(int blocknum)
+{
+	blocksetIterator = blocksetByBlocknum.find(blocknum) ;
+	if (blocksetIterator != blocksetByBlocknum.end()) {
+		return true ;
+	}
+
+	return false ;
+}
+
+bool
+FileBlockMap::indexExists(int index)
+{
+	blocksetIterator = blocksetByIndex.find(index) ;
+	if (blocksetIterator != blocksetByIndex.end()) {
+		return true ;
+	}
+
+	return false ;
+}
+
+bool
+FileBlockMap::addBlock(int blocknum, int bytes)
+{
+	if (! deleted) {
+		if (! blocknumExists(blocknum)) {
+			// If blocknum is not already in set then add.
+			FILEBLOCKP fblock = fileblockmap_addblock(fbmap, blocknum, bytes) ;
+			if (fblock != NULL) {
+				FileBlockMapHashVal val(fblock) ;
+				blocksetByBlocknum[blocknum] = val ;
+				blocksetByIndex[currentindex] = val ;
+				currentindex++ ;
+				bytecount += bytes ;
+				return true ;
+			}
+		}
+	}
+
+	return false ;
+}
+
+bool
+FileBlockMap::removeBlock(int blocknum)
+{
+	if (! deleted) {
+		if (! blocknumExists(blocknum)) {
+			return false ;
+		}
+		FileBlockMapHashVal val = blocksetByBlocknum[blocknum] ;
+		FILEBLOCKP fblock = val.getFileBlock() ;
+		int bytes = fileblock_getbytesused(fblock) ;
+		int rc = fileblockmap_removeblock(fbmap, blocknum) ;
+		if (rc == 1) {
+			blocksetByBlocknum.erase(blocknum) ;
+			bytecount -= bytes ;
+			rebuildbyindex = true ;
+			return true ;
+		}
+	}
+
+	return false ;
+}
+
+bool
+FileBlockMap::updateBlock(int blocknum, int bytes)
+{
+	if (! deleted) {
+		if ( ! blocknumExists(blocknum)) {
+			return false ;
+		}
+		// To speed up the operation we use the pointer stored in
+		// the hash and apply our updates to it.
+		FileBlockMapHashVal val = blocksetByBlocknum[blocknum] ;
+		FILEBLOCKP fblock = val.getFileBlock() ;
+		int oldbytes = fileblock_getbytesused(fblock) ;
+		bytecount -= oldbytes ;
+		bytecount += bytes ;
+		fileblock_setbytesused(fblock, bytes) ;
+		return true ;
+	}
+
+	return false ;
+}
+
+int
+FileBlockMap::getBlockByteCount(int blocknum)
+{
+	if (! blocknumExists(blocknum)) {
+		return -1 ;
+	}
+
+	FileBlockMapHashVal val = blocksetByBlocknum[blocknum] ;
+	FILEBLOCKP fblock = val.getFileBlock();
+	return fileblock_getbytesused(fblock) ;
+}
+
+bool
+FileBlockMap::blockExists(int blocknum)
+{
+	if (! deleted) {
+		return blocknumExists(blocknum) ;
+	}
+
+	return false ;
+}
+
+int
+FileBlockMap::getBlockCount()
+{
+	if (! deleted) {
+		return fileblockmap_getblockcount(fbmap) ;
+	}
+
+	return 0 ;
+}
+
+int 
+FileBlockMap::getByteCount()
+{
+	if (! deleted) {
+		return bytecount ;
+	}
+
+	return 0 ;
+}
+
+bool
+FileBlockMap::addHost(string host)
+{
+	if (! deleted) {
+		int rc = fileblockmap_addhost(fbmap, const_cast<char *>(host.c_str())) ;
+		return (rc == 1) ? true : false ;
+	}
+
+	return false ;
+}
+
+bool
+FileBlockMap::removeHost(string host)
+{
+	if (! deleted) {
+		int rc = fileblockmap_removehost(fbmap, const_cast<char *>(host.c_str())) ;
+		return (rc == 1) ? true : false ;
+	}
+
+	return false ;
+}
+
+bool
+FileBlockMap::hostExists(string host)
+{
+	if (! deleted) {
+		int rc = fileblockmap_findhost(fbmap, const_cast<char *>(host.c_str())) ;
+		return (rc == 1) ? true : false ;
+	}
+
+	return false ;
+}
+
+int
+FileBlockMap::getBlockNumAt(int index)
+{
+	if (rebuildbyindex) {
+		// A block was removed, so we need to rebuild the index first
+		blocksetByIndex.clear() ;
+		FILEBLOCKP fblock ;
+		currentindex = 1 ;
+		fblock = fileblockmap_getnextblock(fbmap, LSTART) ;
+		while (1) {
+			if (! fblock) {
+				break ;
+			}
+			FileBlockMapHashVal val(fblock) ;
+			//cout << "Adding to index " << currentindex <<
+			//	"The blocknum " << fileblock_getblocknum(fblock) <<
+			//	endl ;
+			blocksetByIndex[currentindex] = val ;
+			currentindex++ ;
+			fblock = fileblockmap_getnextblock(fbmap, LNEXT) ;
+		}
+		rebuildbyindex = false ;
+	}
+
+	if (! indexExists(index)) {
+		return 0 ;
+	}
+
+	FileBlockMapHashVal val = blocksetByIndex[index] ;
+
+	return val.getBlockNum() ;
+}
+
+} // namespace SynerEdge
+@
+
+
+1.7
+log
+@
+Changes to speed up the filesystem.
+@
+text
+@d11 1
+a11 1
+FileBlockMap::FileBlockMap(string filename) : fbname(filename), deleted(false), bytecount(0), currentindex(1)
+d34 1
+a34 1
+			FileBlockMapHashVal *val = new FileBlockMapHashVal(currentindex, blocknum, fblock) ;
+d52 2
+a53 8
+	for (blocksetIterator = blocksetByBlocknum.begin() ;
+			blocksetIterator != blocksetByBlocknum.end() ;
+			blocksetIterator++) {
+		FileBlockMapHashVal *val = (*blocksetIterator).second ;
+		int index = val->getIndex() ;
+		blocksetByIndex.erase(index) ;
+		delete (*blocksetIterator).second ;
+	}
+d97 22
+d122 2
+a123 3
+		blocksetIterator = blocksetByBlocknum.find(blocknum) ;
+		if (blocksetIterator != blocksetByBlocknum.end()) {
+			// If blocknum already in set then add.
+d126 1
+a126 1
+				FileBlockMapHashVal *val = new FileBlockMapHashVal(currentindex, blocknum, fblock) ;
+d143 5
+a147 3
+		FileBlockMapHashVal *val = blocksetByBlocknum[blocknum] ;
+		int index = val->getIndex();
+		FILEBLOCKP fblock = val->getFileBlock() ;
+a150 1
+			delete blocksetByBlocknum[blocknum] ;
+a151 1
+			blocksetByIndex.erase(index) ;
+d153 1
+d165 3
+d170 2
+a171 2
+		FileBlockMapHashVal *val = blocksetByBlocknum[blocknum] ;
+		FILEBLOCKP fblock = val->getFileBlock() ;
+d185 6
+a190 2
+	FileBlockMapHashVal *val = blocksetByBlocknum[blocknum] ;
+	FILEBLOCKP fblock = val->getFileBlock();
+d198 1
+a198 5
+		blocksetIterator = blocksetByBlocknum.find(blocknum) ;
+
+		if (blocksetIterator != blocksetByBlocknum.end()) {
+			return true ;
+		}
+d260 20
+a279 2
+	int count ;
+	FILEBLOCKP fblock ;
+d281 2
+a282 11
+	count = 1 ;
+	fblock = fileblockmap_getnextblock(fbmap, LSTART) ;
+	while (1) {
+		if (! fblock) {
+			break ;
+		}
+		if (count == index) {
+			return fileblock_getblocknum(fblock) ;
+		}
+		count++ ;
+		fblock = fileblockmap_getnextblock(fbmap, LNEXT) ;
+d285 3
+a287 1
+	return 0 ;
+@
+
+
+1.6
+log
+@Updates to find performance issues.
+@
+text
+@d11 1
+a11 1
+FileBlockMap::FileBlockMap(string filename) : fbname(filename), deleted(false)
+d24 18
+d52 9
+d106 13
+a118 2
+		int rc = fileblockmap_addblock(fbmap, blocknum, bytes) ;
+		return (rc == 1) ? true : false ;
+d128 4
+d133 7
+a139 1
+		return (rc == 1) ? true : false ;
+d149 9
+a157 2
+		int rc = fileblockmap_updateblock(fbmap, blocknum, bytes) ;
+		return (rc == 1) ? true : false ;
+d166 2
+a167 6
+	FILEBLOCKP fblock ;
+
+	fblock = fileblockmap_findblock(fbmap, blocknum) ;
+	if (!fblock) {
+		return -1 ;
+	}
+a173 1
+	FILEBLOCKP fbp ;
+d175 3
+a177 2
+		FILEBLOCKP fbp = fileblockmap_findblock(fbmap, blocknum) ;
+		if (fbp) {
+a179 1
+		return false ;
+d199 1
+a199 1
+		return fileblockmap_getbytecount(fbmap) ;
+@
+
+
+1.5
+log
+@Remove extraneous cout statement
+@
+text
+@d4 1
+d43 1
+d46 1
+@
+
+
+1.4
+log
+@Expose save() method to save block maps. Comment out debug output.
+@
+text
+@a144 1
+	cout << "deleted = " << deleted << endl ;
+@
+
+
+1.3
+log
+@Fix build problems, implement functionality <bleh comment!>
+@
+text
+@d14 1
+a14 1
+	cout << "FileBlockMap: " << filename << endl ;
+d21 1
+a21 1
+		cout << "fileblockmap_open() failed" << endl ;
+d33 1
+a33 1
+	cout << "Saving fbmap " << fbname << endl ;
+d38 13
+d145 1
+@
+
+
+1.2
+log
+@More unit tests, plus move over to new naming convention.
+@
+text
+@d93 27
+@
+
+
+1.1
+log
+@
+New BlockFile interface and corresponding unit tests. These build, not all
+unit tests run. But this has not yet been integrated into the filesystem so
+that still runs.
+@
+text
+@d134 11
+d154 3
+d163 2
+@
+

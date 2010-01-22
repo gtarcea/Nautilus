@@ -1,0 +1,51 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.12.23.23.42;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+commitid	f58425c587449ec;
+kopt	kv;
+filename	@ClientSocket.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@
+Add daemon and socket code.
+@
+text
+@// Definition of the ClientSocket class
+
+#ifndef ClientSocket_class
+#define ClientSocket_class
+
+#include "Socket.hpp"
+
+
+class ClientSocket : private Socket
+{
+ public:
+
+  ClientSocket ( std::string host, int port );
+  virtual ~ClientSocket(){};
+
+  const ClientSocket& operator << ( const std::string& ) const;
+  const ClientSocket& operator >> ( std::string& ) const;
+
+};
+
+
+#endif
+@

@@ -1,0 +1,1155 @@
+head	1.12;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.12
+date	2005.06.15.03.20.14;	author rdesai;	state Exp;
+branches;
+next	1.11;
+deltatype	text;
+permissions	666;
+commitid	3fc42af9e61394c;
+kopt	kv;
+filename	@OrbBase.cpp@;
+
+1.11
+date	2005.06.14.22.55.42;	author rdesai;	state Exp;
+branches;
+next	1.10;
+deltatype	text;
+permissions	666;
+commitid	d8042af605f6ece;
+kopt	kv;
+filename	@OrbBase.cpp@;
+
+1.10
+date	2005.06.13.10.44.32;	author rdesai;	state Exp;
+branches;
+next	1.9;
+deltatype	text;
+permissions	666;
+commitid	e5042ad6359708d;
+kopt	kv;
+filename	@OrbBase.cpp@;
+
+1.9
+date	2005.06.13.03.08.21;	author rdesai;	state Exp;
+branches;
+next	1.8;
+deltatype	text;
+permissions	666;
+commitid	d1842acf870136d;
+kopt	kv;
+filename	@OrbBase.cpp@;
+
+1.8
+date	2005.06.13.00.50.44;	author gtarcea;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	666;
+commitid	49042acd84f2a82;
+kopt	kv;
+filename	@OrbBase.cpp@;
+
+1.7
+date	2005.06.12.23.56.00;	author rdesai;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	a042accb76008d;
+kopt	kv;
+filename	@OrbBase.cpp@;
+
+1.6
+date	2005.06.12.21.25.09;	author rdesai;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	ad842aca81f0d25;
+kopt	kv;
+filename	@OrbBase.cpp@;
+
+1.5
+date	2005.06.12.12.00.16;	author rdesai;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	ab042ac23b15cb0;
+kopt	kv;
+filename	@OrbBase.cpp@;
+
+1.4
+date	2005.06.07.04.08.15;	author rdesai;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	88842a51d9f6cf2;
+kopt	kv;
+filename	@OrbBase.cpp@;
+
+1.3
+date	2005.05.24.17.45.49;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	e044293683b18cd;
+kopt	kv;
+filename	@OrbBase.cpp@;
+
+1.2
+date	2005.05.23.18.15.38;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	d042921dba6183;
+kopt	kv;
+filename	@OrbBase.cpp@;
+
+1.1
+date	2005.05.21.15.16.03;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	df4428f50a13bc6;
+kopt	kv;
+filename	@OrbBase.cpp@;
+
+
+desc
+@@
+
+
+1.12
+log
+@Fix of some deadlock problems.
+@
+text
+@#include "OrbBase.hpp"
+#include "boost/format.hpp"
+#include <netinet/in.h>
+#include <byteswap.h>
+
+namespace SynerEdge
+{
+
+int BaseInterface::requestCounter = 0;
+boost::mutex BaseInterface::mtx;
+boost::once_flag ResponseMap::_sentry = BOOST_ONCE_INIT;
+ResponseMap *ResponseMap::instance_ = 0;
+
+XdrStream &operator<<(XdrStream &xdr, const LoginValues &val)
+{
+	xdr << val.username << val.password;	
+	return xdr;
+}
+
+XdrStream &operator>>(XdrStream &xdr, LoginValues &val)
+{
+	xdr >> val.username >> val.password;
+	return xdr;
+}
+
+XdrStream &operator<<(XdrStream &xdr, const InvokeRequest &val)
+{
+	xdr << val.requestId << val.interfaceName << val.versionNumber
+	    << val.methodName << val.parameters;
+	return xdr;
+}
+
+XdrStream &operator>>(XdrStream &xdr, InvokeRequest &val)
+{
+	xdr >> val.requestId >> val.interfaceName >> val.versionNumber
+	    >> val.methodName >> val.parameters;
+
+	return xdr;
+}
+
+XdrStream &operator<<(XdrStream &xdr, const InvokeResponse &val)
+{
+	xdr << val.requestId << val.errorMessage << val.results;
+	return xdr;
+}
+
+XdrStream &operator>>(XdrStream &xdr, InvokeResponse &val)
+{
+	xdr >> val.requestId;
+	xdr >> val.errorMessage;
+	xdr >> val.results;
+
+	return xdr;
+}
+
+MethodDelegateBase::MethodDelegateBase() {}
+
+void ResponseMap::createInstance()
+{
+	instance_ = new ResponseMap();
+}
+
+ResponseMap *ResponseMap::instance()
+{
+	boost::call_once(&ResponseMap::createInstance, _sentry);
+	return instance_;
+}
+
+void ResponseMap::createEntry(InvokeRequest &ir)
+{
+	ResponseMapWithWait::iterator itor = responseMap.find(ir.requestId);
+	if (itor == responseMap.end())
+	{
+		InvokeResponseWithWait *resp = new InvokeResponseWithWait();
+		resp->invokeResponse.requestId = ir.requestId;
+		responseMap[ir.requestId] = resp;
+	}
+	else
+	{
+		throw OrbException(L"RequestId was already in map");
+	}
+}
+
+InvokeResponse ResponseMap::waitOnEntry(InvokeRequest &ir)
+{
+	InvokeResponse result;
+	ResponseMapWithWait::iterator itor = responseMap.find(ir.requestId);
+	if (itor != responseMap.end())
+	{
+		InvokeResponseWithWait *resp = (*itor).second;
+		boost::mutex::scoped_lock lk(resp->mtx, true);
+		while (resp->signaled == 0)
+			(resp->cnd).wait(lk);
+		result = resp->invokeResponse;
+		responseMap.erase(itor);
+	}
+	else
+	{
+		throw OrbException(L"RequestId was not found in map");
+	}
+	return result;
+}
+
+void ResponseMap::flagResponse(InvokeResponse &ir)
+{
+	ResponseMapWithWait::iterator itor = responseMap.find(ir.requestId);
+	if (itor != responseMap.end())
+	{
+		InvokeResponseWithWait *resp = (*itor).second;
+		boost::mutex::scoped_lock lk(resp->mtx, true);
+		resp->invokeResponse = ir;
+		resp->signaled = 1;
+		(resp->cnd).notify_one();
+	}
+	else
+	{
+		throw OrbException(L"RequestId was not found in map");
+	}
+}
+
+BaseInterface::BaseInterface()
+: interfaceName(), interfaceVersion()
+{}
+
+int BaseInterface::incrementRequestCounter()
+{
+	boost::mutex::scoped_lock lk(mtx);
+	return ++requestCounter;
+}
+
+BaseInterface::BaseInterface(const BaseInterface &copy) 
+: interfaceName(copy.interfaceName), interfaceVersion(copy.interfaceVersion)
+{
+	for (MethodMap::const_iterator itor = copy.methodMap.begin();
+	     itor != copy.methodMap.end();
+	     itor++)
+	{
+		methodMap[(*itor).first] = ((*itor).second)->clone();
+	}
+}
+
+BaseInterface::BaseInterface(
+	const std::wstring &interfaceName_, 
+	const std::wstring &interfaceVersion_)
+: interfaceName(interfaceName_), interfaceVersion(interfaceVersion_)
+{}
+
+BaseInterface &BaseInterface::operator=(const BaseInterface &equal)
+{
+	// clear current internal method map.
+	for (MethodMap::iterator itor = methodMap.begin();
+	     itor != methodMap.end();
+	     itor++)
+	{
+		delete (*itor).second;
+		methodMap.erase(itor);
+	}
+
+	// duplicate method map from serverInterface on RHS.
+	for (MethodMap::const_iterator itor = equal.methodMap.begin();
+	     itor != equal.methodMap.end();
+	     itor++)
+	{
+		methodMap[(*itor).first] = ((*itor).second)->clone();
+	}
+
+	// copy interface name and interface version.
+	interfaceName = equal.interfaceName;
+	interfaceVersion = equal.interfaceVersion;
+
+	return *this;
+}
+
+BaseInterface::~BaseInterface() 
+{
+	for (MethodMap::iterator itor = methodMap.begin();
+	     itor != methodMap.end();
+	     itor++)
+	{
+		delete (*itor).second;
+	}
+}
+
+void BaseInterface::operator+=(MethodDelegateBase *method)
+{
+	std::wstring methName = method->getName();
+	if (methName.size() != 0)
+	{
+		MethodMap::iterator itor = methodMap.find(method->getName());
+		if (itor == methodMap.end())
+		{
+			methodMap[method->getName()] = method;
+		}
+		else
+		{
+			boost::wformat fmt(L"Server interface %s version %s already contains a mapping for method %s");
+			fmt % interfaceName % interfaceVersion % method->getName();
+			delete method;
+			throw OrbException(fmt.str());
+		}
+	}
+	else
+	{
+		delete method;
+		throw OrbException(L"Method names cannot be empty name in a server interface");
+	}
+}
+
+void BaseInterface::operator-=(MethodDelegateBase *method)
+{
+	MethodMap::iterator itor = methodMap.find(method->getName());
+	if (itor != methodMap.end())
+	{
+		delete (*itor).second;
+		methodMap.erase(itor);
+		delete method;	
+	}
+	else
+	{
+		boost::wformat fmt(L"Server interface %s version %s does not contain a mapping for method %s");
+		fmt % interfaceName % interfaceVersion % method->getName();
+		delete method;
+		throw OrbException(fmt.str());
+	}
+}
+
+XdrStream *ServerInterface::operator()(const std::wstring &methodName, Context &ctx, XdrStream &params)
+{
+	XdrStream *result = 0;
+	MethodMap::iterator itor = methodMap.find(methodName);
+	if (itor != methodMap.end())
+	{
+		MethodDelegateBase *base = (*itor).second;
+		result = (*base)(ctx, params);
+	}
+	else
+	{
+		boost::wformat fmt(L"Server interface %s version %s does not contain a mapping for method %s");
+		fmt % interfaceName % interfaceVersion % methodName;
+		throw OrbException(fmt.str());
+	}
+
+	return result;
+}
+
+XdrStream *ClientInterface::operator()(const std::wstring &methodName, Context &ctx, XdrStream &params)
+{
+	InvokeRequest ir;
+	ir.requestId = incrementRequestCounter();
+	ir.interfaceName = interfaceName;
+	ir.versionNumber = interfaceVersion;
+	ir.methodName = methodName;
+	ir.parameters = params;
+	
+	InvokeRequestOrResponse irr(ir);
+
+	ResponseMap::instance()->createEntry(ir);
+	(*ctx.clientSocket) << irr;
+	InvokeResponse iresp = ResponseMap::instance()->waitOnEntry(ir);
+	
+	if (iresp.errorMessage.size() != 0)
+	{
+		throw SynerEdgeException(iresp.errorMessage);
+	}
+
+	XdrStream *result = new XdrStream(iresp.results);
+	return result;
+}
+
+InterfaceVersionPair BaseInterface::getInterfaceVersion() const
+{
+	InterfaceVersionPair result(interfaceName, interfaceVersion);
+	return result;
+}
+
+bool BaseInterface::authorize(const Context &ctx)
+{
+	return true;
+}
+
+OrbBase::OrbBase() : stopRequested(false) {}
+
+OrbBase::~OrbBase() {}
+
+bool OrbBase::authenticate(const LoginValues &loginValues)
+{
+	return true;
+}
+
+void OrbBase::operator+=(ServerInterface &iface)
+{
+	const InterfaceVersionPair key = iface.getInterfaceVersion();
+
+	ServerInterfaceMap::iterator itor = serverInterfaceMap.find(key);
+	if (itor == serverInterfaceMap.end())
+	{
+		serverInterfaceMap[key] = iface;
+	}
+	else
+	{
+		boost::wformat fmt(L"A server interface with name %s and version %s has already been added to this Orb.");
+		fmt % key.first % key.second;
+		throw OrbException(fmt.str());
+	}
+}
+
+void OrbBase::operator-=(ServerInterface &iface)
+{
+	InterfaceVersionPair key = iface.getInterfaceVersion();
+
+	ServerInterfaceMap::iterator itor = serverInterfaceMap.find(key);
+	if (itor != serverInterfaceMap.end())
+	{
+		serverInterfaceMap.erase(itor);
+	}
+	else
+	{
+		boost::wformat fmt(L"Could not find interface %s version %s in this orb.");
+		fmt % key.first % key.second;
+		throw OrbException(fmt.str());
+	}
+}
+
+ServerInterface &OrbBase::find(const InterfaceVersionPair &key)
+{
+	ServerInterfaceMap::iterator itor = serverInterfaceMap.find(key);
+	if (itor != serverInterfaceMap.end())
+	{
+		return (*itor).second;
+	}
+	else
+	{
+		boost::wformat fmt(L"Could not find interface %s version %s in this orb.");
+		fmt % key.first % key.second;
+		throw OrbException(fmt.str());
+	}
+}
+
+InvokeRequest::InvokeRequest() {}
+InvokeRequest::InvokeRequest(const InvokeRequest &copy)
+: requestId (copy.requestId), interfaceName(copy.interfaceName),
+  versionNumber(copy.versionNumber), methodName(copy.methodName),
+  parameters(copy.parameters)
+{
+}
+
+InvokeRequest &InvokeRequest::operator=(const InvokeRequest &equal)
+{
+	if (this == &equal) return *this;
+
+	requestId = equal.requestId;
+	interfaceName = equal.interfaceName;
+	versionNumber = equal.versionNumber;
+	methodName = equal.methodName;
+	parameters = equal.parameters;
+}
+
+InvokeResponse::InvokeResponse() {}
+InvokeResponse::InvokeResponse(const InvokeResponse &copy)
+: requestId(copy.requestId), errorMessage(copy.errorMessage),
+  results(copy.results)
+{
+}
+
+InvokeResponse &InvokeResponse::operator=(const InvokeResponse &equal)
+{
+	if (this == &equal) return *this;
+
+	requestId = equal.requestId;
+	errorMessage =	equal.errorMessage;
+	results = equal.results;
+
+	return *this;
+}
+
+InvokeRequestOrResponse::InvokeRequestOrResponse()
+: isRequest(false)
+{}
+
+InvokeRequestOrResponse::InvokeRequestOrResponse(const InvokeRequest &ir)
+: isRequest(true), invokeRequest(ir)
+{}
+
+InvokeRequestOrResponse::InvokeRequestOrResponse(const InvokeResponse &ir)
+: isRequest(false), invokeResponse(ir)
+{}
+
+XdrStream &operator<<(XdrStream &xdr, const InvokeRequestOrResponse &irr)
+{
+	xdr << irr.isRequest;
+	if (irr.isRequest)
+	{
+		xdr << irr.invokeRequest;
+	}
+	else
+	{
+		xdr << irr.invokeResponse;
+	}
+	return xdr;
+}
+
+XdrStream &operator>>(XdrStream &xdr, InvokeRequestOrResponse &irr)
+{
+	bool isRequest;
+	xdr >> isRequest;
+	irr.isRequest = isRequest;
+
+	if (isRequest)
+	{
+		xdr >> irr.invokeRequest;
+	}
+	else
+	{
+		xdr >> irr.invokeResponse;
+	}
+	return xdr;
+}
+
+ClientSocket &operator<<(ClientSocket &soc, const InvokeRequestOrResponse &irr)
+{
+	XdrStream xdr;
+	uint32_t irrSize;
+
+	if (irr.isRequest)
+	{
+		irrSize = (6 * sizeof(uint32_t)) + XdrStream::roundToBoundary(irr.invokeRequest.interfaceName.size()) + XdrStream::roundToBoundary(irr.invokeRequest.versionNumber.size()) + XdrStream::roundToBoundary(irr.invokeRequest.methodName.size()) + irr.invokeRequest.parameters.getBufferSize();
+		xdr << irrSize << irr.isRequest << irr.invokeRequest;
+	}
+	else
+	{
+		irrSize = (4 * sizeof(uint32_t)) + XdrStream::roundToBoundary(irr.invokeResponse.errorMessage.size()) + irr.invokeResponse.results.getBufferSize();
+		xdr << irrSize << irr.isRequest << irr.invokeResponse;
+	}
+
+	boost::mutex::scoped_lock lk(soc.getMutex());
+	if (! soc.sendSocket(xdr.getAndClearBuffer()))
+	{
+		std::wcout << L"send failed" << std::endl;
+	}
+	
+	return soc;
+}
+
+ClientSocket &operator>>(ClientSocket &soc, InvokeRequestOrResponse &irr)
+{
+
+	std::string xdrsizestr = soc.recvSocket(sizeof(int32_t));
+	int32_t xdrsize = ntohl
+		(*(reinterpret_cast<const int32_t *>(xdrsizestr.c_str())));
+
+	std::string xdrbuffer =
+		soc.recvSocket(static_cast<size_t>(xdrsize));
+
+	XdrStream xdr(xdrbuffer);
+
+	xdr >> irr.isRequest;
+	if (irr.isRequest)
+	{
+		xdr >> irr.invokeRequest;
+	}
+	else
+	{
+		xdr >> irr.invokeResponse;
+	}
+
+	return soc;
+}
+
+void OrbBase::processContext(Context &ctx)
+{
+	while ((! stopRequested) && (ctx.clientSocket != NULL) && (! ctx.clientSocket->isClosed()))
+	{
+		try
+		{
+		InvokeRequestOrResponse irr;
+		(*ctx.clientSocket) >> irr;
+
+		if (irr.isRequest)
+		{
+			InterfaceVersionPair ivp(irr.invokeRequest.interfaceName, irr.invokeRequest.versionNumber);
+			try
+			{
+				ServerInterface &sif = find(ivp);
+
+				XdrStream *res = sif(irr.invokeRequest.methodName, ctx, irr.invokeRequest.parameters);
+				
+				irr.invokeResponse.results = *res;
+				delete res;
+			}
+			catch (SynerEdgeException &ex)
+			{
+				irr.invokeResponse.errorMessage = ex.getMsg();
+			}
+			catch (...)
+			{
+				irr.invokeResponse.errorMessage = L"Unknown exception thrown in ";
+				irr.invokeResponse.errorMessage += irr.invokeRequest.methodName;
+			}
+			
+			irr.isRequest = false;
+			irr.invokeResponse.requestId = irr.invokeRequest.requestId;
+
+			(*ctx.clientSocket) << irr;
+		}
+		else
+		{
+			ResponseMap::instance()->flagResponse(irr.invokeResponse);
+		}
+
+		}
+		catch (SynerEdgeException &e)
+		{
+			std::wcout << L"Exception in processContext: " << e.getMsg() << std::endl;
+		}
+	}
+}
+
+ServerOrb::ExecuteThread::ExecuteThread(ServerOrb *instance_)
+: instance(instance_)
+{}
+
+void ServerOrb::ExecuteThread::operator()()
+{
+	while (! instance->stopRequested)
+	{
+		Context ctx = instance->que.waitAndPop();
+
+		try
+		{
+			instance->processContext(ctx);
+		}
+		catch (SynerEdgeException &ex)
+		{
+			std::wcout << L"exception in executethread: " << ex.getMsg() << std::endl;
+		}
+
+		delete ctx.clientSocket;
+		delete ctx.additionalData;
+	}
+}
+
+ServerOrb::ListenThread::ListenThread(ServerOrb *instance_)
+: instance(instance_)
+{}
+
+void ServerOrb::ListenThread::operator()()
+{
+	instance->tcpserv.listenSocket();
+	while (! instance->stopRequested)
+	{
+		ClientSocket *clisock = instance->tcpserv.acceptSocket();
+		clisock->setTimeout(instance->timeout);
+
+		Context ctx(clisock, L"", L"");
+		instance->que.pushAndNotify(ctx);
+	}
+}
+
+ServerOrb::ServerOrb(const Service &serv, bool isIP6, int queuelen)
+: tcpserv(serv, isIP6, queuelen), listenThread(0),
+  started(false), threadcount(0), timeout(-1)
+{
+	tcpserv.setReuseAddress(true);
+}
+
+void ServerOrb::start(unsigned threadcount_)
+{
+	threadcount = threadcount_;
+	createListenThread();
+} 
+
+void ServerOrb::join()
+{
+	listenThread->join();
+	thrgroup.join_all();
+}
+
+void ServerOrb::createListenThread()
+{
+	listenThread = new boost::thread(ListenThread(this));
+	for (unsigned i = 0; i < threadcount; i++)
+	{
+		thrgroup.add_thread(new boost::thread(ExecuteThread(this)));
+	};
+}
+
+void ServerOrb::setTimeout(int milliseconds)
+{
+	timeout = milliseconds;
+}
+
+ClientOrb::ClientOrb(SocketAddress &addr_, const std::wstring &uname, const std::wstring &password)
+: listenThread(0), context(0, uname, password), addr(addr_)
+{}
+
+void ClientOrb::start()
+{
+	context.clientSocket = new ClientSocket(addr);
+	context.clientSocket->setTimeout(timeout);
+	context.clientSocket->connectSocket();
+	createListenThread();
+}
+
+void ClientOrb::setTimeout(int timeout_)
+{
+	timeout = timeout_;
+}
+
+void ClientOrb::join()
+{
+	listenThread->join();
+}
+void ClientOrb::createListenThread()
+{
+	listenThread = new boost::thread(ListenThread(this));
+}
+
+ClientOrb::ListenThread::ListenThread(ClientOrb *instance_)
+: instance(instance_)
+{}
+
+void ClientOrb::ListenThread::operator()()
+{
+	instance->processContext(instance->context);
+}
+
+}
+
+@
+
+
+1.11
+log
+@oops - apparently a check-in did not go thru
+@
+text
+@d436 4
+a439 1
+	soc.sendSocket(xdr.getAndClearBuffer());
+a445 1
+	boost::mutex::scoped_lock lk(soc.getMutex());
+d513 1
+a513 1
+			std::wcout << e.getMsg() << std::endl;
+d524 3
+a526 1
+	Context ctx = instance->que.waitAndPop();
+d528 8
+a535 1
+	instance->processContext(ctx);
+d537 3
+a539 2
+	delete ctx.clientSocket;
+	delete ctx.additionalData;
+@
+
+
+1.10
+log
+@One final refactoring - moved the code that processes the context and responds to information arriving on a socket into OrbBase::processContext.
+@
+text
+@d3 2
+a255 2
+	XdrStream outbound;
+	outbound << irr;
+d258 1
+a258 1
+	(*ctx.clientSocket) << outbound;
+d404 50
+d463 2
+a464 1
+	return xdr;
+a472 1
+		XdrStream xdr;
+d474 1
+a474 3
+		(*ctx.clientSocket) >> xdr;
+
+		xdr >> irr;
+d501 1
+a501 3
+			XdrStream xdrresp;
+			xdrresp << irr;
+			(*ctx.clientSocket) << xdrresp;
+@
+
+
+1.9
+log
+@More cleanup of Orb routines.  Fixed a bug in return results, also refactored
+the ORB stuff.
+@
+text
+@d281 1
+a281 1
+OrbBase::OrbBase() {}
+d416 1
+a416 5
+ServerOrb::ExecuteThread::ExecuteThread(ServerOrb *instance_)
+: instance(instance_)
+{}
+
+void ServerOrb::ExecuteThread::operator()()
+d418 1
+a418 2
+	Context ctx = instance->que.waitAndPop();
+	while ((! instance->stopRequested) && (ctx.clientSocket != NULL) && (! ctx.clientSocket->isClosed()))
+a429 6
+			//std::wcout << L"Request" << std::endl;
+			//std::wcout << L"RequestId: " << irr.invokeRequest.requestId << std::endl;
+			//std::wcout << L"interfaceName: " << irr.invokeRequest.interfaceName << std::endl;
+			//std::wcout << L"versionNumber: " << irr.invokeRequest.versionNumber << std::endl;
+			//std::wcout << L"methodName: " << irr.invokeRequest.methodName << std::endl;
+
+d431 18
+a448 3
+			ServerInterface sif = instance->find(ivp);
+
+			XdrStream *res = sif(irr.invokeRequest.methodName, ctx, irr.invokeRequest.parameters);
+a451 3
+			irr.invokeResponse.results = *res;
+
+			delete res;
+a458 4
+			//std::wcout << L"Response" << std::endl;
+			//std::wcout << L"RequestId: " << irr.invokeResponse.requestId << std::endl;
+			//std::wcout << L"results before flag response" << std::endl;
+			//irr.invokeResponse.results.reportSize();
+d468 11
+d502 1
+a502 1
+: tcpserv(serv, isIP6, queuelen), stopRequested(false), listenThread(0),
+d535 1
+a535 1
+: listenThread(0), context(0, uname, password), stopRequested(false), addr(addr_)
+d566 1
+a566 49
+	while ((! instance->stopRequested) && (instance->context.clientSocket != NULL) && (! instance->context.clientSocket->isClosed()))
+	{
+	try
+	{
+		XdrStream xdr;
+		InvokeRequestOrResponse irr;
+		(*instance->context.clientSocket) >> xdr;
+
+		xdr >> irr;
+
+		if (irr.isRequest)
+		{
+			//std::wcout << L"Request" << std::endl;
+			//std::wcout << L"RequestId: " << irr.invokeRequest.requestId << std::endl;
+			//std::wcout << L"interfaceName: " << irr.invokeRequest.interfaceName << std::endl;
+			//std::wcout << L"versionNumber: " << irr.invokeRequest.versionNumber << std::endl;
+			//std::wcout << L"methodName: " << irr.invokeRequest.methodName << std::endl;
+
+			InterfaceVersionPair ivp(irr.invokeRequest.interfaceName, irr.invokeRequest.versionNumber);
+			ServerInterface sif = instance->find(ivp);
+
+			XdrStream *res = sif(irr.invokeRequest.methodName, instance->context, irr.invokeRequest.parameters);
+			
+			
+			irr.isRequest = false;
+			irr.invokeResponse.requestId = irr.invokeRequest.requestId;
+			irr.invokeResponse.results = *res;
+
+			delete res;
+
+			XdrStream xdrresp;
+			xdrresp << irr;
+			(*instance->context.clientSocket) << xdrresp;
+		}
+		else
+		{
+			//std::wcout << L"Response" << std::endl;
+			//std::wcout << L"RequestId: " << irr.invokeResponse.requestId << std::endl;
+			//std::wcout << L"results before flag response" << std::endl;
+			//irr.invokeResponse.results.reportSize();
+			ResponseMap::instance()->flagResponse(irr.invokeResponse);
+		}
+
+	}
+	catch (SynerEdgeException &e)
+	{
+		std::wcout << e.getMsg() << std::endl;
+	}
+	}
+@
+
+
+1.8
+log
+@comment out cout/wcout statements.
+@
+text
+@a88 1
+		result = resp->invokeResponse;
+d92 1
+d109 1
+a265 1
+
+d347 11
+d365 11
+a430 1
+		//xdr.reportSize();
+d435 5
+a439 5
+			std::wcout << L"Request" << std::endl;
+			std::wcout << L"RequestId: " << irr.invokeRequest.requestId << std::endl;
+			std::wcout << L"interfaceName: " << irr.invokeRequest.interfaceName << std::endl;
+			std::wcout << L"versionNumber: " << irr.invokeRequest.versionNumber << std::endl;
+			std::wcout << L"methodName: " << irr.invokeRequest.methodName << std::endl;
+d458 4
+a461 2
+			std::wcout << L"Response" << std::endl;
+			std::wcout << L"RequestId: " << irr.invokeResponse.requestId << std::endl;
+a565 1
+		//xdr.reportSize();
+d570 5
+a574 5
+			std::wcout << L"Request" << std::endl;
+			std::wcout << L"RequestId: " << irr.invokeRequest.requestId << std::endl;
+			std::wcout << L"interfaceName: " << irr.invokeRequest.interfaceName << std::endl;
+			std::wcout << L"versionNumber: " << irr.invokeRequest.versionNumber << std::endl;
+			std::wcout << L"methodName: " << irr.invokeRequest.methodName << std::endl;
+d594 4
+a597 2
+			std::wcout << L"Response" << std::endl;
+			std::wcout << L"RequestId: " << irr.invokeResponse.requestId << std::endl;
+@
+
+
+1.7
+log
+@Cleanup of orb routines.  Mostly working the way I want now.
+@
+text
+@d409 1
+a409 1
+		xdr.reportSize();
+d543 1
+a543 1
+		xdr.reportSize();
+@
+
+
+1.6
+log
+@Not completely fixed, but better at least!
+@
+text
+@d93 1
+d503 2
+a504 2
+ClientOrb::ClientOrb(ClientSocket *sock)
+: listenThread(0), clientSocket(sock), stopRequested(false)
+d509 3
+d515 5
+d535 1
+a535 1
+	while ((! instance->stopRequested) && (instance->clientSocket != NULL) && (! instance->clientSocket->isClosed()))
+d541 1
+a541 1
+		(*instance->clientSocket) >> xdr;
+d557 1
+a557 2
+			Context ctx(instance->clientSocket, L"", L"");
+			XdrStream *res = sif(irr.invokeRequest.methodName, ctx, irr.invokeRequest.parameters);
+d568 1
+a568 1
+			(*instance->clientSocket) << xdrresp;
+@
+
+
+1.5
+log
+@Cleanup of XDR server code.  Getting closer to parking this.
+@
+text
+@d7 5
+d56 62
+a117 1
+ServerInterface::ServerInterface()
+d121 7
+a127 1
+ServerInterface::ServerInterface(const ServerInterface &copy) 
+d138 1
+a138 1
+ServerInterface::ServerInterface(
+d144 1
+a144 1
+ServerInterface &ServerInterface::operator=(const ServerInterface &equal)
+d170 1
+a170 1
+ServerInterface::~ServerInterface() 
+d180 1
+a180 1
+void ServerInterface::operator+=(MethodDelegateBase *method)
+d205 1
+a205 1
+void ServerInterface::operator-=(MethodDelegateBase *method)
+a224 1
+	//std::wcout << "operator() looking for method " << methodName << std::endl ;
+a228 1
+		//std::wcout << "Found method " << std::endl ;
+a233 1
+		//std::wcout << "NOT Found method " << std::endl ;
+d242 28
+a269 1
+InterfaceVersionPair ServerInterface::getInterfaceVersion() const
+d275 1
+a275 1
+bool ServerInterface::authorize(const Context &ctx)
+a405 1
+		std::wcout << L"pulling xdr out of socket" << std::endl;
+a408 1
+		std::wcout << L"Filling irr record" << std::endl;
+a410 1
+		std::wcout << L"checking if irr is a request or response" << std::endl;
+a419 1
+			std::wcout << L"finding server interface" << std::endl;
+a420 1
+			std::wcout << L"found server interface" << std::endl;
+a423 2
+			std::wcout << L"back from call" << std::endl;
+			
+d426 1
+a426 1
+			irr.invokeResponse.results << *res;
+d438 1
+a444 1
+			instance->stopRequested = true;
+d464 1
+a464 1
+		Context ctx(clisock, L"");
+d500 75
+@
+
+
+1.4
+log
+@Fixes for client orb stuff.
+@
+text
+@a27 1
+	////std::wcout << "Call >> on InvokeRequest" << std::endl ;
+d245 2
+a246 1
+  versionNumber(copy.versionNumber), methodName(copy.methodName)
+a247 1
+	parameters << copy.parameters;
+d252 2
+a253 1
+: requestId(copy.requestId), errorMessage(copy.errorMessage)
+a254 1
+	results << copy.results;
+d303 2
+a304 2
+	ClientSocket *clisock = instance->que.waitAndPop();
+	while ((! instance->stopRequested) && (clisock != NULL) && (! clisock->isClosed()))
+d311 1
+a311 1
+		(*clisock) >> xdr;
+d326 9
+a334 1
+			/*
+d337 3
+d343 1
+a343 2
+			(*clisock) << xdrresp;
+			*/
+d358 3
+a360 1
+	delete clisock;
+d374 3
+a376 1
+		instance->que.pushAndNotify(clisock);
+@
+
+
+1.3
+log
+@Fixed bugs to get Orb working
+@
+text
+@d10 1
+d16 1
+d38 1
+d43 5
+a47 1
+	xdr >> val.requestId >> val.errorMessage >> val.results;
+d241 157
+@
+
+
+1.2
+log
+@Fixes to OrbBase
+@
+text
+@d26 1
+d147 1
+d152 1
+d158 1
+@
+
+
+1.1
+log
+@SSL Stuff + ORB stuff
+@
+text
+@d42 2
+d103 2
+a104 1
+	if (method->getName().size() == 0)
+@
+

@@ -1,0 +1,15 @@
+/AuthServer.py/1.2/Wed May 25 12:45:04 2005//
+/BufferingHTTPServer.py/1.1/Fri May 20 15:18:15 2005//
+/__init__.py/1.1/Fri May 20 15:18:15 2005//
+/constants.py/1.1/Fri May 20 15:18:16 2005//
+/davcmd.py/1.1/Fri May 20 15:18:16 2005//
+/davcopy.py/1.1/Fri May 20 15:18:16 2005//
+/davmove.py/1.1/Fri May 20 15:18:17 2005//
+/davserver.py/1.1/Fri May 20 15:18:17 2005//
+/delete.py/1.1/Fri May 20 15:18:17 2005//
+/errors.py/1.1/Fri May 20 15:18:18 2005//
+/iface.py/1.1/Fri May 20 15:18:18 2005//
+/propfind.py/1.1/Fri May 20 15:18:19 2005//
+/status.py/1.1/Fri May 20 15:18:19 2005//
+/utils.py/1.1/Fri May 20 15:18:20 2005//
+D

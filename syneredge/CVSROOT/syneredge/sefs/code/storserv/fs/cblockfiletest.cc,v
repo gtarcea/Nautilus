@@ -1,0 +1,125 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.04.13.18.43.41;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	d8425d6849419c;
+kopt	kv;
+filename	@cblockfiletest.cc@;
+
+1.1
+date	2005.04.08.17.49.29;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.29;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Move files that belong in the storprovider directory to that directory.
+@
+text
+@#include "cblockfiletest.h"
+#include "cblockfile.h"
+#include "cblock.h"
+#include <stdlib.h>
+#include <iostream>
+using namespace std ;
+
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockFileTest) ;
+
+void
+BlockFileTest::setUp()
+{
+	//tb1 = new Block() ;
+	//tb2 = new Block() ;
+}
+
+void
+BlockFileTest::tearDown()
+{
+//	delete tb1 ;
+//	delete tb2 ;
+}
+
+void
+BlockFileTest::testConstructor()
+{
+	char buf[8] ;
+	system("rm -f /tmp/newblockfile") ;
+	BlockFile nbf("/tmp/newblockfile", 0, 10) ;
+	nbf.readBlock(0, 0, 0, buf) ;
+	nbf.readBlock(1, 0, 0, buf) ;
+	nbf.readBlock(2, 0, 0, buf) ;
+	nbf.readBlock(3, 0, 0, buf) ;
+	nbf.readBlock(4, 0, 0, buf) ;
+	nbf.readBlock(5, 0, 0, buf) ;
+	nbf.readBlock(6, 0, 0, buf) ;
+	nbf.readBlock(7, 0, 0, buf) ;
+	nbf.readBlock(8, 0, 0, buf) ;
+	nbf.readBlock(9, 0, 0, buf) ;
+	CPPUNIT_FAIL("still testing") ;
+}
+
+void
+BlockFileTest::testCreateFile()
+{
+	CPPUNIT_FAIL("not implemented") ;
+}
+
+void BlockFileTest::testOpenFile()
+{
+	CPPUNIT_FAIL("not implemented") ;
+}
+
+void BlockFileTest::testReadWriteBlocks()
+{
+	CPPUNIT_FAIL("not implemented") ;
+}
+
+void BlockFileTest::testFollowBlockChain()
+{
+	CPPUNIT_FAIL("not implemented") ;
+}
+
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

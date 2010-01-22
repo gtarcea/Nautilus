@@ -1,0 +1,166 @@
+#include <iostream>
+#include "Block.hpp"
+#include "SynerEdge.hpp"
+#include "seerror.hpp"
+#include "PT.hpp"
+#include "FaultyBlockFile.hpp"
+#include "boost/filesystem/operations.hpp"
+/*#include "blockcache.h"*/
+#include <string>
+#include <cstdlib>
+
+/* Author: Atul Prakash
+ * This simulates a failed blockfilebase 
+ * (e.g., a faulty NetworkBlockFile).
+ *
+ * Usage:
+ *    create a FaultyBlockFile as a wrapper around an existing
+ *    blockfilebase by calling the constructor.
+ *   
+ *   Then call enableFailures() or disableFailures() to cause
+ *   the disk to fail public operations that return true/false. 
+ *   The failure model is very simple in this file. 
+ *   Generally, the failures lead to returning the "false" result
+ *   for operations such as readBlock, writeBlock, etc..
+ */
+
+using namespace std ;
+
+namespace SynerEdge {
+
+
+	FaultyBlockFile::FaultyBlockFile(iBlockIO *bf): bfp(bf)
+{
+	failmode = false ;
+}
+
+	FaultyBlockFile::~FaultyBlockFile()
+	{
+		// Causes double delete if bfp is also deleted in
+		// the code that created bfp (outside this code). 
+		// if (bfp) delete bfp;
+	}
+	
+void FaultyBlockFile::enableFailures()
+{
+	failmode = true;
+}
+
+void FaultyBlockFile::disableFailures()
+{
+	failmode = false;
+}
+
+bool
+FaultyBlockFile::close()
+{
+	//cout << "close()" << endl ;
+	if (failmode) return false;
+	return bfp->close();
+}
+
+bool
+FaultyBlockFile::open()
+{
+
+	fstream ifile ;
+
+	if (failmode) return false;
+	return bfp->open();
+}
+
+/*
+ * Cannot test for failures in create here. iBlockIO and 
+ *  NetworkBlockFile do not support the create method.
+ */
+
+/* COMMENTED OUT CODE
+bool
+FaultyBlockFile::create(int64 startingblocknum, int64 numblocks, int blocksize)
+{
+	if (failmode) return false;
+	return bfp->create(startingblocknum, numblocks, blocksize);
+}
+    END OF COMMENTED OUT CODE */
+
+
+bool
+FaultyBlockFile::writeBlock(uint64 blocknum, int offset, int size, char *data)
+{
+	PT("writeBlock(blocknum)") ;
+
+	if (failmode) return false;
+	return bfp->writeBlock(blocknum, offset, size, data);
+}
+
+bool
+FaultyBlockFile::writeBlock(Block &block)
+{
+	PT("BlockFile::writeBlock(Block &block)") ;
+
+
+	if (failmode) return false;
+	return bfp->writeBlock(block);
+}
+
+bool
+FaultyBlockFile::readBlock(uint64 blocknum, Block &block)
+{
+
+	if (failmode) return false;
+	return bfp->readBlock(blocknum, block);
+}
+
+bool
+FaultyBlockFile::zeroBlock(uint64 blocknum)
+{
+
+	if (failmode) return false;
+	return bfp->zeroBlock(blocknum);
+}
+
+uint64
+FaultyBlockFile::getNumBlocks() 
+{
+	return bfp->getNumBlocks() ;
+}
+
+
+uint64
+FaultyBlockFile::getNumFreeBlocks() 
+{
+	// File should be open for this to be called.
+	return bfp->getNumFreeBlocks();
+}
+
+
+int
+FaultyBlockFile::getBlockSize() const
+{
+	return bfp->getBlockSize();
+}
+
+
+uint64
+FaultyBlockFile::getFreeBlock()
+{
+	if (failmode) return 0;
+	return bfp->getFreeBlock();
+}
+
+bool
+FaultyBlockFile::releaseBlock(uint64 blocknum)
+{
+	if (failmode) return false;
+	return bfp->releaseBlock(blocknum);
+}
+
+bool
+FaultyBlockFile::flushFreeBlockList()
+{
+	if (failmode) return false;
+	return bfp->flushFreeBlockList() ;
+}
+
+
+} //namespace SynerEdge

@@ -1,0 +1,244 @@
+head	1.4;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.4
+date	2005.06.12.23.36.41;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	e3c42acc6f271ce;
+kopt	kv;
+filename	@StorProvSvrInterface.cpp@;
+
+1.3
+date	2005.06.10.17.43.19;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	b1c42a9d10946ca;
+kopt	kv;
+filename	@StorProvSvrInterface.cpp@;
+
+1.2
+date	2005.06.01.18.52.27;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	b68429e03dc3ce7;
+kopt	kv;
+filename	@StorProvSvrInterface.cpp@;
+
+1.1
+date	2005.05.31.18.12.09;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	79c429ca8e34fd5;
+kopt	kv;
+filename	@StorProvSvrInterface.cpp@;
+
+
+desc
+@@
+
+
+1.4
+log
+@Get RPC interfaces working with new Orb changes. Still need to move to
+threaded Orb.
+@
+text
+@
+#include "StorProvSvrInterface.hpp"
+#include <iostream>
+
+using namespace std ;
+
+namespace SynerEdge {
+
+StorProvSvrInterface::StorProvSvrInterface(BlockFile &bf)
+	: bf(bf)
+{
+	blockSize = bf.getBlockSize() ;
+}
+
+XdrStream *
+StorProvSvrInterface::getNumBlocks(Context &ctx, XdrStream &xdrs)
+{
+	int64 result;
+	XdrStream *res = new XdrStream();
+	result =  bf.getNumBlocks() ;
+	(*res) << result;
+	return res;
+}
+
+XdrStream *
+StorProvSvrInterface::getBlockSize(Context &ctx, XdrStream &xdrs)
+{
+	int result ;
+	XdrStream *res = new XdrStream() ;
+	result = bf.getBlockSize() ;
+	(*res) << result ;
+	return res ;
+}
+
+XdrStream *
+StorProvSvrInterface::getNumFreeBlocks(Context &ctx, XdrStream &xdrs)
+{
+	int64 result;
+	XdrStream *res = new XdrStream();
+	result =  bf.getNumFreeBlocks() ;
+	(*res) << result;
+	return res;
+}
+
+XdrStream *
+StorProvSvrInterface::getFreeBlock(Context &ctx, XdrStream &xdrs)
+{
+	int64 result;
+	XdrStream *res = new XdrStream();
+	result =  bf.getFreeBlock();
+	(*res) << result;
+	return res;
+}
+
+XdrStream *
+StorProvSvrInterface::releaseBlock(Context &ctx, XdrStream &xdrs)
+{
+	int len ;
+	int64 blocknum;
+	bool result;
+	XdrStream *res = new XdrStream();
+	//xdrs >> len ;
+	//cout << "len = " << len << endl ;
+	xdrs >> blocknum;
+	result =  bf.releaseBlock(blocknum);
+	(*res) << result;
+	return res;
+}
+
+XdrStream *
+StorProvSvrInterface::flushFreeBlockList(Context &ctx, XdrStream &xdrs)
+{
+	bool result;
+	XdrStream *res = new XdrStream();
+	result =  bf.flushFreeBlockList();
+	(*res) << result;
+	return res;
+}
+
+XdrStream *
+StorProvSvrInterface::writeBlock(Context &ctx, XdrStream &xdrs)
+{
+	int len ;
+	int64 blocknum;
+	int offset ;
+	int size ;
+	string data ;
+	bool result;
+	XdrStream *res = new XdrStream();
+//	xdrs >> len ;
+	//cout << "len = " << len << endl ;
+	xdrs >> blocknum ;
+//	cout << "blocknum = " << blocknum << endl ;
+	xdrs >> offset ;
+//	cout << "offset = " << offset << endl ;
+	xdrs >> size ;
+//	cout << "size = " << size << endl ;
+	xdrs >> data ;
+	result =  bf.writeBlock(blocknum, offset, size, const_cast<char *>(data.c_str()));
+	(*res) << result;
+	return res;
+}
+
+XdrStream *
+StorProvSvrInterface::readBlock(Context &ctx, XdrStream &xdrs)
+{
+	int len ;
+	int64 blocknum;
+	int result;
+	Block block(blockSize) ;
+	XdrStream *res = new XdrStream();
+	//xdrs >> len ;
+	xdrs >> blocknum;
+	result =  bf.readBlock(blocknum, block);
+	(*res) << result;
+	if (result) {
+	//	cout << "result is true" << endl ;
+		(*res) << blocknum ;
+	//	(*res) << block.isFree() ;
+		(*res) << block.getNumBytes() ;
+		(*res) << block.getSize() ;
+		(*res) << string(block.getBytes()) ;
+	}
+	return res;
+}
+
+XdrStream *
+StorProvSvrInterface::zeroBlock(Context &ctx, XdrStream &xdrs)
+{
+	int len ;
+	int64 blocknum ;
+	int result;
+	XdrStream *res = new XdrStream();
+	//xdrs >> len ;
+	xdrs >> blocknum;
+	result =  bf.zeroBlock(blocknum);
+	(*res) << result;
+	return res;
+}
+
+} // namespace SynerEdge
+@
+
+
+1.3
+log
+@Remove isfree >> and << passing. Clean up readBlock() to return false on failure
+rather than trying to read nonexistant parameters.
+@
+text
+@d62 2
+a63 1
+	xdrs >> len ;
+a64 1
+//	cout << "blocknum = " << blocknum << endl ;
+d90 1
+a90 1
+	xdrs >> len ;
+d112 1
+a112 1
+	xdrs >> len ;
+d134 1
+a134 1
+	xdrs >> len ;
+@
+
+
+1.2
+log
+@Add getBlockSize() call support.
+@
+text
+@d119 1
+a119 1
+		(*res) << block.isFree() ;
+@
+
+
+1.1
+log
+@Rename StorageProviderServerInterface to StorProvSvrInterface
+@
+text
+@d26 10
+@
+

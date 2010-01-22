@@ -1,0 +1,76 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2005.04.26.14.10.13;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	474426e4bbb682a;
+kopt	kv;
+filename	@cblocktest.h@;
+
+1.1
+date	2005.04.08.17.49.29;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.29;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.2
+log
+@Remove extraneous file.
+@
+text
+@
+#include <cppunit/extensions/HelperMacros.h>
+#include "cblock.h"
+class BlockTest : public CppUnit::TestFixture
+{
+	CPPUNIT_TEST_SUITE(BlockTest) ;
+	CPPUNIT_TEST(testConstructor) ;
+	CPPUNIT_TEST(testSetGet) ;
+	CPPUNIT_TEST_SUITE_END() ;
+public:
+	void setUp() ;
+	void tearDown() ;
+	void testConstructor() ;
+	void testSetGet() ;
+} ;
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

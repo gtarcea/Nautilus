@@ -1,0 +1,50 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.26.22.55.34;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	940426ec6d57a29;
+kopt	kv;
+filename	@syg_c.cpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Setup tests.
+@
+text
+@#include "BlockFile.hpp"
+#include "stdlib.h"
+
+using namespace SynerEdge ;
+main()
+{
+	system("rm -f /tmp/syneredgeblocks1*") ;
+	system("rm -f /etc/syneredge/fbmap/*") ;
+	BlockFile bf("/tmp/syneredgeblocks1") ;
+	bool rc = bf.open() ;
+	if (! rc) {
+		// Doesn't exist so create
+		//cout << "Calling bf.create()" << endl ;
+		rc = bf.create(1, 10000, 1024) ;
+	}
+
+	if (! rc) {
+		return false ;
+	}
+
+	bf.close() ;
+}
+@

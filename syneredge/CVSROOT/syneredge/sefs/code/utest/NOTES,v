@@ -1,0 +1,66 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.2
+date	2005.06.10.16.21.39;	author aprakash;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	90042a9be0f08d2;
+kopt	kv;
+filename	NOTES;
+
+1.1
+date	2005.06.09.17.02.38;	author aprakash;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	98042a875f55961;
+kopt	kv;
+filename	NOTES;
+
+
+desc
+@@
+
+
+1.2
+log
+@*** empty log message ***
+@
+text
+@Note for testing:
+
+I added a file "testOrder.cpp" through which you can control the order of testing of modules.
+The reason for doing this is so that lower-level modules could be tested before higher-level
+ones. 
+
+If you add a registration statement in this file, you should not add it to an individual
+file.
+
+utestlog.txt contains the results from the test run before the last checkin.
+
+@
+
+
+1.1
+log
+@These are partially converted tests. Many will break because of the changes
+to how readBlock and writeBlock behave -- they will fail if blocks are
+not allocated.
+
+testOrder.cpp controls the order of tests.
+@
+text
+@a6 2
+
+
+d10 1
+@
+

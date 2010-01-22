@@ -1,0 +1,71 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.12.23.17.21;	author aprakash;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	ea842acc20f61d9;
+kopt	kv;
+filename	@syg_unittest.cpp@;
+
+1.1
+date	2005.04.20.12.57.38;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	c68426651b95bd3;
+kopt	kv;
+filename	@syg_unittest.cpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@The VirtualDisk tests now work.
+There was a lot of code duplicated in various files in order to set up a virtual blockfile.
+I created a class TestUtils that contains some utilities to help create virtual blockfiles, etc.
+Add to that file any functions that are needed by more than one unit class.
+
+The cleanup of tmp files is also done in syg_unittest.cpp.
+@
+text
+@#include <cppunit/extensions/TestFactoryRegistry.h>
+#include <cppunit/ui/text/TestRunner.h>
+#include "Testutils.hpp"
+
+int
+main()
+{
+	CppUnit::TextUi::TestRunner runner ;
+	CppUnit::TestFactoryRegistry &registry = CppUnit::TestFactoryRegistry::getRegistry() ;
+	Testutils::deleteTestVirtualBlockFiles();
+	runner.addTest(registry.makeTest()) ;
+	bool wasSuccessful = runner.run() ;
+	return ! wasSuccessful ;
+}
+@
+
+
+1.1
+log
+@
+Add Global Unit Tester
+@
+text
+@d3 1
+d10 1
+a10 1
+
+@
+

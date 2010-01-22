@@ -1,0 +1,103 @@
+Some points of discussion and questions
+---------------------------------------
+
+1. how to encode URLs?
+   
+   Should URL in href-Tags be encoded by normal URL encoding schemes?
+   e.g. %2a etc. ?
+   Or do we write the string with e.g. umlauts directly in the specific encoding
+   which encodes this char?
+
+   Tests: WebDav accepts quoted URLs (means %XX ones), unquoted ones
+          with ISO-8859 it does not except.
+	  With utf-8 it generates an error.
+
+
+   Standard: says to encode it via RFC 2086, which is the normal URI way
+             of doing it.
+	     mod_dav contains a comment at this place to implement quoting
+	     later.
+
+2. What purpose does <displayname> have?
+   Might it be possible to generate an URI from IDs of a database
+   and give the resource their titles via <displayname> ?
+
+   Example:
+
+   In a database we want to specify the resource with ID 5.
+   The path to this resourse (if we model sort of a filesystem)
+   might be http://foo.com/1/2/3/5
+
+   If we now set the <displayname> property of resource #5 to
+   be "My cool resource". Should this be presented to the user
+   instead of just 5? 
+
+   I tried this with webfolders but unfortunately <displayname>
+   was ignored. 
+   
+   It would also lead to the possibility to give two resources
+   with different IDs the same name which might be possible in
+   some systems (though not desirable).
+
+3. uniqness of URIs
+   
+   Imagine a shared filesystem where each user has it's own
+   $HOME directory.
+   Now this filesystem is accessed via DAV. The user logs in
+   via the normal HTTP authentication mechanism and sees
+   his $HOME. Now we have different $HOMEs for each user
+   which might result in different directories for the same
+   URI (as the user will only enter http://myfilesystem/ without
+   specifying his identity in the URI as he does this via the
+   auth request).
+   Is this valid? Or do we have to create some sort of redirect
+   to http://myfilesystem/<username>/ ?
+   (Actually the most intuitive would be to let this be valid ;-)
+
+
+4. questions about COPY
+
+   Under UNIX I can do the following:
+
+   cp myfile.txt /new/path/
+
+   which is the same as
+
+   cp myfile.txt /new/path/myfile.txt
+
+   (assuming that the destination file does not exist already).
+
+   Are such Destinations allowed for DAV also or do clients always
+   have to provide the full path and not end with a collection which
+   should act as new parent collection.
+   As I understand the standard the full URI must be given (thus meaning
+   cp myfile.txt /new/path/myfile.txt).
+
+   Is this right?
+
+    YES!
+
+
+5. DELETE
+   How should errors be handled?
+   When I delete a collection I first delete the childs and then delete
+   the parent collection (recursive, thus we walk the tree bottom up).
+   This is clear as I cannot delete a parent before deleting it's childs.
+   Now assumed that we have a tree a/b/c/d and we are not able to delete
+   d as it is forbidden or whatever. Now we also cannot delete a, b and c.
+   Which errors should be generated?
+   Only one a 403 for d? 
+   Do I understand the fact that in 8.6.2 of the RFC it's written that
+   no 424 errors are generated this way?
+
+   If so I would walk the tree bottom up and note errors in a list and
+   would skip parents (also in the error list) which are prefixes of a
+   previous error.
+
+   YES -> example in 8.6.2
+
+
+
+
+
+

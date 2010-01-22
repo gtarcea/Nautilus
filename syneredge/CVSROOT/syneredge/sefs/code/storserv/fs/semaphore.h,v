@@ -1,0 +1,67 @@
+head     1.1;
+branch   1.1.1;
+access   ;
+symbols 
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks    ; strict;
+comment  @ * @;
+
+
+1.1
+date     2005.04.08.17.49.30;  author gtarcea;  state Exp;
+branches 1.1.1.1;
+next     ;
+deltatype   text;
+permissions	666;
+
+1.1.1.1
+date     2005.04.08.17.49.30;  author gtarcea;  state Exp;
+branches ;
+next     ;
+permissions	666;
+
+
+desc
+@@
+
+
+
+1.1
+log
+@Initial revision
+@
+text
+@
+#ifndef __SEMAPHORE_INCLUDE_
+#define __SEMAPHORE_INCLUDE_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct SEMAPHORE ;
+typedef struct SEMAPHORE SEMAPHORE ;
+typedef SEMAPHORE *SEMAPHOREP ;
+
+SEMAPHOREP semaphore_create(key_t key, int value) ;
+SEMAPHOREP semaphore_open(key_t) ;
+int semaphore_increment(SEMAPHOREP sem) ;
+int semaphore_decrement(SEMAPHOREP sem) ;
+int semaphore_getvalue(SEMAPHOREP sem) ;
+int semaphore_destroy(SEMAPHOREP sem, int removesys) ;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __SEMAPHORE_INCLUDE_ */
+@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

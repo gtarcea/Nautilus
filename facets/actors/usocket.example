@@ -1,0 +1,40 @@
+Server side:
+
+(require 'usocket)
+(setf sock (usocket:socket-listen "localhost" 76544))
+(setf new-sock (usocket:socket-accept sock))
+(read-line (usocket:socket-stream new-sock))
+
+Client side:
+
+(require 'usocket)
+(setf outsock (usocket:socket-connect "localhost" 76544))
+(or (format (usocket:socket-stream outsock) "hello world~%") (finish-output (usocket:socket-stream outsock)))
+
+;;; Examples of accepting strings and lists, and turning them into functions:
+
+(defun eval-string (s)
+       (do ((sz (length s)) (st 0) (last-val nil))
+           ((>= st sz) last-val)
+         (setq last-val (eval (with-input-from-string (sarg s :index st :start st) (read sarg))))))
+
+(eval-string "(+ 2 8)")
+(funcall *)
+
+(eval-string (format nil "~A" '(lambda () 5)))
+(funcall *)
+
+;; Example using usocket to write to a stream using cl-store:store
+
+(setf osock (usocket:socket-connect "localhost" 76543 :element-type '(unsigned-byte 8)))
+(cl-store:store 5 (usocket:socket-stream osock))
+
+;; Code to send a class definition:
+(cl-store:store (find-class 'my-class) (usocket:socket-stream osock))
+
+;; Example macro that we can use to define moveable methods
+(defmacro m (name args &body body)
+       `(setq name ',name
+         args ',args
+         body ',@body))
+

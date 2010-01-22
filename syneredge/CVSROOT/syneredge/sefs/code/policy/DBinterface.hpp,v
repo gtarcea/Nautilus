@@ -1,0 +1,161 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.3
+date	2005.06.06.16.53.20;	author irrer;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	ad442a47f5c6821;
+kopt	kv;
+filename	@DBinterface.hpp@;
+
+1.2
+date	2005.06.02.19.38.53;	author irrer;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	97c429f60342e72;
+kopt	kv;
+filename	@DBinterface.hpp@;
+
+1.1
+date	2005.05.09.12.57.12;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	908427f5e1527e5;
+kopt	kv;
+filename	@DBinterface.hpp@;
+
+
+desc
+@@
+
+
+1.3
+log
+@Added transaction handling.
+Added better error checking for parameters.
+Improved error messages.
+@
+text
+@
+#ifndef DBINTERFACE_HPP
+#define DBINTERFACE_HPP
+
+using namespace std;
+
+#include <string.h>
+#include <SEmysql.h>
+
+// define C interfaces to database functions
+extern "C"
+{
+    char *DBmysql_real_connect(DBmysql *ms);
+    int DBmysql_query(DBmysql dbMysql, const char *statement);
+    void DBmysql_close(DBmysql dbMysql);
+    const char *DBmysql_error(DBmysql dbMysql);
+    DBmysql_row DBmysql_fetch_row(DBmysql_res dbResult);
+    unsigned int DBmysql_num_fields(DBmysql_res dbResult);
+    unsigned int DBmysql_num_rows(DBmysql_res dbResult);
+    DBmysql_res DBmysql_store_result(DBmysql dbMysql);
+    const char* DBcolumnContent(DBmysql_row row, int col);
+    void DBmysql_free_result(DBmysql_res result);
+    void DBmysql_data_seek(DBmysql_res result, int row);
+}
+
+using namespace std;
+class DBinterface
+{
+  private:
+    /** Database handle */
+    DBmysql mysql;
+
+    /** result of SELECT statement */
+    DBmysql_res result;
+
+    /** Number of fields in each row of most recent query */
+    unsigned int numColumns;
+
+    /** Number of rows in from table of most recent query */
+    unsigned int numRows;
+
+    /** Indicates whether database is open or not. */
+    bool dbOpen;
+
+    /** Most recent query. */
+    string *latestQuery;
+
+    /** Most recent query concatenated with error. */
+    string *queryAndError;
+
+  public:
+
+    DBinterface();
+    bool execute(const char *command);
+    int getNumColumns();
+    int getNumRows();
+    const char *get(int row, int col);
+    const char *error(void);
+    ~DBinterface(void);
+
+};
+#endif
+@
+
+
+1.2
+log
+@Rework of policy engine.
+@
+text
+@d2 2
+a3 2
+#ifndef _DBinterface_hpp
+#define _DBinterface_hpp
+d5 3
+a9 2
+using namespace std;
+
+d26 1
+d44 6
+@
+
+
+1.1
+log
+@Added files for policy manipulation.
+@
+text
+@d17 3
+a19 2
+    unsigned int DBmysql_field_count(DBmysql_res dbResult);
+    DBmysql_res DBmysql_use_result(DBmysql dbMysql);
+d22 1
+d34 2
+a35 2
+    /** most recently fetched row */
+    DBmysql_row row;
+d37 2
+a38 2
+    /** Number of fields in each row of most recent query */
+    unsigned int numFields;
+d45 1
+a45 1
+    DBinterface(void);
+d47 4
+a50 3
+    bool nextRow(void);
+    int numColumns(void);
+    const char *column(int col);
+d52 1
+@
+

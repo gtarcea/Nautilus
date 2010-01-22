@@ -1,0 +1,127 @@
+head	1.5;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.5
+date	2005.05.21.18.38.32;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	c1c428f800e56a5;
+kopt	kv;
+filename	makefile;
+
+1.4
+date	2005.05.21.15.16.05;	author rdesai;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	df4428f50a13bc6;
+kopt	kv;
+filename	makefile;
+
+1.3
+date	2005.04.12.23.24.43;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	930425c58ac4aa3;
+kopt	kv;
+filename	makefile;
+
+1.2
+date	2005.04.12.19.08.17;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	dcc425c1c7205f6;
+kopt	kv;
+filename	makefile;
+
+1.1
+date	2005.04.09.22.20.59;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	648425855332f58;
+kopt	kv;
+filename	makefile;
+
+
+desc
+@@
+
+
+1.5
+log
+@removal of SSL
+@
+text
+@REFERENCES := tools/boost/filesystem tools/boost/thread 
+MYINCS := 
+MYLIBS := 
+include $(SYGHOME)/code/make/makefile
+@
+
+
+1.4
+log
+@SSL Stuff + ORB stuff
+@
+text
+@d2 2
+a3 2
+MYINCS := -Itools/openssl
+MYLIBS := /home/ravi/cvs/syneredge/sefs/code/tools/openssl/stage/Linux_32/libssl.a /home/ravi/cvs/syneredge/sefs/code/tools/openssl/stage/Linux_32/libcrypto.a
+@
+
+
+1.3
+log
+@boost filesystem is needed.
+@
+text
+@d1 3
+a3 3
+REFERENCES := tools/boost/filesystem tools/boost/thread
+MYINCS := 
+MYLIBS := 
+@
+
+
+1.2
+log
+@
+Changed $(HOME) reference to $(SYGHOME).
+
+Removed reference to boost filesystem library. This was causing
+link errors on my system.
+@
+text
+@d1 1
+a1 1
+REFERENCES := tools/boost/thread
+@
+
+
+1.1
+log
+@utils directory initial checkin
+@
+text
+@d1 1
+a1 1
+REFERENCES := tools/boost/filesystem tools/boost/thread
+d4 1
+a4 1
+include $(HOME)/syneredge/code/make/makefile
+@
+

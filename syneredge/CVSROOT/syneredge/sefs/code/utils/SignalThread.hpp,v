@@ -1,0 +1,139 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.04.23.00.39.31;	author rdesai;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	b24426999251106;
+kopt	kv;
+filename	@SignalThread.hpp@;
+
+1.1
+date	2005.04.09.22.20.57;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	648425855332f58;
+kopt	kv;
+filename	@SignalThread.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Cleanup of SignalThread.  Addition of Timer mechanism.
+@
+text
+@#ifndef SygSignalThread
+#define SygSignalThread
+
+#include "boost/utility.hpp"
+#include "boost/thread.hpp"
+#include "boost/thread/once.hpp"
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/condition.hpp"
+
+#include "SynerEdge.hpp"
+#include "Observer.hpp"
+#include <signal.h>
+#include <map>
+
+namespace SynerEdge
+{
+
+class SignalThreadException : public SynerEdgeException
+{
+public:
+	SignalThreadException(const std::wstring &msg)
+	: SynerEdgeException(msg)
+	{}
+
+	virtual ~SignalThreadException() {}
+};
+
+class SignalThread : private boost::noncopyable, public Observable
+{
+public:
+	typedef std::map<int, SignalThread *>::iterator SignalsIterator;
+	~SignalThread();
+
+	static SignalThread *instance(int mySignal, bool extraSigaction=false);
+	static void blockSignals(const std::list<int> &signals);
+	static void unblockSignals(const std::list<int> &signals);
+
+	ObservableEvent<int> raisedSignal;
+
+	void requestStop();
+
+	static SignalsIterator begin();
+	static SignalsIterator end();
+private:
+	class BoostThread;
+	
+	boost::thread *signalThread;
+	boost::mutex mtx;
+	boost::condition cnd;
+	bool stopRequested;
+	int mySignal;
+	pthread_t threadId;
+	bool extraSigaction;
+
+	// singleton semantics
+	SignalThread(int signal, bool extraSigaction);
+
+	// static map of Signal threads and mutex to protect it
+	static std::map<int, SignalThread *> _instances;
+	static boost::mutex _mtx;
+
+	// noncopyable semantics
+	SignalThread(const SignalThread &);
+	SignalThread &operator=(const SignalThread &);
+};
+
+}
+
+#endif
+
+@
+
+
+1.1
+log
+@utils directory initial checkin
+@
+text
+@d10 1
+d18 10
+d34 1
+a34 1
+	static SignalThread *instance(int mySignal);
+d36 1
+d45 1
+a45 8
+	class BoostThread
+	{
+	public:
+		BoostThread(SignalThread *instance);
+		void operator()();
+	private:
+		SignalThread *_instance;
+	};
+d53 1
+d56 1
+a56 1
+	SignalThread(int signal);
+a60 1
+	static void doNothing(int signal);
+@
+

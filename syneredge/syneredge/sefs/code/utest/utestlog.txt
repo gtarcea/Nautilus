@@ -1,0 +1,70 @@
+....BlockFileUnitTest::testConstructor()
+Leaving BlockFileUnitTest::testConstructor
+.BlockFileUnitTest::testCreateFile()
+.BlockFileUnitTest::testOpenFile()
+.BlockFileUnitTest::testReadWriteBlocks()
+FreeBlockMap::freeBock:  attempt to free an already free block
+.BlockFileUnitTest::testZeroAndFreeBlocks()
+.BlockFileUnitTest::testFreeBlockListMethods()
+.............rm: cannot remove `/tmp/bf1*': No such file or directory
+rm: cannot remove `/tmp/bf2*': No such file or directory
+rm: cannot remove `/tmp/bf3*': No such file or directory
+rm: cannot remove `/tmp/mybfe1*': No such file or directory
+rm: cannot remove `/tmp/myvbf*': No such file or directory
+.rm: cannot remove `/tmp/mybfe1*': No such file or directory
+rm: cannot remove `/tmp/myvbf*': No such file or directory
+.rm: cannot remove `/tmp/mybfe1*': No such file or directory
+rm: cannot remove `/tmp/myvbf*': No such file or directory
+.rm: cannot remove `/tmp/mybfe1*': No such file or directory
+rm: cannot remove `/tmp/myvbf*': No such file or directory
+.rm: cannot remove `/tmp/mybfe1*': No such file or directory
+rm: cannot remove `/tmp/myvbf*': No such file or directory
+.rm: cannot remove `/tmp/mybfe1*': No such file or directory
+rm: cannot remove `/tmp/myvbf*': No such file or directory
+.rm: cannot remove `/tmp/bf1*': No such file or directory
+rm: cannot remove `/tmp/bf2*': No such file or directory
+rm: cannot remove `/tmp/bf3*': No such file or directory
+rm: cannot remove `/tmp/bf4*': No such file or directory
+.........number of free blocks =  0
+.E.E.E.E...F.F.E
+ 
+ 
+!!!FAILURES!!!
+Test Results:
+Run:  46   Failures: 2   Errors: 5
+ 
+ 
+1) test: NetworkBlockFileUnitTest::testOpenFile (E)
+setUp() failed
+- uncaught exception of unknown type
+ 
+ 
+2) test: NetworkBlockFileUnitTest::testReadWriteBlocks (E)
+setUp() failed
+- uncaught exception of unknown type
+ 
+ 
+3) test: NetworkBlockFileUnitTest::testZeroAndFreeBlocks (E)
+setUp() failed
+- uncaught exception of unknown type
+ 
+ 
+4) test: NetworkBlockFileUnitTest::testFreeBlockListMethods (E)
+setUp() failed
+- uncaught exception of unknown type
+ 
+ 
+5) test: StorProvSvrInterfaceUnitTest::testReadWrite (F) line: 111 StorProvSvrInterfaceUnitTest.cpp
+assertion failed
+- Expression: rc == true
+ 
+ 
+6) test: StorProvSvrInterfaceUnitTest::testOther (F) line: 159 StorProvSvrInterfaceUnitTest.cpp
+assertion failed
+- Expression: rc == true
+ 
+ 
+7) test: sygstorproviderUnitTest::testAll (E)
+setUp() failed
+- uncaught exception of unknown type
+ 

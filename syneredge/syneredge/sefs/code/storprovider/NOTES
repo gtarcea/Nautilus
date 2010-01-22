@@ -1,0 +1,23 @@
+1. when writing a block to disk using operator<<, size > 0.
+
+2. All blocks in a blockfile must be of the same size.
+
+3. When reading a block using >>, the size > 0.
+
+4. Possible optimization: Dealing with small writes. Currently, a small
+   write would translate to the writing of a whole 1024 byte block.
+
+5. numBytes: indicates valid bytes in a block -- such as last block
+   in a file.
+  Design alternative: not maintain numBytes. Maintain partial block
+     information in BlockFile.
+
+6. To BlockFile, open: Should check existence of the freeblockmap file and that it readable/writeable.
+
+7. Check all the bounds > vs. >=. Add Unit Tests for that.
+
+8. in iBlockIO.hpp, should getNumBlocks and getNumFreeBlocks() be const
+	functions, like getFileName()?
+
+  
+

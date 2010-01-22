@@ -1,0 +1,43 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.04.10.12.58.16;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	820425922d64ede;
+kopt	kv;
+filename	makefile;
+
+
+desc
+@@
+
+
+1.1
+log
+@makefiles for different subdirectories
+@
+text
+@all : 
+	cd config; \
+	$(MAKE) all
+	cd policy; \
+	$(MAKE) all
+
+clean : 
+	cd config; \
+	$(MAKE) clean
+	cd policy; \
+	$(MAKE) clean
+
+depends : 
+
+rmdepends :
+@

@@ -1,0 +1,206 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.05.31.18.34.50;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	40c429cae306125;
+kopt	kv;
+filename	@StorageProviderServerInterfaceUnitTest.cpp@;
+
+1.1
+date	2005.05.25.16.13.17;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	4184294a40d2023;
+kopt	kv;
+filename	@StorageProviderServerInterfaceUnitTest.cpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Rename StorageProviderServerInterfaceUnitTest to StorProvSvrInterfaceUnitTest
+@
+text
+@#include "StorageProviderServerInterfaceUnitTest.hpp"
+#include "StorageProviderServerInterface.hpp"
+#include <iostream>
+using namespace std ;
+using namespace SynerEdge ;
+
+CPPUNIT_TEST_SUITE_REGISTRATION(StorageProviderServerInterfaceUnitTest) ;
+
+void
+StorageProviderServerInterfaceUnitTest::setUp()
+{
+	bf = new BlockFile("/tmp/bf") ;
+
+	if (! bf->open()) {
+		bf->create(1, 100, 1024) ;
+		CPPUNIT_ASSERT(bf->open() == true) ;
+	}
+}
+
+void
+StorageProviderServerInterfaceUnitTest::tearDown()
+{
+	delete bf ;
+}
+
+void 
+StorageProviderServerInterfaceUnitTest::testConstructor()
+{
+	StorageProviderServerInterface spi((*bf)) ;
+	Context ctx ;
+	XdrStream xd ;
+	int64 numblocks ;
+	XdrStream *xdresult = spi.getNumBlocks(ctx, xd) ;
+	(*xdresult) >> numblocks ;
+	CPPUNIT_ASSERT(numblocks == 100) ;
+}
+
+void 
+StorageProviderServerInterfaceUnitTest::testGets()
+{
+	StorageProviderServerInterface spi((*bf)) ;
+	Context ctx ;
+	XdrStream xd ;
+	int64 numblocks ;
+
+	XdrStream *xdresult = spi.getNumBlocks(ctx, xd) ;
+	(*xdresult) >> numblocks ;
+	CPPUNIT_ASSERT(numblocks == 100) ;
+	delete xdresult ;
+
+	xdresult = spi.getNumFreeBlocks(ctx, xd) ;
+	(*xdresult) >> numblocks ;
+	CPPUNIT_ASSERT(numblocks == 100) ;
+	delete xdresult ;
+
+	xdresult = spi.getFreeBlock(ctx, xd) ;
+	int64 blocknum ;
+	(*xdresult) >> blocknum ;
+	CPPUNIT_ASSERT(blocknum == 1) ;
+	XdrStream *xdresult2 = spi.getNumFreeBlocks(ctx, xd) ;
+	(*xdresult2) >> numblocks ;
+	CPPUNIT_ASSERT(numblocks == 99) ;
+	delete xdresult ;
+	delete xdresult2 ;
+
+	InvokeRequest ir ;
+	ir.parameters << blocknum ;
+
+	xdresult = spi.releaseBlock(ctx, ir.parameters) ;
+	bool rc ;
+	(*xdresult) >> rc ;
+	CPPUNIT_ASSERT(rc == true) ;
+	delete xdresult ;
+
+	xdresult = spi.getNumFreeBlocks(ctx, xd) ;
+	(*xdresult) >> numblocks ;
+	CPPUNIT_ASSERT(numblocks == 100) ;
+	delete xdresult ;
+}
+
+void
+StorageProviderServerInterfaceUnitTest::testReadWrite()
+{
+	StorageProviderServerInterface spi((*bf)) ;
+	Context ctx ;
+	XdrStream xd ;
+	InvokeRequest ir; // Need to build this as this is how we will
+			// receive requests in the server.
+	int64 blocknum = 4 ;
+	int offset = 0 ;
+	string data = "abc123" ;
+	int size = data.size() ;
+	ir.parameters << blocknum << offset << size << data ;
+	XdrStream *xdresult = spi.writeBlock(ctx, ir.parameters) ;
+	bool rc ;
+	(*xdresult) >> rc ;
+	CPPUNIT_ASSERT(rc == true) ;
+	delete xdresult ;
+
+	InvokeRequest ir2 ;
+	blocknum = 4 ;
+	ir2.parameters << blocknum ;
+	xdresult = spi.readBlock(ctx, ir2.parameters) ;
+	(*xdresult) >> rc ;
+	(*xdresult) >> blocknum ;
+	bool isfree ;
+        (*xdresult) >>  isfree ;
+	int numbytes ;
+        (*xdresult) >> numbytes ;
+        (*xdresult) >> size ;
+	string data2 ;
+        (*xdresult) >> data2 ;
+	CPPUNIT_ASSERT(data2 == "abc123") ;
+	CPPUNIT_ASSERT(blocknum == 4) ;
+	CPPUNIT_ASSERT(rc == true) ;
+}
+
+void
+StorageProviderServerInterfaceUnitTest::testOther()
+{
+	StorageProviderServerInterface spi((*bf)) ;
+	Context ctx ;
+	XdrStream xd ;
+	InvokeRequest ir; // Need to build this as this is how we will
+			// receive requests in the server.
+	
+	bool rc ;
+	XdrStream *xdresult = spi.flushFreeBlockList(ctx, xd) ;
+	(*xdresult) >> rc ;
+	CPPUNIT_ASSERT(rc == true) ;
+	delete xdresult ;
+
+	int64 blocknum ;
+	blocknum = 4 ;
+	ir.parameters << blocknum ;
+	xdresult = spi.zeroBlock(ctx, ir.parameters) ;
+	(*xdresult) >> rc ;
+	CPPUNIT_ASSERT(rc == true) ;
+	delete xdresult ;
+
+	InvokeRequest ir2 ;
+	blocknum = 4 ;
+	ir2.parameters << blocknum ;
+	xdresult = spi.readBlock(ctx, ir2.parameters) ;
+	(*xdresult) >> rc ;
+	(*xdresult) >> blocknum ;
+	bool isfree ;
+        (*xdresult) >>  isfree ;
+	int numbytes ;
+        (*xdresult) >> numbytes ;
+	int size ;
+        (*xdresult) >> size ;
+	string data2 ;
+        (*xdresult) >> data2 ;
+	CPPUNIT_ASSERT(numbytes == 0) ;
+	CPPUNIT_ASSERT(size == 1024) ;
+
+	system("rm -f /tmp/bf*") ;
+}
+@
+
+
+1.1
+log
+@Unit Tests for StorageProviderServerInterface
+@
+text
+@@
+

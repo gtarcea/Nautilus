@@ -1,0 +1,344 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.3
+date	2005.04.23.00.39.31;	author rdesai;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	b24426999251106;
+kopt	kv;
+filename	@SignalThread.cpp@;
+
+1.2
+date	2005.04.16.18.46.25;	author rdesai;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	2fc42615d612df3;
+kopt	kv;
+filename	@SignalThread.cpp@;
+
+1.1
+date	2005.04.09.22.20.57;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	648425855332f58;
+kopt	kv;
+filename	@SignalThread.cpp@;
+
+
+desc
+@@
+
+
+1.3
+log
+@Cleanup of SignalThread.  Addition of Timer mechanism.
+@
+text
+@#include "SignalThread.hpp"
+#include "StringConversion.hpp"
+#include "DateTime.hpp"
+
+#include <iostream>
+#include <signal.h>
+#include <pthread.h>
+#include <errno.h>
+
+#include "boost/format.hpp"
+#include "TraceThread.hpp"
+
+namespace SynerEdge
+{
+
+class SignalThread::BoostThread
+{
+public:
+	BoostThread(SignalThread *instance);
+
+	void operator()();
+
+	static void signalHandler(int sig, siginfo_t *extra, void *arg)
+	{
+		ObservableEvent<DateTime> *event = 
+			reinterpret_cast< ObservableEvent<DateTime> *>
+			(extra->si_value.sival_ptr);	
+		if (event)
+		{
+			DateTime now;
+			(*event)(now);
+		}
+	}
+private:
+	SignalThread *_instance;
+};
+
+boost::mutex SignalThread::_mtx;
+std::map<int, SignalThread *> SignalThread::_instances;
+
+SignalThread::SignalThread(int signo, bool extraSigaction_) 
+: stopRequested(false), raisedSignal(this), mySignal(signo), 
+  signalThread(0), threadId(0), extraSigaction(extraSigaction_)
+{
+}
+
+SignalThread::~SignalThread()
+{
+	delete signalThread;
+}
+
+SignalThread *SignalThread::instance(int signo, bool extraSigaction)
+{
+	TRACE_SETUP(L"utils");
+
+	SignalThread *result = 0;
+	boost::mutex::scoped_lock lk(_mtx, true);
+	SignalsIterator itor = _instances.find(signo);
+	if (itor != _instances.end())
+	{
+		result = ((*itor).second);
+		if (result->extraSigaction != extraSigaction)
+		{
+			throw new SignalThreadException(L"Signal thread matching signal was found, but it does not match extraSigaction parameter");
+		}
+	}
+	else
+	{
+		boost::wformat fmt(L"Creating trace thread for signal: %d");
+		fmt % signo;
+		TRACE(TraceData::info, fmt.str());
+
+		result = new SignalThread(signo, extraSigaction);
+		_instances[signo] = result;
+		result->signalThread = new boost::thread(BoostThread(result));
+
+		boost::mutex::scoped_lock lk(result->mtx, true);
+		while (result->threadId == 0)
+		{
+			(result->cnd).wait(lk);
+		}
+	}
+	return result;
+}
+
+void SignalThread::requestStop()
+{
+	stopRequested = true;
+}
+
+SignalThread::BoostThread::BoostThread(SignalThread *instance)
+: _instance(instance)
+{
+}
+
+void SignalThread::BoostThread::operator()()
+{
+	TRACE_SETUP(L"utils");
+
+	// set thread id, and notify parent that it is OK to
+	// continue.  This way, we know that the thread id
+	// stored in the thread object is valid.  This is at the
+	// expense of waiting indefinitely for this thread to
+	// get a CPU slice.
+	_instance->threadId = pthread_self();
+	_instance->cnd.notify_one();
+
+	boost::wformat fmt(L"Starting signal thread, listening for signal: %d");
+	fmt % _instance->mySignal;
+
+	TRACE(TraceData::info, fmt.str());
+
+	if (! _instance->extraSigaction)
+	{
+		sigset_t s;
+		int sig = _instance->mySignal;
+
+		sigemptyset(&s);
+		sigaddset(&s, sig);
+
+		while (! _instance->stopRequested)
+		{
+			sigwait(&s, &sig);
+			if (sig == _instance->mySignal)
+			{
+				_instance->raisedSignal(sig);
+			}
+			else
+			{
+				if (! _instance->stopRequested)
+				{
+					boost::wformat fmt(L"Got spurious wakeup in signal thread while listening for signal: %d");
+					fmt % _instance->mySignal;
+
+					TRACE(TraceData::info, fmt.str());
+
+					boost::xtime xt;
+					boost::xtime_get(&xt, boost::TIME_UTC);
+					xt.sec += 1;
+					boost::thread::sleep(xt);
+				}
+			}
+		}	
+	}
+	else
+	{
+		_instance->threadId = pthread_self();
+		_instance->cnd.notify_one();
+
+		std::list<int> signalList;
+		signalList.push_back(SIGALRM);
+		SignalThread::unblockSignals(signalList);
+
+		struct sigaction sig_action;
+		sigemptyset(&sig_action.sa_mask);
+		sig_action.sa_flags = SA_SIGINFO;
+		sig_action.sa_sigaction = 
+			SignalThread::BoostThread::signalHandler;
+		sigaction(SIGALRM, &sig_action, NULL);
+
+		while (! _instance->stopRequested)
+		{
+        		pause();
+		}
+	}
+}
+	
+
+void SignalThread::blockSignals(const std::list<int> &signals)
+{
+	sigset_t s;
+	sigemptyset(&s);
+
+	std::list<int>::const_iterator itor;
+	for (itor = signals.begin();
+	     itor != signals.end();
+	     itor++)
+	{
+		sigaddset(&s, (*itor));
+	}
+
+	pthread_sigmask(SIG_BLOCK, &s, NULL);
+}
+
+void SignalThread::unblockSignals(const std::list<int> &signals)
+{
+	sigset_t s;
+	sigemptyset(&s);
+
+	std::list<int>::const_iterator itor;
+	for (itor = signals.begin();
+	     itor != signals.end();
+	     itor++)
+	{
+		sigaddset(&s, (*itor));
+	}
+
+	pthread_sigmask(SIG_UNBLOCK, &s, NULL);
+}
+
+}
+
+@
+
+
+1.2
+log
+@Service, Host, Protocol, and IPAddress functions.
+IPv6 enabled
+@
+text
+@d3 1
+d16 22
+d41 1
+a41 1
+SignalThread::SignalThread(int signo) 
+d43 1
+a43 1
+  signalThread(0), threadId(0)
+d52 1
+a52 1
+SignalThread *SignalThread::instance(int signo)
+d62 4
+d73 1
+a73 1
+		result = new SignalThread(signo);
+a85 9
+void SignalThread::doNothing(int signo)
+{
+	TRACE_SETUP(L"utils");
+	boost::wformat fmt(L"Inside doNothing signal handler for signal: %d");
+	fmt % signo;
+
+	TRACE(TraceData::info, fmt.str());
+}
+
+d113 4
+a116 2
+	sigset_t s;
+	int sig = _instance->mySignal;
+d118 2
+a119 2
+	sigemptyset(&s);
+	sigaddset(&s, sig);
+d121 1
+a121 4
+	while (! _instance->stopRequested)
+	{
+		sigwait(&s, &sig);
+		if (sig == _instance->mySignal)
+d123 6
+a128 5
+			_instance->raisedSignal(sig);
+		}
+		else
+		{
+			if (! _instance->stopRequested)
+d130 19
+a148 2
+				boost::wformat fmt(L"Got spurious wakeup in signal thread while listening for signal: %d");
+				fmt % _instance->mySignal;
+d150 3
+a152 1
+				TRACE(TraceData::info, fmt.str());
+d154 10
+a163 5
+				boost::xtime xt;
+				boost::xtime_get(&xt, boost::TIME_UTC);
+				xt.sec += 1;
+				boost::thread::sleep(xt);
+			}
+d165 1
+a165 1
+	}	
+d167 1
+d183 6
+d190 1
+d195 1
+a195 5
+		struct sigaction sig_action;
+		sigemptyset(&sig_action.sa_mask);
+		sig_action.sa_flags = 0;
+		sig_action.sa_handler = &SignalThread::doNothing;
+		sigaction((*itor), &sig_action, NULL);
+d197 2
+@
+
+
+1.1
+log
+@utils directory initial checkin
+@
+text
+@a89 1
+	std::wcout << L"id: " << pthread_self() << std::endl;
+@
+

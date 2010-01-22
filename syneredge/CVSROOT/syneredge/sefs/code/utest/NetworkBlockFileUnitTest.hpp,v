@@ -1,0 +1,53 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.06.07.16.30.28;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	c0442a5cb952507;
+kopt	kv;
+filename	@NetworkBlockFileUnitTest.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Unit Tests for NetworkBlockFile class.
+@
+text
+@
+#include <cppunit/extensions/HelperMacros.h>
+#include "NetworkBlockFile.hpp"
+
+class NetworkBlockFileUnitTest : public CppUnit::TestFixture
+{
+	CPPUNIT_TEST_SUITE(NetworkBlockFileUnitTest) ;
+	CPPUNIT_TEST(testOpenFile) ;
+	CPPUNIT_TEST(testReadWriteBlocks) ;
+	CPPUNIT_TEST(testZeroAndFreeBlocks) ;
+	CPPUNIT_TEST(testFreeBlockListMethods) ;
+	CPPUNIT_TEST_SUITE_END() ;
+public:
+	void setUp() ;
+	void tearDown() ;
+	void testOpenFile() ;
+	void testReadWriteBlocks() ;
+	void testZeroAndFreeBlocks() ;
+	void testFreeBlockListMethods() ;
+
+private:
+	SynerEdge::NetworkBlockFile *bf ;
+	SynerEdge::TCPServerSocket *socket ;
+	SynerEdge::ClientSocket *cli ;
+} ;
+@

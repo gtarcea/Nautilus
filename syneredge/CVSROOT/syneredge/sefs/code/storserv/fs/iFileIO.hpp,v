@@ -1,0 +1,61 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.06.12.01.53.35;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	fc042ab95790c43;
+kopt	kv;
+filename	@iFileIO.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Move FileIO interface to iFileIO. Remove unneeded FileIO.cpp file, change
+BlockFileIO.cpp/hpp to reference iFileIO
+@
+text
+@
+#ifndef __iFileIO_INCLUDE_
+#define __iFileIO_INCLUDE_
+
+#include "SynerEdge.hpp"
+#include <string>
+
+using std::string ;
+
+namespace SynerEdge {
+
+class iFileIO {
+
+public:
+	iFileIO() {} ;
+	virtual ~iFileIO() {} ;
+
+	virtual bool open(string filename, int flags) = 0 ;
+	virtual bool release() = 0 ;
+	virtual int read(int64 offset, char *data, int length) = 0 ;
+	virtual int write(int64 offset, const char *data, int length) = 0;
+	virtual int64 getSize() = 0 ;
+	virtual bool truncate(int64 at) = 0 ;
+	virtual bool isAccessible(string filename, int flags) = 0 ;
+	virtual int blockSize() = 0 ;
+	virtual bool flush() = 0 ;
+
+} ; // class iFileIO
+
+} ; // namespace SynerEdge
+
+#endif // __iFileIO_INCLUDE_
+@

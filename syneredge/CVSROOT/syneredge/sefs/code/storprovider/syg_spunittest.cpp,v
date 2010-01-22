@@ -1,0 +1,63 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.04.19.20.56.40;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	d00426570767c37;
+kopt	kv;
+filename	@syg_spunittest.cpp@;
+
+1.1
+date	2005.04.14.21.04.22;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	728425edab37b3a;
+kopt	kv;
+filename	@syg_spunittest.cpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Moved to one global CPPUNIT Unit test in utest in top level directory.
+@
+text
+@#include <cppunit/extensions/TestFactoryRegistry.h>
+#include <cppunit/ui/text/TestRunner.h>
+
+int
+main()
+{
+	CppUnit::TextUi::TestRunner runner ;
+	CppUnit::TestFactoryRegistry &registry = CppUnit::TestFactoryRegistry::getRegistry() ;
+
+	runner.addTest(registry.makeTest()) ;
+	bool wasSuccessful = runner.run() ;
+	return ! wasSuccessful ;
+}
+@
+
+
+1.1
+log
+@
+Write interfaces and unit tests for new block interface. The next step will
+be to port the filesystem over to the new interface.
+@
+text
+@@
+

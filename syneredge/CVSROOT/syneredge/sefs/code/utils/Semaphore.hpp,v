@@ -1,0 +1,62 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.09.22.20.56;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	648425855332f58;
+kopt	kv;
+filename	@Semaphore.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@utils directory initial checkin
+@
+text
+@#ifndef SynerEdge_Semaphore_hpp
+#define SynerEdge_Semaphore_hpp
+
+#include "boost/utility.hpp"
+#include "boost/thread.hpp"
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/condition.hpp"
+
+namespace SynerEdge
+{
+
+class Semaphore : private boost::noncopyable
+{
+public:
+	Semaphore(size_t count_) : count(count_) {}
+	~Semaphore() {}
+
+	void post(size_t postnum);
+	void wait();
+	bool operator()();
+
+private:
+	boost::mutex mtx;
+	boost::condition cnd;
+	size_t count;
+
+	// non-copyable requirement
+	Semaphore(const Semaphore &);
+	Semaphore &operator=(const Semaphore &);
+};
+
+};
+
+#endif
+@

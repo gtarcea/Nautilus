@@ -1,0 +1,251 @@
+head	1.4;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.4
+date	2005.06.10.17.43.18;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	b1c42a9d10946ca;
+kopt	kv;
+filename	@NetworkBlockFileUnitTest.cpp@;
+
+1.3
+date	2005.06.09.17.02.38;	author aprakash;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	98042a875f55961;
+kopt	kv;
+filename	@NetworkBlockFileUnitTest.cpp@;
+
+1.2
+date	2005.06.07.18.57.18;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	bc842a5edfa1559;
+kopt	kv;
+filename	@NetworkBlockFileUnitTest.cpp@;
+
+1.1
+date	2005.06.07.16.30.28;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	c0442a5cb952507;
+kopt	kv;
+filename	@NetworkBlockFileUnitTest.cpp@;
+
+
+desc
+@@
+
+
+1.4
+log
+@Remove isfree >> and << passing. Clean up readBlock() to return false on failure
+rather than trying to read nonexistant parameters.
+@
+text
+@#include "NetworkBlockFileUnitTest.hpp"
+#include "BlockFile.hpp"
+#include "Block.hpp"
+#include "SocketBase.hpp"
+#include "Timer.hpp"
+#include <stdlib.h>
+#include <iostream>
+using namespace std ;
+using namespace SynerEdge ;
+
+// CPPUNIT_TEST_SUITE_REGISTRATION(NetworkBlockFileUnitTest) ;
+
+void
+NetworkBlockFileUnitTest::setUp()
+{
+	system("$SYGHOME/code/utest/setupstorprovtest.sh START") ;
+	system("syg_storprovider > /dev/null 2>&1 &") ;
+	Timer::sleep(1000) ;
+	//cout << "Setting up socket" << endl ;
+	Protocol tcp(L"tcp");
+	Host hst(L"localhost", false);
+	Service serv(L"sygsrv", tcp);
+
+	//std::wcout << L"tcpserversocket make: " << std::endl;
+	socket = new TCPServerSocket(serv, false, 10);
+	socket->setReuseAddress(true);
+	socket->listenSocket();
+	cli = socket->acceptSocket();
+	cli->setTimeout(10000);
+	bf = new NetworkBlockFile((*cli)) ;
+}
+
+void
+NetworkBlockFileUnitTest::tearDown()
+{
+//	cout << "NetworkBlockFileUnitTest::tearDown()" << endl ;
+	delete bf ;
+	delete socket ;
+	delete cli ;
+	system("$SYGHOME/code/utest/setupstorprovtest.sh STOP") ;
+//	delete tb1 ;
+//	delete tb2 ;
+}
+
+void NetworkBlockFileUnitTest::testOpenFile()
+{
+//	cout << "NetworkBlockFileUnitTest::testOpenFile()" << endl ;
+	CPPUNIT_ASSERT(bf->open() == true) ;
+	CPPUNIT_ASSERT(bf->getNumBlocks() == 100) ;
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 100) ;
+	CPPUNIT_ASSERT(bf->getBlockSize() == 1024) ;
+}
+
+void NetworkBlockFileUnitTest::testReadWriteBlocks()
+{
+	char *buf = "DEF456123" ;
+//	cout << "NetworkBlockFileUnitTest::testReadWriteBlocks()" << endl ;
+	CPPUNIT_ASSERT(bf->open() == true) ;
+	uint64 blocknum = bf->getFreeBlock() ;
+	CPPUNIT_ASSERT(blocknum != 0) ;
+	CPPUNIT_ASSERT(bf->writeBlock(blocknum, 0, 10, buf) == true) ;
+	Block b ;
+	CPPUNIT_ASSERT(bf->readBlock(blocknum, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+
+	blocknum = bf->getFreeBlock() ;
+	CPPUNIT_ASSERT(blocknum != 0) ;
+	CPPUNIT_ASSERT(bf->writeBlock(blocknum, 0, 10, buf) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(blocknum, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+	CPPUNIT_ASSERT(b.getBlockNum() == blocknum) ;
+
+	blocknum = bf->getFreeBlock() ;
+	CPPUNIT_ASSERT(blocknum != 0) ;
+	b.setBlockNum(blocknum) ;
+	CPPUNIT_ASSERT(bf->writeBlock(b) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(blocknum, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+	CPPUNIT_ASSERT(b.getBlockNum() == blocknum) ;
+}
+
+void
+NetworkBlockFileUnitTest::testZeroAndFreeBlocks()
+{
+	Block b ;
+	//cout << "NetworkBlockFileUnitTest::testZeroAndFreeBlocks()" << endl ;
+
+	CPPUNIT_ASSERT(bf->open() == true) ;
+	uint64 blocknum = bf->getFreeBlock() ;
+	CPPUNIT_ASSERT(blocknum != 0) ;
+	CPPUNIT_ASSERT(bf->readBlock(blocknum, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 0) ;
+	CPPUNIT_ASSERT(bf->zeroBlock(blocknum) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(blocknum, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 0) ;
+	// CPPUNIT_ASSERT(b.isFree() == false) ;
+	CPPUNIT_ASSERT(bf->releaseBlock(blocknum) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == false) ;
+	//CPPUNIT_ASSERT(b.isFree() == true) ;
+}
+
+void
+NetworkBlockFileUnitTest::testFreeBlockListMethods()
+{
+	CPPUNIT_ASSERT(bf->open() == true) ;
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 100) ;
+	int64 bn = bf->getFreeBlock() ;
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 99) ;
+	CPPUNIT_ASSERT(bf->releaseBlock(bn) == true) ;
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 100) ;
+	bn = bf->getFreeBlock() ;
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 99) ;
+	bf->close() ;
+	CPPUNIT_ASSERT(bf->open() == true) ;
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 99) ;
+	CPPUNIT_ASSERT(bf->flushFreeBlockList() == true) ;
+}
+@
+
+
+1.3
+log
+@These are partially converted tests. Many will break because of the changes
+to how readBlock and writeBlock behave -- they will fail if blocks are
+not allocated.
+
+testOrder.cpp controls the order of tests.
+@
+text
+@d59 3
+a61 1
+	CPPUNIT_ASSERT(bf->writeBlock(1, 0, 10, buf) == true) ;
+d63 1
+a63 1
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == true) ;
+d65 5
+a69 2
+	CPPUNIT_ASSERT(bf->writeBlock(2, 0, 10, buf) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(2, b) == true) ;
+d71 5
+a75 2
+	CPPUNIT_ASSERT(b.getBlockNum() == 2) ;
+	b.setBlockNum(3) ;
+d77 1
+a77 1
+	CPPUNIT_ASSERT(bf->readBlock(3, b) == true) ;
+d79 1
+a79 1
+	CPPUNIT_ASSERT(b.getBlockNum() == 3) ;
+d86 1
+a86 1
+//	cout << "NetworkBlockFileUnitTest::testZeroAndFreeBlocks()" << endl ;
+d89 3
+a91 1
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == true) ;
+d93 2
+a94 2
+	CPPUNIT_ASSERT(bf->zeroBlock(1) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == true) ;
+d97 2
+a98 2
+	CPPUNIT_ASSERT(bf->releaseBlock(1) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == true) ;
+@
+
+
+1.2
+log
+@Add support for writeBlock(block) call.
+@
+text
+@d11 1
+a11 1
+CPPUNIT_TEST_SUITE_REGISTRATION(NetworkBlockFileUnitTest) ;
+d86 1
+a86 1
+	CPPUNIT_ASSERT(b.isFree() == false) ;
+@
+
+
+1.1
+log
+@Unit Tests for NetworkBlockFile class.
+@
+text
+@d68 4
+a71 4
+//	CPPUNIT_ASSERT(bf->writeBlock(b) == true) ;
+//	CPPUNIT_ASSERT(bf->readBlock(3, b) == true) ;
+//	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+//	CPPUNIT_ASSERT(b.getBlockNum() == 3) ;
+@
+

@@ -1,0 +1,33 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.06.09.16.51.28;	author aprakash;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	ce842a873275038;
+kopt	kv;
+filename	README;
+
+
+desc
+@@
+
+
+1.1
+log
+@*** empty log message ***
+@
+text
+@VirtualDisk: Consists of multiple VirtualBlockFiles (these are mirrored).
+
+VirtualBlockFile: Consists of multiple BlockFiles (these are pooled).
+
+
+@

@@ -1,0 +1,30 @@
+The modular approach
+--------------------
+
+One thing GROUP.lounge should one day also have is:
+
+- an event planner
+- an address book
+- an bookmark database
+
+and so on.
+
+
+The one approach is to implement all this directly into GROUP.lounge and
+the other one is to do it not. The disadvantage of the first approach is
+that no other application then has access to the data of all these modules.
+And thus the second approach is the better one.
+
+In this approach we will implement all these modules in separate programs
+which can interact with each other via CORBA. Of course this would then
+only be data exchange and no GUI etc. which is shared but that should be
+enough. 
+
+What needs to get defined is:
+
+- the concept of the API of these modules
+- a logical concept of the architecture (what is done in the module
+  what must be done in the application? etc.)
+
+
+

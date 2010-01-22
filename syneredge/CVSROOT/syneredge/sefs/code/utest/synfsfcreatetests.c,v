@@ -1,0 +1,373 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2005.04.28.21.06.46;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	d484271504242ea;
+kopt	kv;
+filename	@synfsfcreatetests.c@;
+
+1.1
+date	2005.04.26.14.34.28;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	dc4426e51507a64;
+kopt	kv;
+filename	@synfsfcreatetests.c@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Change file system tests to more closely follow open read/write release. These
+tests now pass with this paradigm.
+@
+text
+@
+#include "synfs.h"
+#include "tester.h"
+#include "fileblockmap.h"
+#include "fileblock.h"
+#include "next.h"
+#include "errno.h"
+
+static int
+test_truncate_existing_file()
+{
+	char buf[10] ;
+	char buf2[10] ;
+	FILEBLOCKMAPP fbmap ;
+	int bytecount ;
+	int rc ;
+
+	/*
+	** we know the file testtruncatenew.txt exists, and is 10 bytes long.
+	*/
+	char *filename = "testtruncatenew.txt" ;
+
+	/*
+	** First test truncate to 9 bytes.
+	*/
+
+	synfs_truncate(filename, 9) ;
+	fbmap = synfs_getfbmap(filename) ;
+	if (! fbmap) {
+		printf("synfs_getfbmap(%s) failed\n", filename) ;
+		return 0 ;
+	}
+
+	bytecount = fileblockmap_getbytecount(fbmap) ;
+
+	if (bytecount != 9) {
+		printf("Bytecount != 9 (= %d)\n", bytecount) ;
+		return 0 ;
+	}
+
+	/*
+	** Now write something to first 9 bytes and then truncate to 8
+	** and then make sure we can read back the original 9.
+	*/
+	strcpy(buf, "123456789") ;
+	synfs_open(filename, 0) ;
+	rc = synfs_write(filename, buf, 9, 0) ;
+	synfs_release(filename, 0) ;
+	if (rc != 9) {
+		printf("synfs_write(%s) != 9 (%d)\n", filename, rc) ;
+		return 0 ;
+	}
+
+	synfs_truncate(filename, 8) ;
+
+	synfs_open(filename, 0) ;
+	rc = synfs_read(filename, buf2, 9, 0) ;
+	synfs_release(filename, 0) ;
+
+	if (rc != 8) {
+		printf("synfs_read(%s) != 8 (%d)\n", filename, rc) ;
+		return 0 ;
+	}
+
+	buf2[rc] = 0 ;
+	if (strcmp(buf2, "12345678") != 0) {
+		printf("Unexpected buf2 '%s'\n", buf2) ;
+		return 0 ;
+	}
+
+	fbmap = synfs_getfbmap(filename) ;
+	bytecount = fileblockmap_getbytecount(fbmap) ;
+
+	if (bytecount != 8) {
+		printf("Bytecount != 8 (= %d)\n", bytecount) ;
+		return 0 ;
+	}
+
+	return 1 ;
+}
+
+static int
+test_resize_existing_file()
+{
+	char *filename = "resizeexisting.txt" ;
+	int bytecount ;
+	FILEBLOCKMAPP fbmap ;
+
+	/*
+	** First create.
+	*/
+	printf("Truncate to 1048\n") ;
+	synfs_truncate(filename, 1048) ;
+	fbmap = synfs_getfbmap(filename) ;
+
+	bytecount = fileblockmap_getbytecount(fbmap) ;
+	if (bytecount != 1048) {
+		printf("Bytecount != 1048 (= %d)\n", bytecount) ;
+		return 0 ;
+	}
+
+	/*
+	** Resize bigger.
+	*/
+	printf("Trucate to 1096\n") ;
+	synfs_truncate(filename, 1096) ;
+
+	fbmap = synfs_getfbmap(filename) ;
+	bytecount = fileblockmap_getbytecount(fbmap) ;
+	if (bytecount != 1096) {
+		printf("Bytecount != 1096 (= %d)\n", bytecount) ;
+		return 0 ;
+	}
+
+	/*
+	** Resize way bigger.
+	*/
+	printf("Trucate to 3096\n") ;
+	synfs_truncate(filename, 3096) ;
+
+	fbmap = synfs_getfbmap(filename) ;
+	bytecount = fileblockmap_getbytecount(fbmap) ;
+	if (bytecount != 3096) {
+		printf("Bytecount != 3096 (= %d)\n", bytecount) ;
+		return 0 ;
+	}
+
+	/*
+	** Resize a block smaller.
+	*/
+	printf("Trucate to 2049\n") ;
+	synfs_truncate(filename, 2049) ;
+	fbmap = synfs_getfbmap(filename) ;
+	bytecount = fileblockmap_getbytecount(fbmap) ;
+	if (bytecount != 2049) {
+		printf("Bytecount != 2049 (= %d)\n", bytecount) ;
+		return 0 ;
+	}
+
+	/*
+	** Shrink 1 byte (get rid of another block)
+	*/
+	printf("Trucate to 2048\n") ;
+	synfs_truncate(filename, 2048) ;
+	fbmap = synfs_getfbmap(filename) ;
+	bytecount = fileblockmap_getbytecount(fbmap) ;
+	if (bytecount != 2048) {
+		printf("Bytecount != 2048 (= %d)\n", bytecount) ;
+		return 0 ;
+	}
+
+	return 1 ;
+}
+
+static int
+test_truncate_new_file()
+{
+	char *filename = "testtruncatenew.txt" ;
+	FILEBLOCKMAPP fbmap ;
+	int bytecount ;
+
+	synfs_truncate(filename, 10) ;
+	fbmap = synfs_getfbmap(filename) ;
+	if (! fbmap) {
+		printf("synfs_getfbmap(%s) failed\n", filename) ;
+		return 0 ;
+	}
+
+	bytecount = fileblockmap_getbytecount(fbmap) ;
+
+	if (bytecount != 10) {
+		printf("Bytecount != 10 (= %d)\n", bytecount) ;
+		return 0 ;
+	}
+
+	return 1 ;
+}
+
+static void
+run_truncate_tests()
+{
+	int rc ;
+
+	P("test_truncate_new_file()") ;
+	rc = test_truncate_new_file() ;
+	S(rc, "test_truncate_new_file()") ;
+
+	P("test_truncate_existing_file()") ;
+	rc = test_truncate_existing_file() ;
+	S(rc, "test_truncate_existing_file()") ;
+
+	P("test_resize_existing_file()") ;
+	rc = test_resize_existing_file() ;
+	S(rc, "test_resize_existing_file()") ;
+}
+
+static int
+test_mknod_new_file()
+{
+	char *filename = "testmknodnewfile.txt" ;
+	int rc ;
+	char buf[20] ;
+
+	rc = synfs_mknod(filename, 0, 0) ;
+	if (rc != 0) {
+		printf("synfs_mknod(%s) failed creating new non-existant file\n") ;
+		return 0 ;
+	}
+
+	/*
+	** Now try reading from file.
+	*/
+	synfs_open(filename, 0) ;
+	rc = synfs_read(filename, buf, 10, 0) ;
+	if (rc != 0) {
+		printf("synfs_read(%s) of new mknod file returned %d, expected 0\n", filename, rc) ;
+		return 0 ;
+	}
+
+	synfs_release(filename, 0) ;
+	return 1 ;
+}
+
+static int
+test_mknod_existing_file()
+{
+	/*
+	** We know resizeingexisting.txt already exists. Test with
+	** this file.
+	*/
+	char *filename = "resizeexisting.txt" ;
+	int rc ;
+
+	rc = synfs_mknod(filename, 0, 0) ;
+	if (rc >= 0) {
+		printf("synfs_mknod(%s) on existing file succeeded, should have failed\n") ;
+		return 0 ;
+	}
+
+	return 1 ;
+}
+
+static void
+run_mknod_tests()
+{
+	int rc ;
+
+	P("test_mknod_existing_file()") ;
+	rc = test_mknod_existing_file() ;
+	S(rc, "test_mknod_existing_file()") ;
+
+	P("test_mknod_new_file()") ;
+	rc = test_mknod_new_file() ;
+	S(rc, "test_mknod_new_file()") ;
+}
+
+static int
+test_mknod_then_truncate_file()
+{
+	char *filename = "mknodthentruncate.txt" ;
+	int rc ;
+	FILEBLOCKMAPP fbmap ;
+	int bytecount ;
+
+	rc = synfs_mknod(filename, 0, 0) ;
+	if (rc != 0) {
+		printf("synfs_mknod(%s) failed\n", filename) ;
+		return 0 ;
+	}
+
+	rc = synfs_truncate(filename, 10) ;
+	if (rc != 0) {
+		printf("synfs_truncate(%s) failed\n", filename) ;
+		return 0 ;
+	}
+
+	fbmap = synfs_getfbmap(filename) ;
+	if (! fbmap) {
+		printf("synfs_getfbmap(%s) failed\n", filename) ;
+		return 0 ;
+	}
+
+	bytecount = fileblockmap_getbytecount(fbmap) ;
+
+	if (bytecount != 10) {
+		printf("Bytecount != 10 (= %d)\n", bytecount) ;
+		return 0 ;
+	}
+
+	return 1 ;
+}
+
+static void
+run_mknod_truncate_tests()
+{
+	int rc ;
+
+	P("test_mknod_then_truncate_file()") ;
+	rc = test_mknod_then_truncate_file() ;
+	S(rc, "test_mknod_then_truncate_file()") ;
+}
+
+static int
+Setup_Create_Tests()
+{
+	system("rm -f /etc/syneredge/fbmap/*") ;
+	system("utblocksclean.sh") ;
+	return 1 ;
+}
+
+void
+run_fcreate_tests()
+{
+	Setup_Create_Tests() ;
+	run_truncate_tests() ;
+	run_mknod_tests() ;
+	run_mknod_truncate_tests() ;
+}
+@
+
+
+1.1
+log
+@Moved unit tests out of storserv/fs to utest directory
+@
+text
+@d46 1
+d48 1
+d53 1
+d55 2
+d58 2
+d213 1
+d220 1
+@
+

@@ -1,0 +1,89 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.04.23.00.43.36;	author rdesai;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	fdc42699a0413de;
+kopt	kv;
+filename	@StringConversion.hpp@;
+
+1.1
+date	2005.04.09.22.20.57;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	648425855332f58;
+kopt	kv;
+filename	@StringConversion.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Added socketerr() to StringConversion.  On windows (at least) the standard
+"error return" from a socket is handled differently that it is from a
+system call.  On Linux, it looks the same.
+@
+text
+@#ifndef StringConversion_hpp__
+#define StringConversion_hpp__
+
+#include "SynerEdge.hpp"
+#include <string>
+
+namespace SynerEdge
+{
+
+class StringConversionException : public SynerEdgeException
+{
+public:
+        StringConversionException(const std::wstring &msg) : SynerEdgeException(msg) {}
+        ~StringConversionException() {}
+};
+
+class StringConversion
+{
+public:
+	StringConversion() {}
+	~StringConversion() {}
+	// default copy constructor and operator= overload are fine.
+
+	static std::wstring toUTF16(
+		const std::wstring &prefix, 
+		syg_ulong_ptr key);
+	static std::wstring toUTF16(const std::string &str);
+	static std::string toUTF8(const std::wstring &str);
+	static std::wstring syserr();
+	static std::wstring socketerr();
+
+private:
+	static std::wstring wstrerror(int errnum);
+
+};
+
+}
+
+#endif
+@
+
+
+1.1
+log
+@utils directory initial checkin
+@
+text
+@d30 1
+@
+

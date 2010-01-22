@@ -1,0 +1,32 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.05.21.15.16.05;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	df4428f50a13bc6;
+kopt	kv;
+filename	@dhparam512.pem@;
+
+
+desc
+@@
+
+
+1.1
+log
+@SSL Stuff + ORB stuff
+@
+text
+@-----BEGIN DH PARAMETERS-----
+MEYCQQDOnBWZjOGdGO7DY7LYMrTgyOzi8Ya/VO7xLSZDmnsUB3+q4hj3SnixAxeO
+CDlqjIcqFblDivFJ9+F50VgufkvzAgEC
+-----END DH PARAMETERS-----
+@

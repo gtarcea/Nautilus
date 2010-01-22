@@ -1,0 +1,49 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.12.23.23.42;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	f58425c587449ec;
+kopt	kv;
+filename	@Daemon.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@
+Add daemon and socket code.
+@
+text
+@
+#ifndef __DAEMON_INCLUDE_
+#define __DAEMON_INCLUDE_
+#include <sys/types.h>
+
+namespace SynerEdge {
+
+class Daemon {
+public:
+	Daemon(bool detach) ;
+
+private:
+	Daemon() ;
+	pid_t mypid ;
+
+} ; /* class Daemon */
+
+}  ; /* namespace SynerEdge */
+
+#endif /* __DEAMON_INCLUDE_ */
+@

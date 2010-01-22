@@ -1,0 +1,88 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.12.23.23.42;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+commitid	f58425c587449ec;
+kopt	kv;
+filename	@ServerSocket.cpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@
+Add daemon and socket code.
+@
+text
+@// Implementation of the ServerSocket class
+
+#include "ServerSocket.hpp"
+#include "SocketException.hpp"
+
+
+ServerSocket::ServerSocket ( int port )
+{
+  if ( ! Socket::create() )
+    {
+      throw SocketException ( "Could not create server socket." );
+    }
+
+  if ( ! Socket::bind ( port ) )
+    {
+      throw SocketException ( "Could not bind to port." );
+    }
+
+  if ( ! Socket::listen() )
+    {
+      throw SocketException ( "Could not listen to socket." );
+    }
+
+}
+
+ServerSocket::~ServerSocket()
+{
+}
+
+
+const ServerSocket& ServerSocket::operator << ( const std::string& s ) const
+{
+  if ( ! Socket::send ( s ) )
+    {
+      throw SocketException ( "Could not write to socket." );
+    }
+
+  return *this;
+
+}
+
+
+const ServerSocket& ServerSocket::operator >> ( std::string& s ) const
+{
+  if ( ! Socket::recv ( s ) )
+    {
+      throw SocketException ( "Could not read from socket." );
+    }
+
+  return *this;
+}
+
+void ServerSocket::accept ( ServerSocket& sock )
+{
+  if ( ! Socket::accept ( sock ) )
+    {
+      throw SocketException ( "Could not accept socket." );
+    }
+}
+@

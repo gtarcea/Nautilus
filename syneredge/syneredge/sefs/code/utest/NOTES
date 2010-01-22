@@ -1,0 +1,11 @@
+Note for testing:
+
+I added a file "testOrder.cpp" through which you can control the order of testing of modules.
+The reason for doing this is so that lower-level modules could be tested before higher-level
+ones. 
+
+If you add a registration statement in this file, you should not add it to an individual
+file.
+
+utestlog.txt contains the results from the test run before the last checkin.
+

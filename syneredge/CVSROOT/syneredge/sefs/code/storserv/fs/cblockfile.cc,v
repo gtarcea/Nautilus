@@ -1,0 +1,259 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.04.13.18.43.41;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	d8425d6849419c;
+kopt	kv;
+filename	@cblockfile.cc@;
+
+1.1
+date	2005.04.08.17.49.28;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.28;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Move files that belong in the storprovider directory to that directory.
+@
+text
+@
+#include <sys/types.h>
+#include <iostream>
+#include "cblockfile.h"
+#include "cblock.h"
+#include "seerror.h"
+/*#include "blockcache.h"*/
+#include <string>
+#include <cstdlib>
+
+using namespace std ;
+
+bool openBlockFile(string filename) ;
+bool createBlockFile(string filename, off_t startingblocknum, int numfreeblocks) ;
+
+//static const headersize = sizeof(BlockFile::numblocks) ;
+
+BlockFile::BlockFile(string filename)
+{
+	if (! openBlockFile(filename)) {
+		throw seerror("filename does not exist") ;
+	}
+}
+
+BlockFile::BlockFile(string filename, off_t startingblocknum, int numfreeblocks)
+{
+	if (! createBlockFile(filename, startingblocknum, numfreeblocks)) {
+		throw seerror("could not create blockfile") ;
+	}
+}
+
+BlockFile::~BlockFile()
+{
+	if (file.is_open()) {
+		file.close() ;
+	}
+}
+
+bool
+CheckForFile(string filename)
+{
+	fstream fin ;
+	bool exists = false ;
+
+	fin.open(filename.c_str(), ios::in) ;
+	if (fin.is_open()) {
+		exists = true ;
+	}
+	fin.close() ;
+
+	return exists ;
+}
+
+bool
+BlockFile::openBlockFile(string filename)
+{
+	if (file.is_open()) {
+		return true ;
+	}
+
+	if (CheckForFile(filename)) {
+		file.open(filename.c_str(), ios::in | ios::ate | ios::binary) ;
+		if (! file.is_open()) {
+			return false ;
+		}
+	}
+
+	return true ;
+
+}
+
+bool
+BlockFile::createBlockFile(string filename, off_t startingblocknum, int numblocks)
+{
+	if (numblocks < 1) {
+		return false ;
+	}
+
+	if (startingblocknum < 0) {
+		return false ;
+	}
+
+	if (file.is_open()) {
+		return false ;
+	}
+
+	if (CheckForFile(filename)) {
+		return false ;
+	}
+
+	file.open(filename.c_str(), ios::out | ios::binary) ;
+	if (! file.is_open()) {
+		return false ;
+	}
+
+	//
+	// Setup internal data structures
+	BlockFile::numblocks = numblocks ;
+	BlockFile::numfreeblocks = numblocks ;
+	BlockFile::startingblocknum = startingblocknum ;
+	firstfreeblock = sizeof(BlockFile::numblocks) + sizeof(numfreeblocks) +
+			sizeof(BlockFile::startingblocknum) + sizeof(firstfreeblock) ;
+
+	//
+	// Write the header, and then write numblocks nullblocks.
+	//
+
+	// Header
+	//file << numblocks ;
+	//file << numfreeblocks ;
+	//file << startingblocknum ;
+	//file << firstfreeblock ;
+	file.write(reinterpret_cast<char *>(&numblocks), sizeof(int)) ;
+	file.write(reinterpret_cast<char *>(&numfreeblocks), sizeof(int)) ;
+	file.write(reinterpret_cast<char *>(&startingblocknum), sizeof(off_t)) ;
+	file.write(reinterpret_cast<char *>(&firstfreeblock), sizeof(off_t)) ;
+
+	// Fill in nullblocks 
+	Block nullblock(startingblocknum) ;
+	off_t nboffset ; // Next blockoffset
+	off_t pboffset ; // Previous blockoffset
+	int sizeofblock = sizeof(Block) ;
+	int sizeofheader = sizeof(numblocks)+sizeof(numfreeblocks)+sizeof(startingblocknum)+
+				sizeof(firstfreeblock) ;
+	off_t bn = startingblocknum ; // blocknum to increment
+
+	cout << "Sizeof block = " << sizeofblock << endl ;
+
+	pboffset = 0 ;
+	nboffset = sizeofheader+sizeofblock ;
+
+	for(int i = 0 ; i < numblocks ; i++) {
+		nullblock.setPrevBlock(pboffset) ;
+		nullblock.setNextBlock(nboffset) ;
+		nullblock.setBlockNum(bn) ;
+//		cout << "Blocknum is " << nullblock.getBlockNum() << endl ;
+//		cout << "NextBlock is " << nullblock.getNextBlock() << endl ;
+		file << nullblock ;
+		pboffset = nboffset ;
+		nboffset += sizeofblock ;
+		bn++ ;
+	}
+
+	file.close() ;
+	file.open(filename.c_str(), ios::out | ios::in | ios::binary) ;
+
+	if (! file.is_open()) {
+		return false ;
+	}
+
+	return true ;
+}
+
+int
+BlockFile::writeBlock(int blocknum, int offset, int size, char *data)
+{
+	return 0 ;
+}
+
+int
+BlockFile::readBlock(off_t blocknum, int offset, int size, char *data)
+{
+	if (blocknum < startingblocknum) {
+		return 0 ;
+	}
+
+	Block block(0) ;
+	int seekto = headersize + ((blocknum - startingblocknum) * sizeof(Block)) ;
+	file.seekg(seekto, ios::beg) ;
+	file >> block ;
+	return 0 ;
+}
+
+int
+BlockFile::clearBlock(int blocknum)
+{
+	return 0 ;
+}
+
+off_t
+BlockFile::getNumBlocks() const
+{
+	return numblocks ;
+}
+
+off_t
+BlockFile::getStartingBlockNum() const
+{
+	return startingblocknum ;
+}
+
+off_t
+BlockFile::getNumFreeBlocks() const
+{
+	return numfreeblocks ;
+}
+
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

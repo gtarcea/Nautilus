@@ -1,0 +1,390 @@
+head	1.8;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.8
+date	2005.06.13.21.45.21;	author gtarcea;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	666;
+commitid	eb842adfe516a9d;
+kopt	kv;
+filename	@BlockCacheStdUnitTest.cpp@;
+
+1.7
+date	2005.06.13.13.00.17;	author aprakash;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	80842ad834f58ec;
+kopt	kv;
+filename	@BlockCacheStdUnitTest.cpp@;
+
+1.6
+date	2005.06.11.23.44.58;	author aprakash;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	d3442ab770f28f1;
+kopt	kv;
+filename	@BlockCacheStdUnitTest.cpp@;
+
+1.5
+date	2005.06.10.17.36.59;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	b9c42a9cfad425a;
+kopt	kv;
+filename	@BlockCacheStdUnitTest.cpp@;
+
+1.4
+date	2005.06.10.03.13.56;	author aprakash;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	d7042a905702ded;
+kopt	kv;
+filename	@BlockCacheStdUnitTest.cpp@;
+
+1.3
+date	2005.06.09.17.02.37;	author aprakash;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	98042a875f55961;
+kopt	kv;
+filename	@BlockCacheStdUnitTest.cpp@;
+
+1.2
+date	2005.06.07.16.30.00;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	ce042a5cb75249f;
+kopt	kv;
+filename	@BlockCacheStdUnitTest.cpp@;
+
+1.1
+date	2005.06.07.02.14.53;	author aprakash;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	e2c42a5030c162a;
+kopt	kv;
+filename	@BlockCacheStdUnitTest.cpp@;
+
+
+desc
+@@
+
+
+1.8
+log
+@Blockfiles were being left around after the tests were run.
+@
+text
+@#include "BlockCacheStdUnitTest.hpp"
+#include "VirtualDisk.hpp"
+#include "Block.hpp"
+#include "Testutils.hpp"
+#include <stdlib.h>
+#include <iostream>
+using namespace std ;
+using namespace SynerEdge ;
+
+// CPPUNIT_TEST_SUITE_REGISTRATION(BlockCacheStdUnitTest) ;
+
+
+void BlockCacheStdUnitTest::setUp()
+{
+
+	VirtualBlockFile *vbf1 = NULL;
+	VirtualBlockFile *vbf2 = NULL;
+
+	vbf1  = Testutils::makeTestVirtualBlockFile("vbf1", 2, 100, 1024);  // Make a virtual block file of 100 nodes each
+	vbf2  = Testutils::makeTestVirtualBlockFile("vbf2", 2, 100, 1024);  // Make a virtual block file of 100 nodes each
+	CPPUNIT_ASSERT(vbf1);
+	CPPUNIT_ASSERT(vbf2);
+
+
+	// VirtualBlockFileList *vbflistp = NULL;
+
+	VirtualDisk::VirtualBlockFileList  *vbflistp = new VirtualDisk::VirtualBlockFileList;
+	vbflistp->push_back(vbf1) ;
+	vbflistp->push_back(vbf2) ;
+
+
+
+
+	vd = new VirtualDisk("vd", 1024, (*vbflistp)) ;
+
+	delete vbflistp;
+	vd->open();
+	// Most tests assume that the disk can be read/written. Allocate all the blocks
+
+	for (int i = 0; i < 200; i++) {
+		CPPUNIT_ASSERT(vd->getFreeBlock() != 0);
+	}
+
+	CPPUNIT_ASSERT(vd->getFreeBlock() == 0);   // disk had only 200 blocks.
+	bcache = vd->getCache();
+
+
+}
+
+void BlockCacheStdUnitTest::tearDown()
+{
+	vd->close();
+	delete vd;
+	Testutils::deleteTestVirtualBlockFiles() ;
+}
+
+
+void BlockCacheStdUnitTest::testzeroblock()
+{
+	CPPUNIT_ASSERT(bcache->zeroBlock(1));
+	CPPUNIT_ASSERT(bcache->zeroBlock(2));
+	Block b;
+	CPPUNIT_ASSERT(bcache->readBlock(1, b));
+}
+
+void BlockCacheStdUnitTest::vdisktestzeroblock()
+{
+	for (int i = 1; i < 200; i++) 
+		CPPUNIT_ASSERT(vd->zeroBlock(i));
+	Block b;
+	for (int i = 1; i < 200; i++)
+		CPPUNIT_ASSERT(vd->readBlock(i, b));
+}
+
+
+void BlockCacheStdUnitTest::testallocatefree()
+{
+	int count = vd->getNumFreeBlocks();
+	CPPUNIT_ASSERT(count == 0);   // Blocks were allocated in setUp.
+	for (int i = 1; i <= 200; i++) {
+		vd->releaseBlock(i);
+	}
+
+	count = vd->getNumFreeBlocks();
+	CPPUNIT_ASSERT(count == 200);
+	for (int i = 1; i < 200; i++) {
+		int blocknum = vd->getFreeBlock();
+		CPPUNIT_ASSERT(vd->zeroBlock(blocknum));
+		vd->releaseBlock(blocknum); // always returns true.
+		Block b;
+		CPPUNIT_ASSERT(vd->readBlock(blocknum, b) == false);
+	}
+}
+
+
+void BlockCacheStdUnitTest::testwrites()
+{
+	char data[] = "Hello there";
+	char buf[12];
+
+	// all blocks were allocated in setup
+	CPPUNIT_ASSERT(bcache->releaseBlock(2) == true);
+	CPPUNIT_ASSERT(bcache->writeBlock(2, 0, 12, data) == false); // block not allocated
+	int numbytesread = bcache->readBytes(2, 0, 12, buf) ;
+	CPPUNIT_ASSERT(numbytesread == -1);    // block not allocated
+	CPPUNIT_ASSERT(bcache->writeBlock(3, 0, 12, data)); // block allocated in setup
+	numbytesread = bcache->readBytes(3, 0, 12, buf) ;
+	CPPUNIT_ASSERT(numbytesread == 12);
+	CPPUNIT_ASSERT(memcmp(data, buf, 12) == 0);
+}
+
+@
+
+
+1.7
+log
+@Fixed BlockCacheStdUnitTest so that the code compiles.
+@
+text
+@d54 1
+@
+
+
+1.6
+log
+@Added a test NetworkVirtualBlockFile (very slow currently) that builds
+a virtual disk out of two local blockfiles and a networkblockfile.
+
+Fixed VirtualBlockFile to be compatible with changed VirtualBlockFile.
+
+Commented out VirtualDiskUnitTest and BlockCacheStdUnitTest because
+they will not compile due to changes in VirtualBlockFile class. They need
+to be fixed and then checked in.
+@
+text
+@d4 1
+d11 1
+a11 1
+/*
+a14 40
+	system("rm -f /tmp/bf1*");
+	system("rm -f /tmp/bf2*");
+	system("rm -f /tmp/bf3*");
+	system("rm -f /tmp/bf4*");
+
+	BlockFile bf1("/tmp/bf1") ;
+	BlockFile bf2("/tmp/bf2") ;
+	BlockFile bf3("/tmp/bf3") ;
+	BlockFile bf4("/tmp/bf4") ;
+
+	bool alreadycreated ;
+
+	CPPUNIT_ASSERT(bf1.create(1, 100, 1024)) ;
+	bf1.close() ;
+	CPPUNIT_ASSERT(bf2.create(101, 100, 1024)) ;
+	bf2.close() ;
+	CPPUNIT_ASSERT(bf3.create(201, 100, 1024)) ;
+	bf3.close() ;
+	CPPUNIT_ASSERT(bf4.create(301, 100, 1024)) ;
+	bf4.close() ;
+
+	VirtualBlockFile::BlockFileList bflist ;
+	bflist.push_back("/tmp/bf1") ;
+	bflist.push_back("/tmp/bf2") ;
+
+	VirtualBlockFile *vbf = new VirtualBlockFile("vbf", bflist, 1024) ;
+
+	VirtualBlockFile::BlockFileList bflist2 ;
+	bflist2.push_back("/tmp/bf3") ;
+	bflist2.push_back("/tmp/bf4") ;
+	VirtualBlockFile *vbf2 = new VirtualBlockFile("vbf2", bflist2, 1024) ;
+
+	VirtualDisk::VirtualBlockFileList vbflist ;
+	vbflist.push_back(vbf) ;
+	vbflist.push_back(vbf2) ;
+
+	vd = new VirtualDisk("vd", 1024, vbflist) ;
+	bool returnval = vd->open() ;
+	CPPUNIT_ASSERT(returnval);
+	bcache = vd->getCache();
+d16 24
+a39 1
+	// Everything is allocated initially
+d41 1
+a41 1
+		CPPUNIT_ASSERT(vd->getFreeBlock());
+d44 3
+a46 2
+	// This should fail. All blocks allocated.
+	CPPUNIT_ASSERT(vd->getFreeBlock() == false);
+d110 1
+a110 1
+*/
+@
+
+
+1.5
+log
+@Change rm to rm -f
+@
+text
+@d10 1
+a10 1
+
+d60 2
+a61 1
+
+d125 1
+@
+
+
+1.4
+log
+@*** empty log message ***
+@
+text
+@d14 4
+a17 4
+	system("rm /tmp/bf1*");
+	system("rm /tmp/bf2*");
+	system("rm /tmp/bf3*");
+	system("rm /tmp/bf4*");
+@
+
+
+1.3
+log
+@These are partially converted tests. Many will break because of the changes
+to how readBlock and writeBlock behave -- they will fail if blocks are
+not allocated.
+
+testOrder.cpp controls the order of tests.
+@
+text
+@d55 1
+d114 2
+d119 1
+a119 1
+	CPPUNIT_ASSERT(bcache->writeBlock(3, 0, 12, data)); // block allocated
+@
+
+
+1.2
+log
+@Remove unneeded cout statement.
+@
+text
+@d9 1
+a9 1
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockCacheStdUnitTest) ;
+d14 5
+d26 1
+a26 1
+	alreadycreated = bf1.create(1, 100, 1024) ;
+d28 6
+a33 9
+
+	if (! alreadycreated) {
+		bf2.create(101, 100, 1024) ;
+		bf2.close() ;
+		bf3.create(201, 100, 1024) ;
+		bf3.close() ;
+		bf4.create(301, 100, 1024) ;
+		bf4.close() ;
+	}
+d51 2
+a52 1
+	vd->open() ;
+d54 7
+d90 8
+d99 3
+a101 2
+		CPPUNIT_ASSERT(vd->zeroBlock(i));
+		vd->freeBlock(i); // always returns true.
+d103 1
+a103 1
+		CPPUNIT_ASSERT(vd->readBlock(i, b) == false);
+d112 2
+a113 1
+	CPPUNIT_ASSERT(bcache->writeBlock(2, 0, 12, data));
+d115 3
+@
+
+
+1.1
+log
+@*** empty log message ***
+@
+text
+@a94 1
+	cout << "numbytesread = " << numbytesread << endl ;
+@
+

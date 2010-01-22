@@ -1,0 +1,27 @@
+#include "BlockCacheStdUnitTest.hpp"
+#include "BlockFileIOUnitTest.hpp"
+#include "BlockFileUnitTest.hpp"
+#include "FaultyBlockFileUnitTest.hpp"
+#include "BlockUnitTest.hpp"
+#include "FileBlockMapUnitTest.hpp"
+#include "FreeBlockMapUnitTest.hpp"
+#include "NetworkBlockFileUnitTest.hpp"
+#include "StorProvSvrInterfaceUnitTest.hpp"
+#include "VirtualBlockFileUnitTest.hpp"
+#include "NetworkVirtualBlockFileUnitTest.hpp"
+#include "VirtualDiskUnitTest.hpp"
+#include "sygstorproviderUnitTest.hpp"
+
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockFileUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(FaultyBlockFileUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockFileIOUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(FileBlockMapUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(FreeBlockMapUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(VirtualBlockFileUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(NetworkVirtualBlockFileUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockCacheStdUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(VirtualDiskUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(NetworkBlockFileUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(StorProvSvrInterfaceUnitTest) ;
+CPPUNIT_TEST_SUITE_REGISTRATION(sygstorproviderUnitTest) ;

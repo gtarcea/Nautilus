@@ -1,0 +1,75 @@
+#include "DateTime.hpp"
+#include <sys/time.h>
+#include <time.h>
+#include "StringConversion.hpp"
+#include "boost/format.hpp"
+
+namespace SynerEdge
+{
+
+TimeZoneFactory *TimeZoneFactory::_tz = 0;
+
+TimeZoneFactory::TimeZoneFactory()
+{
+	tzset();
+}
+
+TimeZoneFactory *TimeZoneFactory::instance()
+{
+	if (_tz == 0) _tz = new TimeZoneFactory();
+	return _tz;
+}
+
+TimeZone TimeZoneFactory::getUTC()
+{
+	return TimeZone(L"UTC", L"UTC", false, 0);
+}
+
+TimeZone TimeZoneFactory::getLocal()
+{
+	std::wstring standardName(StringConversion::toUTF16(tzname[0]));
+	std::wstring daylightName(StringConversion::toUTF16(tzname[1]));
+	bool useDst = (daylight != 0);
+	long secondsWestOfUTC = timezone;
+	
+	return TimeZone(standardName, daylightName, useDst, secondsWestOfUTC);
+}
+
+TimeZone::TimeZone(const std::wstring &standardName_,
+		   const std::wstring &daylightName_,
+		   bool useDst_,
+		   long secondsWestOfUTC_)
+: standardName(standardName_), daylightName(daylightName_), useDst(useDst_),
+  secondsWestOfUTC(secondsWestOfUTC_)
+{
+}
+
+bool TimeZone::operator==(const TimeZone &tz) const
+{
+	bool result = false;
+
+	result = ((standardName == tz.standardName) &&
+	 	  (daylightName == tz.daylightName) &&
+		  (useDst == tz.useDst) &&
+		  (secondsWestOfUTC == tz.secondsWestOfUTC));
+
+	return result;
+}
+
+std::wstring TimeZone::getName(bool isDst) const
+{
+	std::wstring result = standardName;
+
+	if ((useDst) && (isDst)) result = daylightName;
+
+	return result;
+}
+
+long TimeZone::getSecondsToAddToGetUTC(bool isDst) const
+{
+	long result = secondsWestOfUTC - ((useDst && isDst) ? 3600 : 0);
+	return result;
+}
+
+
+} // namespace SynerEdge

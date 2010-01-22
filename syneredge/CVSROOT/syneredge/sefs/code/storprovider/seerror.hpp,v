@@ -1,0 +1,48 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.12.23.22.16;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	da0425c57f4484a;
+kopt	kv;
+filename	@seerror.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@
+Buildable (but not functional) syg_storprovider. The move from fs to the
+storprovider directory has started. Right now there are duplicated files
+that will be cleaned up. This doesn't affect the build.
+@
+text
+@
+#ifndef __seerror_include_
+#define __seerror_include_
+
+#include <stdexcept>
+#include <string>
+#include <iostream>
+using namespace std ;
+
+class seerror : public std::runtime_error
+{
+public:
+	seerror(string error) : std::runtime_error(error) {}
+} ;
+
+#endif /* __seerror_include_ */
+
+@

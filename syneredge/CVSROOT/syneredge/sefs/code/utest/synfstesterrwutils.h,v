@@ -1,0 +1,52 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@ * @;
+
+
+1.1
+date	2005.04.26.14.34.29;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	dc4426e51507a64;
+kopt	kv;
+filename	@synfstesterrwutils.h@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Moved unit tests out of storserv/fs to utest directory
+@
+text
+@
+#ifndef __SYNFSTESTERRWUTILS_INCLUDE_
+#define __SYNFSTESTERRWUTILS_INCLUDE_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int
+open_write_to_file(char *filename, char *buf, int buflen, int release, 
+		int compareblocks, int openthefile) ;
+
+int
+open_read_file(char *filename, char *buf, int buflen, int *amountread, 
+		int release, int openthefile) ;
+
+int
+compare_blocks(char *filename, char *buf, int length, int offset) ;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __SYNFSTESTERRWUTILS_INCLUDE_ */
+@

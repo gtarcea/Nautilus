@@ -1,0 +1,565 @@
+head	1.9;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.9
+date	2005.06.13.20.55.37;	author gtarcea;	state Exp;
+branches;
+next	1.8;
+deltatype	text;
+permissions	666;
+commitid	dcc42adf2c144db;
+kopt	kv;
+filename	@syg_storprovider.cpp@;
+
+1.8
+date	2005.06.12.01.39.05;	author gtarcea;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	666;
+commitid	76442ab91ef00b4;
+kopt	kv;
+filename	@syg_storprovider.cpp@;
+
+1.7
+date	2005.06.02.21.03.26;	author gtarcea;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	1b4429f73ff6f14;
+kopt	kv;
+filename	@syg_storprovider.cpp@;
+
+1.6
+date	2005.06.01.19.08.47;	author gtarcea;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	848429e07b04967;
+kopt	kv;
+filename	@syg_storprovider.cpp@;
+
+1.5
+date	2005.06.01.18.52.27;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	b68429e03dc3ce7;
+kopt	kv;
+filename	@syg_storprovider.cpp@;
+
+1.4
+date	2005.06.01.14.30.51;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	ed0429dc68974a4;
+kopt	kv;
+filename	@syg_storprovider.cpp@;
+
+1.3
+date	2005.05.31.18.12.10;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	79c429ca8e34fd5;
+kopt	kv;
+filename	@syg_storprovider.cpp@;
+
+1.2
+date	2005.05.24.19.53.48;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	d34429386397abe;
+kopt	kv;
+filename	@syg_storprovider.cpp@;
+
+1.1
+date	2005.04.12.23.22.16;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	da0425c57f4484a;
+kopt	kv;
+filename	@syg_storprovider.cpp@;
+
+
+desc
+@@
+
+
+1.9
+log
+@Change timeout to 2000
+@
+text
+@/*
+**
+** This is the Storage Provider "server". Because it is most likely behind a router
+** or a firewall, and thus cannot be directly connected to, the server actually
+** connects up to the file system. The file system then sends requests down this link
+** that the Storage Provider responds to. In this sense the server portion is reversed
+** as its the Storage Provider making the initial connection as opposed to the SynerEdge
+** server doing it.
+**
+*/
+
+#include "SynerEdge.hpp"
+#include "StorProvSvrInterface.hpp"
+#include "SocketBase.hpp"
+#include "StorProvOrb.hpp"
+#include "StringConversion.hpp"
+#include "Timer.hpp"
+#include "boost/format.hpp"
+#include "boost/thread/thread.hpp"
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/condition.hpp"
+#include <iostream>
+#include <fstream>
+
+using namespace SynerEdge;
+using namespace std ;
+
+BlockFile *bf ;
+
+string hostname ;
+string blockfile ;
+uint64 startingblocknum ;
+uint64 numblocks ;
+int blocksize ;
+
+void
+fieldSPRequests()
+{
+//	Protocol tcp(L"tcp");
+//	Service serv(L"sygsrv", tcp);
+
+//	TCPServerSocket socket(serv, false, 10);
+//	socket.setReuseAddress(true);
+//	socket.listenSocket();
+//	ClientSocket *cli = socket.acceptSocket();
+//	cli->setTimeout(10000);
+
+	Protocol tcp(L"tcp");
+	Host hst(StringConversion::toUTF16(hostname), false);
+	Service serv(L"sygsrv", tcp);
+	SocketAddress addr(hst, serv);
+
+	ClientSocket cli(addr);
+	cli.setTimeout(2000);
+
+	bool tryagain = true ;
+	// Try to connect forever
+	while (tryagain) {
+		try {
+			cli.connectSocket();
+			tryagain = false ;
+		} catch (SynerEdgeException &e) {
+			cout << "Sleeping before retrying connect" << endl ;
+			Timer::sleep(5000) ;
+		}
+	}
+
+	StorProvSvrInterface spsi((*bf)) ;
+	StorProvOrb spOrb(cli, spsi) ;
+
+	spOrb.processCalls() ;
+}
+
+void
+fieldRequests()
+{
+	fieldSPRequests() ; // Start threads here
+}
+
+bool
+setupBlockfile()
+{
+	bf = new BlockFile(blockfile) ;
+
+	if (bf->exists(blockfile)) {
+		if (! bf->open()) {
+			return false ;
+		}
+	} else {
+		if (! bf->create(startingblocknum, numblocks, blocksize) ) {
+			return false ;
+		}
+
+		if (! bf->open()) {
+			return false ;
+		}
+	}
+
+	return true ;
+}
+
+bool
+readConfig()
+{
+	// File format (very simple):
+	// Server hostname
+	// blockfile path
+	// starting blocknum
+	// number of blocks
+	// blocksize
+	//
+	// starting blocknum, number of blocks and blocksize are only used if the blockfile
+	// need to be created.
+
+	ifstream file ;
+
+	file.open("/etc/syneredge/storprov.config", ios::in) ;
+	if (! file.is_open()) {
+		return false ;
+	}
+
+	if (file >> hostname) {
+	} else {
+		return false ;
+	}
+
+	if (file >> blockfile) {
+	} else {
+		return false ;
+	}
+
+	if (file >> startingblocknum) {
+	} else {
+		return false ;
+	}
+
+	if (file >> numblocks) {
+	} else {
+		return false ;
+	}
+
+	if (file >> blocksize) {
+	} else {
+		return false ;
+	}
+
+	file.close() ;
+
+	return true ;
+}
+
+int main(int argc, char **argv)
+{
+	if (! readConfig() ) {
+		cout << "Unable to read configuration file" << endl ;
+		exit(1) ;
+	}
+
+	if (! setupBlockfile() ) {
+		cout << "Unable to open blockfile" << blockfile << endl ;
+		exit(1) ;
+	}
+
+        try
+        {
+		fieldRequests() ;
+	}
+	catch (SynerEdgeException &e)
+	{
+		std::wcout << e.getMsg() << std::endl;
+	}
+}
+
+@
+
+
+1.8
+log
+@
+Move BlockFileBase.hpp to iBlockIO.hpp
+Cleaned up interfaces to support uint64 rather than int64
+VirtualDisk and VirtualBlockFile now also inherit from iBlockIO, so now
+BlockFileIO can use any of these interfaces.
+@
+text
+@d54 1
+a54 1
+	cli.setTimeout(10000);
+@
+
+
+1.7
+log
+@First semi-working version of the storage provider. Reads a configuration
+file for its blockfile and server host connection data.
+@
+text
+@d32 2
+a33 2
+int64 startingblocknum ;
+int64 numblocks ;
+@
+
+
+1.6
+log
+@Switch to use StorProvOrb class.
+@
+text
+@d16 2
+d22 2
+d26 1
+d28 7
+a34 1
+BlockFile bf("/tmp/spblockfile") ;
+d49 1
+a49 1
+	Host hst(L"syneredgecvs.dnsalias.com", false);
+a54 1
+	cli.connectSocket();
+d56 13
+a68 1
+	StorProvSvrInterface spsi(bf) ;
+d80 72
+d154 10
+@
+
+
+1.5
+log
+@Add getBlockSize() call support.
+@
+text
+@a11 1
+
+a12 2
+#include "OrbBase.hpp"
+#include "XdrStream.hpp"
+d14 2
+d23 1
+a23 32
+OrbBase spOrb ;
+ServerInterface spsi(L"spsi", L"0_1");
+BlockFile bf("/tmp/this") ;
+
+void
+setupSPMethodDelegates()
+{
+	StorProvSvrInterface serverif(bf);
+
+	spsi += new MethodDelegate<StorProvSvrInterface>(L"getNumFreeBlocks", serverif, &StorProvSvrInterface::getNumFreeBlocks);
+	spsi += new MethodDelegate<StorProvSvrInterface>(L"getFreeBlock", serverif, &StorProvSvrInterface::getFreeBlock);
+	spsi += new MethodDelegate<StorProvSvrInterface>(L"releaseBlock", serverif, &StorProvSvrInterface::releaseBlock);
+	spsi += new MethodDelegate<StorProvSvrInterface>(L"flushFreeBlockList", serverif, &StorProvSvrInterface::flushFreeBlockList);
+	spsi += new MethodDelegate<StorProvSvrInterface>(L"writeBlock", serverif, &StorProvSvrInterface::writeBlock);
+	spsi += new MethodDelegate<StorProvSvrInterface>(L"readBlock", serverif, &StorProvSvrInterface::readBlock);
+	spsi += new MethodDelegate<StorProvSvrInterface>(L"zeroBlock", serverif, &StorProvSvrInterface::zeroBlock);
+	spsi += new MethodDelegate<StorProvSvrInterface>(L"getBlockSize", serverif, &StorProvSvrInterface::getBlockSize);
+	spOrb += spsi;
+}
+
+void
+setupServers()
+{
+	setupSPMethodDelegates() ;
+}
+
+bool
+initialSPConnect(ClientSocket &cli)
+{
+	//cli << "Hello sYnErEdGe100" ; // Cheesy authentication placeholder
+	return true ;
+}
+d46 4
+a49 28
+	if (! initialSPConnect(cli) ) {
+		return ;
+	}
+
+	while (true) {
+		// Could multithread here so that each function call runs
+		// in a separate thread
+		XdrStream xd;
+		cli >> xd;
+
+		InvokeRequest ir;
+		xd >> ir;
+
+		Context ctx;
+		InterfaceVersionPair ivp(ir.interfaceName, ir.versionNumber);
+		ServerInterface &calledsi = spOrb.find(ivp);
+		XdrStream *resultstream = calledsi(ir.methodName, ctx, ir.parameters);
+
+		InvokeResponse iresp;
+		iresp.requestId = ir.requestId;
+		iresp.errorMessage = L"Hello";
+		iresp.results << *resultstream;
+	
+		XdrStream finalresult;
+		finalresult << iresp;
+		cli << finalresult;
+		delete resultstream;
+	}
+a61 1
+		setupServers() ;
+@
+
+
+1.4
+log
+@Convert from StorageProviderServerInterface to StorProvSrvInterface
+@
+text
+@d40 1
+@
+
+
+1.3
+log
+@Rename StorageProviderServerInterface to StorProvSvrInterface
+@
+text
+@d16 1
+a16 1
+#include "StorageProviderServerInterface.hpp"
+d31 1
+a31 1
+	StorageProviderServerInterface serverif(bf);
+d33 7
+a39 7
+	spsi += new MethodDelegate<StorageProviderServerInterface>(L"getNumFreeBlocks", serverif, &StorageProviderServerInterface::getNumFreeBlocks);
+	spsi += new MethodDelegate<StorageProviderServerInterface>(L"getFreeBlock", serverif, &StorageProviderServerInterface::getFreeBlock);
+	spsi += new MethodDelegate<StorageProviderServerInterface>(L"releaseBlock", serverif, &StorageProviderServerInterface::releaseBlock);
+	spsi += new MethodDelegate<StorageProviderServerInterface>(L"flushFreeBlockList", serverif, &StorageProviderServerInterface::flushFreeBlockList);
+	spsi += new MethodDelegate<StorageProviderServerInterface>(L"writeBlock", serverif, &StorageProviderServerInterface::writeBlock);
+	spsi += new MethodDelegate<StorageProviderServerInterface>(L"readBlock", serverif, &StorageProviderServerInterface::readBlock);
+	spsi += new MethodDelegate<StorageProviderServerInterface>(L"zeroBlock", serverif, &StorageProviderServerInterface::zeroBlock);
+@
+
+
+1.2
+log
+@First compiling skeleton code for StorageProvider server.
+@
+text
+@d1 12
+a39 1
+	spsi += new MethodDelegate<StorageProviderServerInterface>(L"freeBlock", serverif, &StorageProviderServerInterface::freeBlock);
+d49 7
+d59 9
+d69 1
+d71 1
+d73 7
+a79 5
+	TCPServerSocket socket(serv, false, 10);
+	socket.setReuseAddress(true);
+	socket.listenSocket();
+	ClientSocket *cli = socket.acceptSocket();
+	cli->setTimeout(10000);
+d85 1
+a85 1
+		(*cli) >> xd;
+d102 1
+a102 1
+		(*cli) << finalresult;
+@
+
+
+1.1
+log
+@
+Buildable (but not functional) syg_storprovider. The move from fs to the
+storprovider directory has started. Right now there are duplicated files
+that will be cleaned up. This doesn't affect the build.
+@
+text
+@d1 14
+a14 6
+#include "ServerSocket.hpp"
+#include "SocketException.hpp"
+#include <string>
+#include <iostream>
+#include "Daemon.hpp"
+#include "StartupParameters.hpp"
+d16 2
+a17 4
+using namespace SynerEdge ;
+
+int
+service_loop()
+d19 1
+a19 2
+	try {
+		ServerSocket server ( 30000 );
+d21 9
+a29 21
+		while ( true ) {
+			ServerSocket new_sock;
+			server.accept ( new_sock );
+			// Start thread that will
+			//	read from socket
+			//	execute command
+			//	close connection at termination
+			
+			try {
+				while ( true ) {
+					std::string data;
+					new_sock >> data;
+					new_sock << data;
+				}
+			}
+			catch ( SocketException& ) {}
+		}
+	}
+	catch ( SocketException& e ) {
+		std::cout << "Exception was caught:" << e.description() << "\nExiting.\n";
+	}
+d33 1
+a33 1
+usage()
+d35 1
+a35 1
+	exit(1) ;
+d38 2
+a39 2
+int
+main( int argc, char *argv[] )
+d41 2
+a42 2
+	bool become_daemon = true ;
+	int c ;
+d44 29
+a72 12
+	StartupParameters *startup = StartupParameters::instance() ;
+	startup->storeStartupArgs(argc, argv) ;
+
+	while ( (c = getopt(argc, argv, "n")) != EOF) {
+		switch (c) {
+			case 'n':
+				become_daemon = false ;
+			break ;
+				case '?':
+			default:
+				usage() ;
+		}
+d74 1
+d76 5
+a80 3
+	Daemon d(become_daemon) ;
+
+	service_loop() ;
+d82 12
+a94 3
+
+  return 0;
+}
+@
+

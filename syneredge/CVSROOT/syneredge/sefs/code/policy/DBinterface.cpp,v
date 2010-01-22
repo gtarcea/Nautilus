@@ -1,0 +1,290 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.3
+date	2005.06.06.16.53.19;	author irrer;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	ad442a47f5c6821;
+kopt	kv;
+filename	@DBinterface.cpp@;
+
+1.2
+date	2005.06.02.19.38.53;	author irrer;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	97c429f60342e72;
+kopt	kv;
+filename	@DBinterface.cpp@;
+
+1.1
+date	2005.05.09.12.57.12;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	908427f5e1527e5;
+kopt	kv;
+filename	@DBinterface.cpp@;
+
+
+desc
+@@
+
+
+1.3
+log
+@Added transaction handling.
+Added better error checking for parameters.
+Improved error messages.
+@
+text
+@
+#include <PolUtil.hpp>
+#include <DBexception.hpp>
+#include <DBinterface.hpp>
+
+// ------------------------------------------------------------------------
+
+/**
+ * Open the database.
+ *
+ * @@throw DBexception if there was an error.
+ */
+
+DBinterface::DBinterface()
+{
+    char *errorMessage = DBmysql_real_connect(&mysql);
+    if (errorMessage != NULL) {
+        char *msg = new char[100+strlen(errorMessage)];
+        DBexception *ex = new DBexception(msg);
+        throw ex;
+    }
+    result = NULL;
+    int numColumns = -1;
+    latestQuery = new string("");
+    queryAndError = new string("");;
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Execute a database command.  Close and open database to
+ * avoid command interaction.
+ *
+ * @@param command Text command without trailing ';'.
+ *
+ * @@return True on success.  On failure, use
+ * <code>error</code> call to get specifics.
+ */
+bool DBinterface::execute(const char *command)
+{
+    (*latestQuery) = command;
+    // printf("++++ DBinterface execute : %s\n", command);
+    // clear out old result if there was one.
+    if (result != NULL) {
+        DBmysql_free_result(result);
+        result = NULL;
+    }
+
+    bool ret = DBmysql_query(mysql, command) == 0;
+    if (ret) {
+        result = DBmysql_store_result(mysql);
+        if (result != NULL) {
+            // there was data from the query, find the number of fields
+            numColumns = DBmysql_num_fields(result);
+            numRows = DBmysql_num_rows(result);
+        }
+    }
+    return ret;
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Get the number of columns returned by the query.  This
+ * should only be necessary if a wildcard ('*') were specified
+ * in the SELECT statement.
+ *
+ * @@return Number of columns, or -1 on error.
+ */
+int DBinterface::getNumColumns()
+{
+    if (result == NULL) {
+        return -1;
+    }
+    return DBmysql_num_fields(result);
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Get the number of rows returned by the query.
+ *
+ * @@return Number of rows, or -1 on error.
+ */
+int DBinterface::getNumRows()
+{
+    if (result == NULL) {
+        return -1;
+    }
+    return DBmysql_num_rows(result);
+}
+
+// ------------------------------------------------------------------------
+
+/*
+ * Get the data from the given row and column.  Return NULL
+ * if the row or col is out of range.
+ *
+ * @@param row Zero relative row index.
+ *
+ * @@param col Zero relative column index.
+ *
+ * @@return Text from the requested column or NULL if col is
+ *         out of bounds or there is some other error.
+ *
+ */
+const char *DBinterface::get(int row, int col)
+{
+    if ((result == NULL) ||
+        (row < 0) || (row >= numRows) ||
+        (col < 0) || (col >= numColumns)) {
+        return NULL;
+    }
+    DBmysql_data_seek(result, row);
+    DBmysql_row dbRow = DBmysql_fetch_row(result);
+    return DBcolumnContent(dbRow, col);
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Get the error from the most recent query.
+ *
+ * @@return The most recent query concatenated with the error message.
+ */
+
+const char *DBinterface::error(void)
+{
+    (*queryAndError) = (*latestQuery);
+    (*queryAndError) += " : ";
+    (*queryAndError) += DBmysql_error(mysql);
+    return queryAndError->c_str();
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * If the database was open, then close it.
+ */
+DBinterface::~DBinterface(void)
+{
+    if (dbOpen) {
+        DBmysql_close(mysql);
+        mysql = NULL;
+        result = NULL;
+        dbOpen = false;
+    }
+    delete latestQuery;
+    delete queryAndError;
+}
+@
+
+
+1.2
+log
+@Rework of policy engine.
+@
+text
+@d2 1
+a2 1
+#include <PolicyUtil.hpp>
+d24 2
+d41 1
+d124 1
+a124 1
+ * @@return The error message.
+d129 4
+a132 1
+    return DBmysql_error(mysql);
+d148 2
+@
+
+
+1.1
+log
+@Added files for policy manipulation.
+@
+text
+@d23 1
+a23 2
+    row = NULL;
+    int numFields = -1;
+d39 1
+a44 1
+    row = NULL;
+d48 1
+a48 1
+        result = DBmysql_use_result(mysql);
+d51 2
+a52 1
+            numFields = DBmysql_field_count(result);
+d61 5
+a65 1
+ * Move to the next selected row, return true on success.
+d67 1
+a67 1
+bool DBinterface::nextRow()
+d70 1
+a70 5
+        return false;
+    }
+    row = DBmysql_fetch_row(result);
+    if (row == NULL) {
+        return false;
+d72 1
+a72 1
+    return true;
+d78 1
+a78 3
+ * Get the number of columns returned by the query.  This
+ * should only be necessary if a wildcard ('*') were specified
+ * in the SELECT statement.
+d80 1
+a80 1
+ * @@return Number of columns.
+d82 1
+a82 1
+int DBinterface::numColumns()
+d85 1
+a85 1
+        return 0;
+d87 1
+a87 1
+    return DBmysql_field_count(result);
+d93 4
+a96 1
+ * Get the data from the given column.  Return NULL if col is out of range.
+d104 1
+a104 1
+const char *DBinterface::column(int col)
+d106 3
+a108 2
+    int numFields = DBmysql_field_count(result);
+    if ((col < 0) || (col >= numFields)) {
+d111 16
+a126 1
+    return DBcolumnContent(row, col);
+a139 1
+        row = NULL;
+@
+

@@ -1,0 +1,224 @@
+head	1.6;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.6
+date	2005.04.28.21.11.13;	author gtarcea;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	da442715151465f;
+kopt	kv;
+filename	@FileBlockMap.hpp@;
+
+1.5
+date	2005.04.27.21.37.44;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	afc427006120ca9;
+kopt	kv;
+filename	@FileBlockMap.hpp@;
+
+1.4
+date	2005.04.25.23.05.25;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	c68426d77923357;
+kopt	kv;
+filename	@FileBlockMap.hpp@;
+
+1.3
+date	2005.04.22.18.44.51;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	288426945fa016f;
+kopt	kv;
+filename	@FileBlockMap.hpp@;
+
+1.2
+date	2005.04.20.19.06.01;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	6a84266a80775a9;
+kopt	kv;
+filename	@FileBlockMap.hpp@;
+
+1.1
+date	2005.04.19.20.54.35;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	d6842656fd77a30;
+kopt	kv;
+filename	@FileBlockMap.hpp@;
+
+
+desc
+@@
+
+
+1.6
+log
+@Debug switch to hash_map for faster lookups.
+@
+text
+@
+#ifndef __FileBlockMap_INCLUDE_
+#define __FileBlockMap_INCLUDE_
+
+#include "fileblockmap.h"
+#include <string>
+#include <ext/hash_map>
+
+using std::string ;
+using namespace __gnu_cxx ;
+
+namespace SynerEdge {
+
+class FileBlockMapHashVal {
+public:
+	FileBlockMapHashVal(FILEBLOCKP fblock) : fblock(fblock) {}
+	FileBlockMapHashVal() {}
+	inline int getBlockNum() const { return fileblock_getblocknum(fblock); }
+	inline FILEBLOCKP getFileBlock() const { return fblock ; }
+private:
+	FILEBLOCKP fblock ;
+} ;
+
+class FileBlockMap {
+
+public:
+	FileBlockMap(string filename) ;
+	~FileBlockMap() ;
+
+	static bool exists(string filename) ;
+	bool deleteMap() ;
+	bool addBlock(int blocknum, int bytes) ;
+	bool removeBlock(int blocknum) ;
+	bool updateBlock(int blocknum, int bytes) ;
+	bool save() ;
+	int getBlockByteCount(int blocknum) ;
+	bool blockExists(int blocknum) ;
+	int getBlockCount() ;
+	bool addHost(string host) ;
+	bool removeHost(string host) ;
+	bool hostExists(string host) ;
+	int getByteCount() ;
+	int getBlockNumAt(int index) ;
+
+private:
+	FileBlockMap() ;
+
+	bool blocknumExists(int blocknum) ;
+	bool indexExists(int index) ;
+
+
+	struct eqint {
+		bool operator()(const int a, const int b) const
+		{
+			return a == b ;
+		}
+	} ;
+
+	FILEBLOCKMAPP fbmap ;
+	string fbname ;
+	bool deleted ;
+	int bytecount ;
+	int currentindex ;
+	bool rebuildbyindex ;
+	hash_map<int, FileBlockMapHashVal, hash<int>, eqint> blocksetByBlocknum ;
+	hash_map<int, FileBlockMapHashVal, hash<int>, eqint> blocksetByIndex ;
+//	hash_map<int, int, hash<int>, eqint> blocksetByBlocknum ;
+//	hash_map<int, int, hash<int>, eqint> blocksetByIndex ;
+
+	hash_map<int, FileBlockMapHashVal, hash<int>, eqint>::iterator blocksetIterator ;
+} ; // class FileBlockMap
+
+} ; // namespace SynerEdge
+
+#endif // __FileBlockMap_INCLUDE_
+@
+
+
+1.5
+log
+@
+Changes to speed up the filesystem.
+@
+text
+@d16 3
+a18 4
+	FileBlockMapHashVal(int index, int blocknum, FILEBLOCKP fblock) :
+		index(index), blocknum(blocknum), fblock(fblock) {}
+	inline int getIndex() const { return index ; }
+	inline int getBlockNum() const { return blocknum ; }
+a20 2
+	int index ;
+	int blocknum ;
+d48 4
+d64 3
+a66 2
+	hash_map<int, FileBlockMapHashVal*, hash<int>, eqint> blocksetByBlocknum ;
+	hash_map<int, FileBlockMapHashVal*, hash<int>, eqint> blocksetByIndex ;
+d70 1
+a70 1
+	hash_map<int, FileBlockMapHashVal*, hash<int>, eqint>::iterator blocksetIterator ;
+@
+
+
+1.4
+log
+@Expose save() method to save block maps. Comment out debug output.
+@
+text
+@d7 1
+d10 1
+d14 13
+d51 7
+d61 6
+d68 1
+@
+
+
+1.3
+log
+@Fix build problems, implement functionality <bleh comment!>
+@
+text
+@d23 1
+@
+
+
+1.2
+log
+@More unit tests, plus move over to new naming convention.
+@
+text
+@d23 2
+@
+
+
+1.1
+log
+@
+New BlockFile interface and corresponding unit tests. These build, not all
+unit tests run. But this has not yet been integrated into the filesystem so
+that still runs.
+@
+text
+@d26 1
+@
+

@@ -1,0 +1,211 @@
+head	1.4;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.4
+date	2005.06.12.01.39.05;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	76442ab91ef00b4;
+kopt	kv;
+filename	@FreeBlockMapUnitTest.cpp@;
+
+1.3
+date	2005.06.09.17.02.38;	author aprakash;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	98042a875f55961;
+kopt	kv;
+filename	@FreeBlockMapUnitTest.cpp@;
+
+1.2
+date	2005.05.01.21.58.21;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	ff8427550e854fc;
+kopt	kv;
+filename	@FreeBlockMapUnitTest.cpp@;
+
+1.1
+date	2005.04.21.17.04.03;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	3b44267dce5664a;
+kopt	kv;
+filename	@FreeBlockMapUnitTest.cpp@;
+
+
+desc
+@@
+
+
+1.4
+log
+@
+Move BlockFileBase.hpp to iBlockIO.hpp
+Cleaned up interfaces to support uint64 rather than int64
+VirtualDisk and VirtualBlockFile now also inherit from iBlockIO, so now
+BlockFileIO can use any of these interfaces.
+@
+text
+@#include "FreeBlockMapUnitTest.hpp"
+#include "FreeBlockMap.hpp"
+#include "SynerEdge.hpp"
+#include "seerror.hpp"
+#include <iostream>
+#include <fstream>
+using namespace std ;
+using namespace SynerEdge ;
+
+// CPPUNIT_TEST_SUITE_REGISTRATION(FreeBlockMapUnitTest) ;
+
+void
+FreeBlockMapUnitTest::setUp()
+{
+}
+
+void
+FreeBlockMapUnitTest::tearDown()
+{
+}
+
+void
+FreeBlockMapUnitTest::testConstructor()
+{
+//	cout << "FreeBlockMapUnitTest::testConstructor()" << endl ;
+
+	FreeBlockMap fbmap(1024, 400) ;
+
+	try {
+		FreeBlockMap toosmallstarting(1024,0) ;
+		CPPUNIT_FAIL("Created map with too small of a starting block num") ;
+	} catch (seerror &exception) {}
+
+	//try {
+	//	FreeBlockMap negativestartingat(1024,-1) ;
+	//	CPPUNIT_FAIL("Created map with a negative starting block num") ;
+//	} catch (seerror &exception) {}
+
+	try {
+		FreeBlockMap toofewbits(0,100) ;
+		CPPUNIT_FAIL("Created map with 0 bits") ;
+	} catch (seerror &exception) {}
+
+	//try {
+	//	FreeBlockMap negativebits(-1,100) ;
+	//	CPPUNIT_FAIL("Created map with negative bits") ;
+	//} catch (seerror &exception) {}
+
+}
+
+void
+FreeBlockMapUnitTest::testAllocateFreeMethods()
+{
+	//cout << "FreeBlockMapUnitTest::testAllocateFreeMethods()" << endl ;
+
+	int64 blocknum ;
+	FreeBlockMap t(100, 100) ;
+
+	CPPUNIT_ASSERT(t.getFreeBlockCount() == 100) ;
+	blocknum = t.allocateBlock() ;
+	CPPUNIT_ASSERT(blocknum >= 100) ;
+	CPPUNIT_ASSERT(t.getFreeBlockCount() == 99) ;
+	CPPUNIT_ASSERT(t.freeBlock(blocknum) == true) ;
+	CPPUNIT_ASSERT(t.getFreeBlockCount() == 100) ;
+}
+
+void
+FreeBlockMapUnitTest::testOperators()
+{
+	FreeBlockMap t(200, 200) ;
+	FreeBlockMap t2 ;
+	fstream file ;
+	fstream file2 ;
+	/*
+	** For some reason reopening the stream with file rather than
+	** file2 causes a 0 byte file to be written.
+	*/
+
+	system("rm -f /tmp/FreeBlockMapUnitTest.out") ;
+	system("rm -f /tmp/FreeBlockMapUnitTest2.out") ;
+	file.open("/tmp/FreeBlockMapUnitTest.out", ios::out) ;
+	file << t ;
+	file.close() ;
+	file.open("/tmp/FreeBlockMapUnitTest.out", ios::in) ;
+	file >> t2 ;
+	CPPUNIT_ASSERT(t2.getFreeBlockCount() == 200) ;
+	t.allocateBlock() ;
+	CPPUNIT_ASSERT(t.getFreeBlockCount() == 199) ;
+	file.flush() ;
+	file.close() ;
+	file2.open("/tmp/FreeBlockMapUnitTest2.out", ios::out) ;
+	file2 << t ;
+	file2.flush() ;
+	file2.close() ;
+	file2.open("/tmp/FreeBlockMapUnitTest2.out", ios::in) ;
+	file2 >> t2 ;
+	CPPUNIT_ASSERT(t2.getFreeBlockCount() == 199) ;
+}
+@
+
+
+1.3
+log
+@These are partially converted tests. Many will break because of the changes
+to how readBlock and writeBlock behave -- they will fail if blocks are
+not allocated.
+
+testOrder.cpp controls the order of tests.
+@
+text
+@d34 4
+a37 4
+	try {
+		FreeBlockMap negativestartingat(1024,-1) ;
+		CPPUNIT_FAIL("Created map with a negative starting block num") ;
+	} catch (seerror &exception) {}
+d44 4
+a47 4
+	try {
+		FreeBlockMap negativebits(-1,100) ;
+		CPPUNIT_FAIL("Created map with negative bits") ;
+	} catch (seerror &exception) {}
+@
+
+
+1.2
+log
+@Removed cout of unit function tests
+@
+text
+@d10 1
+a10 1
+CPPUNIT_TEST_SUITE_REGISTRATION(FreeBlockMapUnitTest) ;
+@
+
+
+1.1
+log
+@Moved Unit Tests to utest directory. Renamed all UnitTests to include "UnitTest" in the
+name of the file and the class.
+@
+text
+@d25 1
+a25 1
+	cout << "FreeBlockMapUnitTest::testConstructor()" << endl ;
+d54 1
+a54 1
+	cout << "FreeBlockMapUnitTest::testAllocateFreeMethods()" << endl ;
+@
+

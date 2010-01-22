@@ -1,0 +1,169 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.3
+date	2005.06.12.23.36.41;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	e3c42acc6f271ce;
+kopt	kv;
+filename	@StorProvOrb.cpp@;
+
+1.2
+date	2005.06.06.16.50.02;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	89842a47eab65df;
+kopt	kv;
+filename	@StorProvOrb.cpp@;
+
+1.1
+date	2005.06.01.18.53.41;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	374429e04253dd5;
+kopt	kv;
+filename	@StorProvOrb.cpp@;
+
+
+desc
+@@
+
+
+1.3
+log
+@Get RPC interfaces working with new Orb changes. Still need to move to
+threaded Orb.
+@
+text
+@
+#include "StorProvOrb.hpp"
+#include "StringConversion.hpp"
+#include "PT.hpp"
+
+namespace SynerEdge {
+
+StorProvOrb::StorProvOrb(ClientSocket &sock, StorProvSvrInterface &spsi)
+	: socket(sock)
+{
+	si = new ServerInterface(L"spsi", L"1_0");
+	(*si) += new MethodDelegate<StorProvSvrInterface>(L"getNumFreeBlocks", spsi, &StorProvSvrInterface::getNumFreeBlocks);
+	(*si) += new MethodDelegate<StorProvSvrInterface>(L"getFreeBlock", spsi, &StorProvSvrInterface::getFreeBlock);
+	(*si) += new MethodDelegate<StorProvSvrInterface>(L"releaseBlock", spsi, &StorProvSvrInterface::releaseBlock);
+	(*si) += new MethodDelegate<StorProvSvrInterface>(L"flushFreeBlockList", spsi, &StorProvSvrInterface::flushFreeBlockList);
+	(*si) += new MethodDelegate<StorProvSvrInterface>(L"writeBlock", spsi, &StorProvSvrInterface::writeBlock);
+	(*si) += new MethodDelegate<StorProvSvrInterface>(L"readBlock", spsi, &StorProvSvrInterface::readBlock);
+	(*si) += new MethodDelegate<StorProvSvrInterface>(L"zeroBlock", spsi, &StorProvSvrInterface::zeroBlock);
+	(*si) += new MethodDelegate<StorProvSvrInterface>(L"getBlockSize", spsi, &StorProvSvrInterface::getBlockSize);
+	(*si) += new MethodDelegate<StorProvSvrInterface>(L"getNumBlocks", spsi, &StorProvSvrInterface::getNumBlocks);
+
+	orb = new OrbBase() ;
+
+	(*orb) += (*si) ;
+}
+
+StorProvOrb::~StorProvOrb()
+{
+}
+
+void
+StorProvOrb::processCalls()
+{
+	while (true) {
+		// Could multithread here so that each function call runs
+		// in a separate thread
+		
+		XdrStream xd;
+		PT("Start socket >> xd") ;
+		socket >> xd;
+		PT("Past socket >> xd") ;
+
+		InvokeRequest ir;
+		PT("Start xd >> ir") ;
+		xd >> ir;
+		PT("Start xd >> ir") ;
+
+		Context ctx;
+		InterfaceVersionPair ivp(ir.interfaceName, ir.versionNumber);
+		PT("start orb->find()") ;
+		ServerInterface &calledsi = orb->find(ivp);
+		PT("past orb->find()") ;
+		PT("start calledsi()") ;
+		XdrStream *resultstream = calledsi(ir.methodName, ctx, ir.parameters);
+		PT("past calledsi()") ;
+
+		InvokeResponse iresp;
+		iresp.requestId = ir.requestId;
+		iresp.errorMessage = L"Hello";
+	
+		PT("start iresp.results << *resultstream") ;
+		iresp.results = *resultstream;
+		PT("past iresp.results << *resultstream") ;
+
+		XdrStream finalresult;
+		PT("start finalresult << iresp") ;
+		finalresult << iresp;
+		PT("past finalresult << iresp") ;
+		PT("start socket << finalresult") ;
+		socket << finalresult;
+		PT("past socket << finalresult") ;
+		PT("start delete resultstream") ;
+		delete resultstream;
+		PT("past delete resultstream") ;
+	}
+
+}
+
+bool
+StorProvOrb::shutdown()
+{
+	return false ;
+}
+
+} // namespace SynerEdge
+@
+
+
+1.2
+log
+@Add getNumBlocks call support.
+@
+text
+@d4 1
+d39 1
+d41 1
+d44 1
+d46 1
+d50 1
+d52 2
+d55 1
+d60 4
+a63 1
+		iresp.results << *resultstream;
+d66 1
+d68 2
+d71 2
+d74 1
+@
+
+
+1.1
+log
+@Create an Orb class for the Storage Provider interfaces
+@
+text
+@d3 1
+d19 1
+d36 1
+@
+

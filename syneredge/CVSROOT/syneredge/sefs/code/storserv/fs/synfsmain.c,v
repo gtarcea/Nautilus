@@ -1,0 +1,83 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2005.04.13.18.35.12;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	afc425d663b3ae7;
+kopt	kv;
+filename	@synfsmain.c@;
+
+1.1
+date	2005.04.08.17.49.29;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.29;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Switch over to new makefile system. This required renaming files to conform
+to convention.
+@
+text
+@
+#include "synfs.h"
+
+
+main(int argc, char **argv)
+{
+	int rc ;
+
+	rc = synfs_init("/etc/syneredge", "/dev/whatever", 1024, 100) ;
+
+	if (! rc) {
+		printf("SynergyFS Initialization failed\n") ;
+		exit(1) ;
+	}
+/*	system("../blockd/synwrblockd") ;*/
+
+	synfs_run(argc, argv) ;
+	synfs_shutdown(0) ;
+	exit(0) ;
+}
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

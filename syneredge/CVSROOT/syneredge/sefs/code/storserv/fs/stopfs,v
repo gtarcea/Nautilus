@@ -1,0 +1,62 @@
+head     1.1;
+branch   1.1.1;
+access   ;
+symbols 
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks    ; strict;
+comment  @# @;
+
+
+1.1
+date     2005.04.08.17.49.31;  author gtarcea;  state Exp;
+branches 1.1.1.1;
+next     ;
+deltatype   text;
+permissions	777;
+
+1.1.1.1
+date     2005.04.08.17.49.31;  author gtarcea;  state Exp;
+branches ;
+next     ;
+permissions	777;
+
+
+desc
+@@
+
+
+
+1.1
+log
+@Initial revision
+@
+text
+@#!/bin/sh
+
+FSPID=`ps -ef | grep 'synfs ' | grep -v grep | awk '{print $2}'`
+BLOCKDPID=`ps -ef | grep 'synwrblockd$' | grep -v grep | awk '{print $2}'`
+
+if [ "$FSPID" = "" ] ; then
+	echo "The SynerEdge FileSafe FS service is not running"
+else
+	echo "Stopping SynerEdge FileSafe FS service"
+	kill $FSPID
+fi
+
+if [ "$BLOCKDPID" = "" ] ; then
+	echo "The SynerEdge FileSafe Block Device service is not running"
+else
+	echo "Stopping SynerEdge FileSafe Block Device service"
+	kill $BLOCKDPID
+fi
+
+@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

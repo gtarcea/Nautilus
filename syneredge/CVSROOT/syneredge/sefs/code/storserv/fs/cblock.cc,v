@@ -1,0 +1,215 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.04.13.18.43.40;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	d8425d6849419c;
+kopt	kv;
+filename	@cblock.cc@;
+
+1.1
+date	2005.04.08.17.49.30;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.30;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Move files that belong in the storprovider directory to that directory.
+@
+text
+@#include <string.h>
+#include <iostream>
+#include "seerror.h"
+#include "cblock.h"
+
+using namespace std ;
+
+Block::Block(off_t blocknum) : size(0), nextblock(-1), prevblock(-2), blocknum(blocknum)
+{
+	memset(bytes, 0, 4096) ;
+	memset(reserved, 0, 8) ;
+	if (blocknum < 0) {
+//		throw seerror("negative blocknum") ;
+	}
+
+	/*cout << "sizeof individual elements:\n" ;
+	cout << "nextblock: " << sizeof(nextblock) << endl ;
+	cout << "prevblock: " << sizeof(prevblock) << endl ;
+	cout << "reserved: " << sizeof(reserved) << endl ;
+	cout << "size: " << sizeof(size) << endl ;
+	cout << "freechunks: " << sizeof(freechunks) << endl ;
+	cout << "bytes: " << sizeof(bytes) << endl ;*/
+}
+
+Block::~Block()
+{
+}
+
+ostream &operator<<(ostream &output, const Block &block)
+{
+	output.write(reinterpret_cast<const char *>(&block), sizeof(Block)) ;
+//	cout << "Writing blocknum : " << block.blocknum << endl ;
+//	cout << block.nextblock << endl ;
+	return output ;
+}
+
+istream &operator>>(istream &input, Block &block)
+{
+//	cout << "sizeof(Block) = " << sizeof(Block) << endl ;
+	input.read(reinterpret_cast<char *>(&block), sizeof(Block)) ;
+	cout << "blocknum = " << block.blocknum << endl ;
+	cout << "nextblock = " << block.nextblock << endl ;
+	cout << "prevbloc = " << block.prevblock << endl ;
+	return input ;
+}
+
+int
+Block::setBytes(int offset, char *data, int length)
+{
+	if (offset > 4096 || offset < 0) {
+		return 0 ;
+	}
+
+	if (length > 4096 || length < 0 || offset + length > 4096) {
+		return 0 ;
+	}
+
+	memcpy(bytes+offset, data, length) ;
+	if (size < offset+length) {
+		size = offset+length ;
+	}
+
+	return 1 ;
+}
+
+int
+Block::setBytes(int chunk, int offset, char *data, int length)
+{
+	return 0 ;
+}
+
+int
+Block::setSize(int chunk, int length)
+{
+	return 0 ;
+}
+
+int
+Block::setSize(int length)
+{
+	if (length < 0 || length > 4096) {
+		return 0 ;
+	}
+
+	size = length ;
+
+	return 1 ;
+}
+
+int
+Block::getSize(int chunk)
+{
+	return 0 ;
+}
+
+int
+Block::getSize(void)
+{
+	return size ;
+}
+
+void
+Block::setPrevBlock(off_t prevblock)
+{
+	Block::prevblock = prevblock ;
+}
+
+off_t
+Block::getPrevBlock() const 
+{
+	return prevblock ;
+}
+
+void
+Block::setNextBlock(off_t nextblock)
+{
+	Block::nextblock = nextblock ;
+}
+
+off_t
+Block::getNextBlock()
+{
+	return nextblock ;
+}
+
+int
+Block::getFreeChunk()
+{
+	return 0 ;
+}
+
+int
+Block::freeChunk(int chunk)
+{
+	return 0 ;
+}
+
+int
+Block::setBlockNum(off_t blocknum)
+{
+	if (blocknum < 0) {
+		return 0 ;
+	}
+
+	Block::blocknum = blocknum ;
+	return 1 ;
+}
+
+off_t
+Block::getBlockNum()
+{
+	return blocknum ;
+}
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

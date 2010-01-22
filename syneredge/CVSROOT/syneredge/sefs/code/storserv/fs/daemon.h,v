@@ -1,0 +1,67 @@
+head     1.1;
+branch   1.1.1;
+access   ;
+symbols 
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks    ; strict;
+comment  @ * @;
+
+
+1.1
+date     2005.04.08.17.49.29;  author gtarcea;  state Exp;
+branches 1.1.1.1;
+next     ;
+deltatype   text;
+permissions	777;
+
+1.1.1.1
+date     2005.04.08.17.49.29;  author gtarcea;  state Exp;
+branches ;
+next     ;
+permissions	777;
+
+
+desc
+@@
+
+
+
+1.1
+log
+@Initial revision
+@
+text
+@
+#ifndef __DAEMON_INCLUDE_
+#define __DAEMON_INCLUDE_
+
+#include <sys/types.h>
+#include <unistd.h>
+#include <signal.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int daemon_setup_sighandlers(__sighandler_t sigfunc) ;
+int daemon_start(int becomedaemon) ;
+int daemon_stop(pid_t pid) ;
+int daemon_reinit(pid_t pid) ;
+int daemon_send_sig(pid_t, int signo) ;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __DAEMON_INCLUDE_ */
+
+@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

@@ -1,0 +1,221 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@ * @;
+
+
+1.3
+date	2005.06.06.16.53.21;	author irrer;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	ad442a47f5c6821;
+kopt	kv;
+filename	@SEDB.h@;
+
+1.2
+date	2005.06.02.19.38.54;	author irrer;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	97c429f60342e72;
+kopt	kv;
+filename	@SEDB.h@;
+
+1.1
+date	2005.05.09.15.53.14;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	8a8427f86af2c7b;
+kopt	kv;
+filename	@SEDB.h@;
+
+
+desc
+@@
+
+
+1.3
+log
+@Added transaction handling.
+Added better error checking for parameters.
+Improved error messages.
+@
+text
+@
+#ifndef SEDB_H
+#define SEDB_H
+
+// Definitions for each table and field in the sedb database.
+// Generated: Sat Jun  4 13:45:50 EDT 2005 by irrer
+// This file was automatically generated with gen_header.
+
+
+typedef struct SEDB_block_file_Struct {
+    char host[25];
+    char directory[31];
+    int64 max_bytes;
+    int64 bytes;
+    char room[13];
+    char building[13];
+} SEDB_block_file;
+#define BLOCK_FILE__NUM_FIELD (6)
+
+typedef struct SEDB_file_system_Struct {
+    char name[25];
+    char virtual_disk[25];
+} SEDB_file_system;
+#define FILE_SYSTEM__NUM_FIELD (2)
+
+typedef struct SEDB_virtual_disk_Struct {
+    char name[25];
+    char host[25];
+    char directory[31];
+    int64 bytes;
+    char virtual_disk_policy[25];
+    int32 block_size;
+} SEDB_virtual_disk;
+#define VIRTUAL_DISK__NUM_FIELD (6)
+
+typedef struct SEDB_virtual_disk_policy_Struct {
+    char name[25];
+    char *policy;
+} SEDB_virtual_disk_policy;
+#define VIRTUAL_DISK_POLICY__NUM_FIELD (2)
+// Table block_file 
+typedef char SEDB_block_file__host[25];
+typedef char SEDB_block_file__directory[31];
+typedef int64 SEDB_block_file__max_bytes;
+typedef int64 SEDB_block_file__bytes;
+typedef char SEDB_block_file__room[13];
+typedef char SEDB_block_file__building[13];
+
+// Table file_system 
+typedef char SEDB_file_system__name[25];
+typedef char SEDB_file_system__virtual_disk[25];
+
+// Table virtual_disk 
+typedef char SEDB_virtual_disk__name[25];
+typedef char SEDB_virtual_disk__host[25];
+typedef char SEDB_virtual_disk__directory[31];
+typedef int64 SEDB_virtual_disk__bytes;
+typedef char SEDB_virtual_disk__virtual_disk_policy[25];
+typedef int32 SEDB_virtual_disk__block_size;
+
+// Table virtual_disk_policy 
+typedef char SEDB_virtual_disk_policy__name[25];
+typedef char *SEDB_virtual_disk_policy__policy;
+
+#endif
+@
+
+
+1.2
+log
+@Rework of policy engine.
+@
+text
+@d6 1
+a6 1
+// Generated: Sun May 22 09:27:14 EDT 2005 by irrer
+d18 1
+a18 1
+#define BLOCK_FILE_NUM_FIELD (6)
+d24 1
+a24 1
+#define FILE_SYSTEM_NUM_FIELD (2)
+d34 1
+a34 1
+#define VIRTUAL_DISK_NUM_FIELD (6)
+d40 1
+a40 1
+#define VIRTUAL_DISK_POLICY_NUM_FIELD (2)
+@
+
+
+1.1
+log
+@Made utility to generate typedefs based on database tables and fields.
+
+Updated files to use and test SEDB.h.
+
+Changed varchar(5000) field to text (in make_db) because
+mysql was converting it anyway.
+@
+text
+@d2 2
+a3 3
+typedef struct SEDB_building_Struct {
+    char building[13];
+} SEDB_building;
+d5 3
+a7 8
+typedef struct SEDB_host_Struct {
+    char name[25];
+    char type[31];
+    char OS[31];
+    char user[11];
+    char owner[11];
+    char admin[11];
+} SEDB_host;
+a8 5
+typedef struct SEDB_location_Struct {
+    char location[13];
+    char room[13];
+    char building[13];
+} SEDB_location;
+d10 1
+a10 2
+typedef struct SEDB_physical_disk_Struct {
+    char name[31];
+d13 2
+a14 15
+    int64 kilobytes;
+    int64 kilo_unused;
+    char hardware[11];
+    char location[13];
+    char room[13];
+    char building[13];
+    char user[11];
+    char owner[11];
+    char admin[11];
+    char model[11];
+    char speed[11];
+    float value;
+} SEDB_physical_disk;
+
+typedef struct SEDB_room_Struct {
+d17 2
+a18 1
+} SEDB_room;
+d20 1
+a20 1
+typedef struct SEDB_sefs_Struct {
+d22 3
+a24 2
+    char virt_disk[25];
+} SEDB_sefs;
+d26 1
+a26 1
+typedef struct SEDB_virt_disk_Struct {
+d28 4
+a31 3
+    char physical_disk[31];
+    int64 kilobytes;
+    char virt_disk_policy[25];
+d33 2
+a34 1
+} SEDB_virt_disk;
+d36 1
+a36 1
+typedef struct SEDB_virt_disk_policy_Struct {
+d39 27
+a65 1
+} SEDB_virt_disk_policy;
+@
+

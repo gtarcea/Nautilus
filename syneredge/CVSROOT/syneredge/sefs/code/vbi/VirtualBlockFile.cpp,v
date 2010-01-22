@@ -1,0 +1,608 @@
+head	1.6;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.6
+date	2005.06.12.01.39.06;	author gtarcea;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	76442ab91ef00b4;
+kopt	kv;
+filename	@VirtualBlockFile.cpp@;
+
+1.5
+date	2005.06.11.23.40.36;	author aprakash;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	64842ab75972425;
+kopt	kv;
+filename	@VirtualBlockFile.cpp@;
+
+1.4
+date	2005.06.10.15.59.02;	author aprakash;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	fbc42a9b89c7706;
+kopt	kv;
+filename	@VirtualBlockFile.cpp@;
+
+1.3
+date	2005.06.09.16.51.28;	author aprakash;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	ce842a873275038;
+kopt	kv;
+filename	@VirtualBlockFile.cpp@;
+
+1.2
+date	2005.05.01.21.56.15;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	df042755072537a;
+kopt	kv;
+filename	@VirtualBlockFile.cpp@;
+
+1.1
+date	2005.04.30.21.13.32;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	fe44273f4e56486;
+kopt	kv;
+filename	@VirtualBlockFile.cpp@;
+
+
+desc
+@@
+
+
+1.6
+log
+@
+Move BlockFileBase.hpp to iBlockIO.hpp
+Cleaned up interfaces to support uint64 rather than int64
+VirtualDisk and VirtualBlockFile now also inherit from iBlockIO, so now
+BlockFileIO can use any of these interfaces.
+@
+text
+@
+#include "VirtualBlockFile.hpp"
+
+/* Author:  Glenn Tarcea 
+           Created initial version that worked with BlockFile (not NetworkBlockFile).
+		 Assumed that BlockFiles knew their block number range.
+ * Modifications: Atul Prakash
+           Changed it to so that it works with any time of iBlockIO.
+		 iBlockIO does not return startingBlockNum(), like BlockFile.
+		 This required significant changes to the code so that mapping
+		 information from blockid to blockfilebase is stored in this class.
+		 Each iBlockIO is assumed to start from Block Number 1 now.
+
+		 Also, changed the BlockFileList so that you pass in any type
+		 of iBlockIOs, rather than pathnames of blockfiles.
+*/		 
+	  
+		 
+ 
+
+namespace SynerEdge {
+
+VirtualBlockFile::VirtualBlockFile(string name, BlockFileList &bflist, int blocksize) 
+		: name(name), blocksize(blocksize), startingblocknum(1),
+		  endingblocknum(0), isopen(false)
+{
+	int blockcount = 0;
+	for ( BlockFileListIterator itor = bflist.begin() ;
+			itor != bflist.end() ; itor++) {
+		iBlockIO *bf = (*itor) ;
+		blockMap.push_back(bf);
+	}
+}
+
+VirtualBlockFile::~VirtualBlockFile()
+{
+	// cout << "VirtualBlockFile::~VirtualBlockFile() Called" << endl ;
+}
+
+bool
+VirtualBlockFile::open()
+{
+
+	// Open also creates a mapping from blockids to individual
+     // blockfiles. An assumption is the number of blocks in
+     // a blockfile does not change after a blockfile is made
+	// part of a virtual block file. 
+
+	// Dynamic administrative changes have to be dealt with later.
+	// That is like repartitioning the disk or changing the size 
+	// of a partition and must be done very carefully after more research.
+
+	iBlockIO *blockfb;
+	uint64 blockcount = 0;
+	for (BlockMapIterator itor = blockMap.begin() ;
+			itor != blockMap.end() ; itor++) {
+		
+		blockfb = (*itor);
+		bool opened = blockfb->open() ;
+		if (! opened) {
+			return false ;
+		}
+
+		uint bfblocksize = blockfb->getBlockSize() ;
+		uint64 bfnumblocks = blockfb->getNumBlocks();
+		if (bfblocksize != blocksize) {
+			return false ;
+		}
+		blockcount += bfnumblocks;
+		if (blockcount+1 < bfnumblocks) { // wrap around 
+			assert(false);
+			return (false);
+		}
+		blockrange[blockcount+1] = blockfb;
+	}
+	numblocks = blockcount;
+	isopen = true ;
+
+	return true ;
+}
+
+bool
+VirtualBlockFile::close()
+{
+	if (! isopen) {
+		return true ;
+	}
+
+	for (BlockMapIterator itor = blockMap.begin() ;
+			itor != blockMap.end() ; itor++) {
+		(*itor)->close() ;
+	}
+
+	return true ;
+}
+
+uint64
+VirtualBlockFile::getNumBlocks()
+{
+	return numblocks;
+	/*
+	for ( BlockMapIterator itor = blockMap.begin() ;
+			itor != blockMap.end() ; itor++) {
+		numblocks += (*itor).second.getBlockFile()->getNumBlocks() ;
+	}
+
+	return numblocks ;
+	*/
+}
+
+uint64 
+VirtualBlockFile::getNumFreeBlocks()
+{
+	uint64 numfreeblocks = 0 ;
+
+	for ( BlockMapIterator itor = blockMap.begin() ;
+			itor != blockMap.end() ; itor++) {
+		numfreeblocks += (*itor)->getNumFreeBlocks() ;
+	}
+
+	return numfreeblocks ;
+}
+
+uint64 
+VirtualBlockFile::getFreeBlock()
+{
+	for ( BlockMapIterator itor = blockMap.begin() ;
+			itor != blockMap.end() ; itor++) {
+		uint64 freeblocknum = (*itor)->getFreeBlock() ;
+		if (freeblocknum != 0) {
+			return freeblocknum ;
+		}
+	}
+
+	// If we get here then we are out of space.
+	return 0 ;
+}
+
+
+iBlockIO *
+VirtualBlockFile::findBlockForBlocknum(uint64 blocknum, uint64 *index)
+{
+
+	BlockRangeListIterator prevnode;
+	if (blocknum <= 0 || blocknum > numblocks) return NULL;
+	// Find the element corresponding to the largest key such that the key < blocknum
+	blockrangeIterator = blockrange.upper_bound(blocknum);
+	if (blockrangeIterator == blockrange.end()) { // past the end of last node
+		*index = 0;
+		return NULL;
+	} else if (blockrangeIterator == blockrange.begin()) { // first node
+		*index = blocknum;
+		return (*blockrangeIterator).second;
+	} else {   // got to figure out the relative address with respect to previous block
+		prevnode = blockrangeIterator;
+		prevnode--;
+		// e.g., two disks with 100 blocks would have 101 and 201 in blockrange.
+		// lookup of 101 should compute to 101 - (101 - 1) or 1 in the 2nd disk..
+		*index = blocknum - ((*prevnode).first - 1) ;  
+		return (*blockrangeIterator).second;
+	}
+}
+
+
+bool 
+VirtualBlockFile::releaseBlock(uint64 blocknum)
+{
+	uint64 index;
+	iBlockIO *fb = findBlockForBlocknum(blocknum, &index);
+	if (!fb) return false;
+	return fb->releaseBlock(index);
+}
+
+bool 
+VirtualBlockFile::flushFreeBlockList()
+{
+	bool allsucceeded = true ;
+	for ( BlockMapIterator itor = blockMap.begin() ;
+			itor != blockMap.end() ; itor++) {
+		bool rc = (*itor)->flushFreeBlockList() ;
+		if (! rc) {
+			allsucceeded = false ;
+		}
+	}
+
+	return allsucceeded ;
+}
+
+int 
+VirtualBlockFile::getBlockSize() const
+{
+	return blocksize ;
+}
+
+bool 
+VirtualBlockFile::writeBlock(uint64 blocknum, int offset, int size, char *data)
+{
+	uint64 index;
+	iBlockIO *fb = findBlockForBlocknum(blocknum, &index);
+	if (!fb) return false;
+	return fb->writeBlock(index,offset,size,data);
+}
+
+bool 
+VirtualBlockFile::writeBlock(Block &block)
+{
+	uint64 index;
+	uint64 blocknum = block.getBlockNum();
+	iBlockIO *fb = findBlockForBlocknum(blocknum, &index);
+	if (!fb) return false;
+	// Map the block numbers to the individal disk
+	uint64 blockid = block.getBlockNum();
+	block.setBlockNum(index);
+	bool returnval = fb->writeBlock(block);
+	block.setBlockNum(blockid);
+	return returnval;
+}
+
+
+bool 
+VirtualBlockFile::readBlock(uint64 blocknum, Block &block)
+{
+	uint64 index;
+	iBlockIO *fb = findBlockForBlocknum(blocknum, &index);
+	if (!fb) return false;
+	// Map the block numbers to the individal disk
+	bool returnval = fb->readBlock(index, block);
+	block.setBlockNum(blocknum);
+	return returnval;
+}
+
+
+bool 
+VirtualBlockFile::zeroBlock(uint64 blocknum)
+{
+	uint64 index;
+	iBlockIO *fb = findBlockForBlocknum(blocknum, &index);
+	if (!fb) return false;
+	// Map the block numbers to the individal disk
+	return fb->zeroBlock(index);
+}
+
+
+} // Namespace SynerEdge
+@
+
+
+1.5
+log
+@Significant changes made to VirtualBlockFile.
+
+Summary:
+
+-- VirtualBlockFile can now be built out of any type of BlockFileBases
+   (e.g., BlockFile, NetworkBlockFile, FaultyBlockFile, ...).
+
+-- The class now requires that each Blockfile start at blocknum 1. It
+   manages the mapping from higher level block numbers to blocknum's
+   within a BlockFile.
+
+-- Some additional error checking for unlikely situations.
+
+-- The above changes required the constructor for a VirtualBlockFile
+   to change. The BlockFileList argument is now a list of (BlockFileBase *).
+@
+text
+@d8 2
+a9 2
+           Changed it to so that it works with any time of BlockFileBase.
+		 BlockFileBase does not return startingBlockNum(), like BlockFile.
+d12 1
+a12 1
+		 Each BlockFileBase is assumed to start from Block Number 1 now.
+d15 1
+a15 1
+		 of BlockFileBases, rather than pathnames of blockfiles.
+d30 1
+a30 1
+		BlockFileBase *bf = (*itor) ;
+d53 1
+a53 1
+	BlockFileBase *blockfb;
+d140 1
+a140 1
+BlockFileBase *
+d169 1
+a169 1
+	BlockFileBase *fb = findBlockForBlocknum(blocknum, &index);
+d199 1
+a199 1
+	BlockFileBase *fb = findBlockForBlocknum(blocknum, &index);
+d209 1
+a209 1
+	BlockFileBase *fb = findBlockForBlocknum(blocknum, &index);
+d224 1
+a224 1
+	BlockFileBase *fb = findBlockForBlocknum(blocknum, &index);
+d237 1
+a237 1
+	BlockFileBase *fb = findBlockForBlocknum(blocknum, &index);
+@
+
+
+1.4
+log
+@NOTES: this is where I am keeping track of "bugs" and TODO work.
+
+Other files: Bug fixes to help pass the tests.
+@
+text
+@d4 17
+d23 1
+a23 1
+VirtualBlockFile::VirtualBlockFile(string name, BlockFileList bflist, int blocksize) 
+d27 1
+d30 2
+a31 4
+		string path = (*itor) ;
+		BlockFile *bf = new BlockFile(path) ;
+		BlockMapEntry bm(bf) ;
+		blockMap[path] = bm ;
+d37 1
+a37 1
+//	cout << "VirtualBlockFile::~VirtualBlockFile() Called" << endl ;
+d43 12
+d57 3
+a59 1
+		bool opened = (*itor).second.getBlockFile()->open() ;
+d64 2
+a65 1
+		int bfblocksize = (*itor).second.getBlockFile()->getBlockSize() ;
+d69 6
+d76 1
+d91 1
+a91 1
+		(*itor).second.getBlockFile()->close() ;
+d100 2
+a101 2
+	uint64 numblocks = 0 ;
+
+d108 1
+d118 1
+a118 1
+		numfreeblocks += (*itor).second.getBlockFile()->getNumFreeBlocks() ;
+d129 1
+a129 1
+		uint64 freeblocknum = (*itor).second.getBlockFile()->getFreeBlock() ;
+d140 2
+a141 2
+BlockFile *
+VirtualBlockFile::findBlockFileForBlocknum(uint64 blocknum)
+a142 4
+	for ( BlockMapIterator itor = blockMap.begin() ;
+			itor != blockMap.end() ; itor++) {
+		uint64 bfstartingblocknum = (*itor).second.getBlockFile()->getStartingBlockNum() ;
+		uint64 bfendingblocknum = (*itor).second.getBlockFile()->getNumBlocks() + bfstartingblocknum ;
+d144 17
+a160 3
+		if (blocknum >= bfstartingblocknum && blocknum < bfendingblocknum) {
+			return (*itor).second.getBlockFile() ;
+		}
+a161 3
+
+	// Couldn't find?
+	return NULL ;
+a163 7
+#define DO_OPERATION(blocknum, a) \
+	BlockFile *bf = findBlockFileForBlocknum(blocknum) ; \
+	if (bf) { \
+		return bf->a ; \
+	} else { \
+		return false ; \
+	}
+d168 4
+a171 1
+	DO_OPERATION(blocknum, releaseBlock(blocknum))
+d180 1
+a180 1
+		bool rc = (*itor).second.getBlockFile()->flushFreeBlockList() ;
+d198 4
+a201 1
+	DO_OPERATION(blocknum, writeBlock(blocknum,offset,size,data))
+d207 10
+a216 1
+	DO_OPERATION(block.getBlockNum(),writeBlock(block))
+d219 1
+d223 7
+a229 1
+	DO_OPERATION(blocknum, readBlock(blocknum,block))
+d236 5
+a240 1
+	DO_OPERATION(blocknum, zeroBlock(blocknum))
+@
+
+
+1.3
+log
+@*** empty log message ***
+@
+text
+@d109 1
+a109 1
+		if (blocknum < bfendingblocknum) {
+@
+
+
+1.2
+log
+@
+Debugged versions of VirtualBlockFile
+@
+text
+@d100 1
+d171 1
+a177 5
+bool 
+VirtualBlockFile::freeBlock(uint64 blocknum)
+{
+	DO_OPERATION(blocknum, freeBlock(blocknum))
+}
+d179 1
+a179 1
+} // namespace SynerEdge
+@
+
+
+1.1
+log
+@Add interface to multiple blockfiles. Begin to work on a virtual disk interface.
+@
+text
+@d6 1
+a6 1
+VirtualBlockFile::VirtualBlockFile(string name, BlockFileList &bflist, int blocksize) 
+d14 2
+a15 1
+		blockMap[path] = bf ;
+d21 1
+d29 1
+a29 1
+		bool opened = (*itor).second->open() ;
+d34 1
+a34 1
+		int bfblocksize = (*itor).second->getBlockSize() ;
+d39 1
+d41 1
+a41 1
+	isopen = true ;
+d53 1
+a53 18
+		(*itor).second->close() ;
+	}
+
+	return true ;
+}
+
+/*
+bool 
+VirtualBlockFile::addDiskBlocks(string blockfile)
+{
+	BlockFile *bf = new BlockFile(blockfile) ;
+	if (! bf->open()) {
+		return false ;
+	}
+
+	if (bf->getBlockSize() != blocksize) {
+		delete bf ;
+		return false ;
+a55 10
+	uint64 numblocks = bf->getNumBlocks() ;
+
+	endingblocknum = startingblocknum + numblocks ;
+
+	BlockMapEntry entry(bf, startingblocknum, endingblocknum) ;
+
+	startingblocknum = endingblocknum + 1 ;
+
+	blockMap[blockfile] = entry ;
+
+a58 23
+bool
+VirtualBlockFile::entryExists(string blockfile)
+{
+	BlockMapIterator itor = blockMap.find(blockfile);
+	if (itor != blockMap.end()) {
+		return true ;
+	}
+	return false ;
+}
+
+bool 
+VirtualBlockFile::removeDiskBlocks(string blockfile)
+{
+	// Should we be using boost::smart_ptr here?
+	if (entryExists(blockfile)) {
+		blockMap.erase(blockfile) ;
+		return true ;
+	}
+
+	return false ;
+}
+*/
+
+d66 1
+a66 1
+		numblocks += (*itor).second->getNumBlocks() ;
+d79 1
+a79 1
+		numfreeblocks += (*itor).second->getNumFreeBlocks() ;
+d90 1
+a90 1
+		uint64 freeblocknum = (*itor).second->getFreeBlock() ;
+d105 2
+a106 2
+		uint64 bfstartingblocknum = (*itor).second->getStartingBlockNum() ;
+		uint64 bfendingblocknum = (*itor).second->getNumBlocks() + bfstartingblocknum ;
+d108 2
+a109 2
+		if ((blocknum >= bfstartingblocknum) && (blocknum <= bfendingblocknum)) {
+			return (*itor).second ;
+d134 1
+d137 4
+a140 1
+		(*itor).second->flushFreeBlockList() ;
+d142 2
+@
+

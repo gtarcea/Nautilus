@@ -1,0 +1,212 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.3
+date	2005.04.21.16.48.36;	author gtarcea;	state dead;
+branches;
+next	1.2;
+deltatype	text;
+permissions	444;
+commitid	2fc4267d9355a40;
+kopt	kv;
+filename	@BlockFileTest.cpp@;
+
+1.2
+date	2005.04.15.15.24.29;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	894425fdc084391;
+kopt	kv;
+filename	@BlockFileTest.cpp@;
+
+1.1
+date	2005.04.14.21.04.21;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	728425edab37b3a;
+kopt	kv;
+filename	@BlockFileTest.cpp@;
+
+
+desc
+@@
+
+
+1.3
+log
+@Move Unit Tests to utest directory. Move FreeBlockMap to storprovider. Fix up
+BlockFile to call FreeBlockMap to get freeblocks.
+@
+text
+@#include "BlockFileTest.hpp"
+#include "BlockFile.hpp"
+#include "Block.hpp"
+#include <stdlib.h>
+#include <iostream>
+using namespace std ;
+using namespace SynerEdge ;
+
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockFileTest) ;
+
+void
+BlockFileTest::setUp()
+{
+//	cout << "BlockFileTest::setUp()" << endl ;
+	bf = new BlockFile("/tmp/newblockfile") ;
+	//tb1 = new Block() ;
+	//tb2 = new Block() ;
+}
+
+void
+BlockFileTest::tearDown()
+{
+//	cout << "BlockFileTest::tearDown()" << endl ;
+	delete bf ;
+//	delete tb1 ;
+//	delete tb2 ;
+}
+
+void
+BlockFileTest::testConstructor()
+{
+	cout << "BlockFileTest::testConstructor()" << endl ;
+	BlockFile nbf("/tmp/newblockfile") ;
+
+	CPPUNIT_ASSERT(nbf.getNumBlocks() == 0) ;
+	CPPUNIT_ASSERT(nbf.getStartingBlockNum() == 0) ;
+	CPPUNIT_ASSERT(nbf.getBlockSize() == 1024) ;
+}
+
+void
+BlockFileTest::testCreateFile()
+{
+	cout << "BlockFileTest::testCreateFile()" << endl ;
+	system("rm -f /tmp/newblockfile") ;
+	BlockFile nbf("/tmp/newblockfile") ;
+	CPPUNIT_ASSERT(nbf.create(1, 10, 1024) == true) ;
+	//nbf.printStuff() ;
+	// Test that 10 blocks were written
+	Block tb ;
+	for (int i = 1 ; i < 11 ; i++) {
+		nbf.readBlock(i, tb) ;
+		CPPUNIT_ASSERT(tb.getBlockNum() == i) ;
+	}
+}
+
+void BlockFileTest::testOpenFile()
+{
+	cout << "BlockFileTest::testOpenFile()" << endl ;
+	// testCreateFile() should have already run.
+	CPPUNIT_ASSERT(bf->open() == true) ;
+	CPPUNIT_ASSERT(bf->getNumBlocks() == 10) ;
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 10) ;
+	CPPUNIT_ASSERT(bf->getBlockSize() == 1024) ;
+	CPPUNIT_ASSERT(bf->getStartingBlockNum() == 1) ;
+}
+
+void BlockFileTest::testReadWriteBlocks()
+{
+	char *buf = "DEF456123" ;
+	cout << "BlockFileTest::testReadWriteBlocks()" << endl ;
+	CPPUNIT_ASSERT(bf->open() == true) ;
+	CPPUNIT_ASSERT(bf->writeBlock(1, 0, 10, buf) == true) ;
+	Block b ;
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+	CPPUNIT_ASSERT(bf->writeBlock(2, 0, 10, buf) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(2, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+	CPPUNIT_ASSERT(b.getBlockNum() == 2) ;
+	b.setBlockNum(3) ;
+	CPPUNIT_ASSERT(bf->writeBlock(b) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(3, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+	CPPUNIT_ASSERT(b.getBlockNum() == 3) ;
+}
+
+void
+BlockFileTest::testZeroAndFreeBlocks()
+{
+	Block b ;
+	cout << "BlockFileTest::testZeroAndFreeBlocks()" << endl ;
+
+	CPPUNIT_ASSERT(bf->open() == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() != 0) ;
+	CPPUNIT_ASSERT(bf->zeroBlock(1) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 0) ;
+	CPPUNIT_ASSERT(b.isFree() == false) ;
+	CPPUNIT_ASSERT(bf->freeBlock(1) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == true) ;
+	CPPUNIT_ASSERT(b.isFree() == true) ;
+}
+@
+
+
+1.2
+log
+@Finished unit testing Block and BlockFile interfaces. The BlockFile interface is
+currently very simple, and is missing a persistent sense of freeblocks. This
+needs to be fixed up.
+
+Currently neither interface does any thread syncroniziation. For BlockFile we should
+probably consider keeping numfreeblocks as a static member shared across all classes
+and syncing on it. Might need to put in block level locking as well. This way multiple
+BlockFile's can be instantiated pointing to the same disk file, and thread access
+to it.
+@
+text
+@@
+
+
+1.1
+log
+@
+Write interfaces and unit tests for new block interface. The next step will
+be to port the filesystem over to the new interface.
+@
+text
+@d14 1
+a14 1
+	cout << "BlockFileTest::setUp()" << endl ;
+d23 1
+a23 1
+	cout << "BlockFileTest::tearDown()" << endl ;
+d32 1
+a32 1
+	cout << "testConstructor" << endl ;
+d43 1
+a43 1
+	cout << "testCreateFile" << endl ;
+d58 1
+a58 1
+	cout << "testOpenFile" << endl ;
+d70 1
+a70 1
+	cout << "testReadWriteBlocks" << endl ;
+d72 1
+a72 1
+	bf->writeBlock(1, 0, 10, buf) ;
+d74 1
+a74 2
+	bf->readBlock(1, b) ;
+	cout << "Numbytes in block b = " << b.getNumBytes() << endl ;
+d76 9
+a84 2
+	
+	CPPUNIT_FAIL("not implemented") ;
+d90 13
+a102 2
+	cout << "testZeroAndFreeBlocks" << endl ;
+	CPPUNIT_FAIL("not implemented") ;
+@
+

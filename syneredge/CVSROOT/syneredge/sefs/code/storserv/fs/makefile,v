@@ -1,0 +1,184 @@
+head	1.4;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@# @;
+
+
+1.4
+date	2005.04.20.19.06.03;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	6a84266a80775a9;
+kopt	kv;
+filename	makefile;
+
+1.3
+date	2005.04.19.20.54.37;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	d6842656fd77a30;
+kopt	kv;
+filename	makefile;
+
+1.2
+date	2005.04.13.18.35.05;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	555;
+commitid	afc425d663b3ae7;
+kopt	kv;
+filename	Makefile;
+
+1.1
+date	2005.04.08.17.49.31;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	777;
+
+1.1.1.1
+date	2005.04.08.17.49.31;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+
+
+desc
+@@
+
+
+1.4
+log
+@More unit tests, plus move over to new naming convention.
+@
+text
+@REFERENCES := tools/FUSE storprovider tools/cppunit
+MYINCS := -I../storprovider -I. -I../../utils
+MYLIBS := -ldl
+include $(SYGHOME)/code/make/makefile
+@
+
+
+1.3
+log
+@
+New BlockFile interface and corresponding unit tests. These build, not all
+unit tests run. But this has not yet been integrated into the filesystem so
+that still runs.
+@
+text
+@d2 1
+a2 1
+MYINCS := -I../storprovider -I.
+@
+
+
+1.2
+log
+@
+Switch over to new makefile system. This required renaming files to conform
+to convention.
+@
+text
+@d1 4
+a4 73
+
+CSRCS = 
+
+.c.o:
+	$(CC) $(CLFGS) $(INCS) -DHAVE_CONFIG_H -I.. -I${FUSESRC}/include -D_FILE_OFFSET_BITS=64 -D_REENTRANT -Wall -W -g -c $<
+
+.cc.o:
+	$(CC) $(CLFGS) $(INCS) -DHAVE_CONFIG_H -I.. -I/usr/local/include -I${FUSESRC}/include -D_FILE_OFFSET_BITS=64 -D_REENTRANT -Wall -W -g -c $<
+
+tests: arraylisttester fileblocktester fileblocklisttester fileblockmaptester\
+	fileblockmapdbtester hostfslisttester synfstester fsunittest shmemtester \
+	blockdevicetester sems synwrblockdtester daemontester mirrorenvtester
+
+arraylisttester: arraylist.o arraylisttester.c
+	$(CC) -I.. -g arraylist.o arraylisttester.c -o arraylisttester
+
+hostfslisttester: arraylist.o hostfslist.o hostfslisttester.c
+	$(CC) -I.. -g arraylist.o hostfslist.o hostfslisttester.c -o hostfslisttester
+
+fileblocktester: arraylist.o fileblock.o fileblocktester.c
+	$(CC) -I.. -g arraylist.o fileblock.o fileblocktester.c -o fileblocktester
+
+fileblocklisttester: arraylist.o fileblock.o fileblocklist.o fileblocklisttester.c
+	$(CC) -I.. -g arraylist.o fileblock.o fileblocklist.o fileblocklisttester.c -o fileblocklisttester
+
+fileblockmaptester: arraylist.o fileblock.o fileblocklist.o fileblockmap.o fileblockmaptester.c
+	$(CC) -I.. -g arraylist.o fileblock.o fileblocklist.o fileblockmap.o fileblockmaptester.c -o fileblockmaptester
+
+
+fileblockmapdbtester: arraylist.o fileblock.o fileblocklist.o fileblockmap.o fileblockmapdb.o fileblockmapdbtester.c
+	$(CC) -I.. -g arraylist.o fileblock.o fileblocklist.o fileblockmap.o fileblockmapdb.o fileblockmapdbtester.c -o fileblockmapdbtester
+
+synfstester: arraylist.o fileblock.o fileblocklist.o fileblockmap.o fileblockmapdb.o \
+	semaphore.o blockdevice.o mirrorenv.o shmem.o synfs.o synfsrwtests.o synfstesterrwutils.o synfsfcreatetests.o synfstester.o
+	$(CC) -Wall -W -g -o synfs arraylist.o fileblock.o fileblocklist.o fileblockmap.o fileblockmapdb.o semaphore.o mirrorenv.o shmem.o blockdevice.o synfs.o synfstesterrwutils.o synfsrwtests.o synfsfcreatetests.o synfstester.o ${FUSESRC}/lib/.libs/libfuse.a -lpthread -Wl,--rpath -Wl,/usr/local/lib -o synfstester
+
+fsunittest: cblock.o cblocktest.o cblockfile.o cblockfiletest.o fsunittest.o
+	g++ cblock.o cblocktest.o cblockfile.o cblockfiletest.o fsunittest.o /usr/local/lib/libcppunit.a -o fsunittest
+
+synfs: arraylist.o fileblock.o fileblocklist.o fileblockmap.o fileblockmapdb.o \
+	blockdevice.o semaphore.o mirrorenv.o shmem.o synfs.o synfsmain.o
+	$(CC) -Wall -W -g -o synfs arraylist.o fileblock.o fileblocklist.o fileblockmap.o fileblockmapdb.o semaphore.o mirrorenv.o shmem.o blockdevice.o synfs.o synfsmain.o ${FUSESRC}/lib/.libs/libfuse.a -lpthread -Wl,--rpath -Wl,/usr/local/lib -o synfs
+
+sygsnap: sygsnap.o
+	$(CC) -g sygsnap.o -o sygsnap
+#
+#
+#gcc -Wall -W -g -O2 -o .libs/fusexmp fusexmp.o  ../lib/.libs/libfuse.so -lpthread -Wl,--rpath -Wl,/usr/local/lib
+#if gcc -DHAVE_CONFIG_H -I. -I. -I../include   -D_FILE_OFFSET_BITS=64 -D_REENTRANT  -Wall -W -g -O2 -MT fusexmp.o -MD -MP -MF ".deps/fusexmp.Tpo" -c -o fusexmp.o fusexmp.c; \
+#then mv -f ".deps/fusexmp.Tpo" ".deps/fusexmp.Po"; else rm -f ".deps/fusexmp.Tpo"; exit 1; fi
+
+shmemtester: shmem.o shmemtester.c
+	$(CC) shmem.o shmemtester.c -o shmemtester
+
+blockdevicetester: shmem.o blockdevice.o semaphore.o blockdevicetester.c
+	$(CC) shmem.o blockdevice.o semaphore.o blockdevicetester.c -o blockdevicetester
+
+sems: semaphore.o sema.c semb.c
+	$(CC) semaphore.o sema.c -o sema
+	$(CC) semaphore.o semb.c -o semb
+	
+synwrblockdtester: shmem.o blockdevice.o synwrblockdtester.c synwrblockd
+	$(CC) -I.. -g shmem.o semaphore.o blockdevice.o synwrblockdtester.c -o synwrblockdtester
+
+mirrorenvtester: arraylist.o mirrorenv.o mirrorenvtester.c 
+	$(CC) -g arraylist.o mirrorenv.o mirrorenvtester.c -o mirrorenvtester
+
+synwrblockd: arraylist.o shmem.o blockdevice.o mirrorenv.o daemon.o synwrblockd.c
+	$(CC) -g arraylist.o mirrorenv.o shmem.o semaphore.o blockdevice.o daemon.o synwrblockd.c -o synwrblockd
+
+daemontester: daemon.o daemontester.c
+	$(CC) -g daemon.o daemontester.c -o daemontester
+	
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

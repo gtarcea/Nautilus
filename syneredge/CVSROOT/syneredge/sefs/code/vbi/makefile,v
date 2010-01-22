@@ -1,0 +1,32 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.04.30.21.13.33;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	fe44273f4e56486;
+kopt	kv;
+filename	makefile;
+
+
+desc
+@@
+
+
+1.1
+log
+@Add interface to multiple blockfiles. Begin to work on a virtual disk interface.
+@
+text
+@REFERENCES := utils tools/boost/filesystem tools/boost/thread storprovider
+MYINCS :=
+MYLIBS :=
+include $(SYGHOME)/code/make/makefile
+@

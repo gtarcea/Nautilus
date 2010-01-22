@@ -1,0 +1,83 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.05.20.15.17.09;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	948428dff656e82;
+kopt	kv;
+filename	TODO;
+
+
+desc
+@@
+
+
+1.1
+log
+@Add Python WebDAV server
+@
+text
+@GENERAL
+-------
+
+- web page needs to get done:
+	- Download
+	- News
+	- TODO list
+	- Changes
+	- Name
+
+MOVE
+----
+
+needs to get implemented (will get used for renaming files and dirs)
+
+
+PROPFIND
+--------
+
+- PROPNAMES need to get implemented
+- only DAV properties are possible right now
+- Depth=infinity should be implemented
+
+
+GET
+---
+
+- guessing type?
+
+
+HEAD
+----
+
+to be done
+
+
+PROPPATCH
+---------
+
+to be done (not that important as only DAV props are supported right now which
+you cannot change)
+
+data.py
+-------
+
+- implement proppatch? As example we might use some sort of database for 
+  storing..  (to much trouble for a simple example? Better show it with 
+  the groupware stuff?)
+
+
+PROBLEMS
+--------
+
+- put does not work the first time when using cadaver. Have to test this with
+  other clients. When trying a second time it works...
+@

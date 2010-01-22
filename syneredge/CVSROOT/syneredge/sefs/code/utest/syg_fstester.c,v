@@ -1,0 +1,69 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@ * @;
+
+
+1.1
+date	2005.04.26.14.34.25;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	dc4426e51507a64;
+kopt	kv;
+filename	@syg_fstester.c@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Moved unit tests out of storserv/fs to utest directory
+@
+text
+@
+#include "tester.h"
+
+static int
+Setup()
+{
+}
+
+static int
+restart_blockd()
+{
+	system("/filesafe/stopfs") ;
+	system("/filesafe/blockd/synwrblockd") ;
+	/*printf("please start blockd\n") ;
+	sleep(10) ;*/
+}
+
+void run_rw_tests() ;
+void run_fcreate_tests() ;
+
+
+main()
+{
+	if (getuid()) {
+		printf("synfstester unit test must be run as root\n") ;
+		exit(1) ;
+	}
+
+	Setup() ;
+
+	system("rm -f /tmp/syneredgeblocks1*") ;
+	synfs_init("abc", "abc", 0, 0) ;
+
+	run_fcreate_tests() ;
+
+	run_rw_tests() ;
+
+	synfs_shutdown(0) ;
+
+	exit(0) ;
+}
+@

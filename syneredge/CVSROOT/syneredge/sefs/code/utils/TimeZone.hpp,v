@@ -1,0 +1,87 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.09.22.20.58;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	648425855332f58;
+kopt	kv;
+filename	@TimeZone.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@utils directory initial checkin
+@
+text
+@#ifndef SygTimeZone_hpp__
+#define SygTimeZone_hpp__
+
+#include <string>
+#include <iostream>
+#include "boost/format.hpp"
+
+namespace SynerEdge 
+{
+
+struct  TimeZone
+{
+public:
+	TimeZone() 
+        : standardName(), daylightName(), useDst(false), secondsWestOfUTC(0)
+        {}
+
+	TimeZone(const std::wstring &standardName_, 
+		 const std::wstring &daylightName_,
+ 		 bool useDst_, 
+		 long secondsWestOfUTC_);
+ 
+	bool operator==(const TimeZone &tz) const;
+
+	// default copy constructor, destructor, and operator= overload are OK.
+
+	std::wstring getName(bool isDst) const;
+	long getSecondsToAddToGetUTC(bool isDst) const;
+
+	std::wstring standardName;
+	std::wstring daylightName;
+	bool useDst;
+	long secondsWestOfUTC;	
+};
+
+
+class TimeZoneFactory
+{
+public:
+	static TimeZoneFactory *instance();
+
+	TimeZone getUTC();
+	TimeZone getLocal();
+
+private:
+
+	TimeZoneFactory();
+	TimeZoneFactory(const TimeZoneFactory &);
+	~TimeZoneFactory() {}
+
+	TimeZoneFactory &operator=(const TimeZoneFactory &);
+	
+	static TimeZoneFactory *_tz;
+};
+
+}; // namespace SynerEdge
+
+#endif
+
+@

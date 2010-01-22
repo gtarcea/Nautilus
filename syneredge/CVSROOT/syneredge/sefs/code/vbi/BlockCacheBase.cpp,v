@@ -1,0 +1,85 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.09.16.51.27;	author aprakash;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	ce842a873275038;
+kopt	kv;
+filename	@BlockCacheBase.cpp@;
+
+1.1
+date	2005.06.07.02.13.42;	author aprakash;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	6d042a5029c14bd;
+kopt	kv;
+filename	@BlockCacheBase.cpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@*** empty log message ***
+@
+text
+@#include "BlockCacheBase.hpp"
+#include "VirtualDisk.hpp"
+#include "Block.hpp"
+
+namespace SynerEdge {
+bool BlockCacheBase::disk_writeBlock(uint64 blockID, unsigned int offset, 
+							  unsigned int size, char *data)
+{
+	return disk->disk_writeBlock(blockID, offset, size, data);
+}
+
+
+bool BlockCacheBase::disk_writeBlock(Block &block)
+{
+	return disk->disk_writeBlock(block);
+
+}
+bool BlockCacheBase::disk_readBlock(uint64 blockID, Block &block)
+{
+	return disk->disk_readBlock(blockID, block);
+}
+bool BlockCacheBase::disk_zeroBlock(uint64 blocknum)
+{
+	return disk->disk_zeroBlock(blocknum);
+}
+bool BlockCacheBase::disk_releaseBlock(uint64 blocknum)
+{
+	return disk->disk_releaseBlock(blocknum);
+}
+} // namespace Syneredge
+@
+
+
+1.1
+log
+@This version of block cache uses LRU policy.
+
+Writing back to disk is currently missing. Also, limits on cache size are not currently enforced.
+@
+text
+@d26 1
+a26 1
+bool BlockCacheBase::disk_freeBlock(uint64 blocknum)
+d28 1
+a28 1
+	return disk->disk_freeBlock(blocknum);
+@
+

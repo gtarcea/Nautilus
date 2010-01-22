@@ -1,0 +1,2145 @@
+head	1.12;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.12
+date	2005.06.07.18.57.53;	author gtarcea;	state Exp;
+branches;
+next	1.11;
+deltatype	text;
+permissions	777;
+commitid	be042a5ee1d15cb;
+kopt	kv;
+filename	@sygfs.cpp@;
+
+1.11
+date	2005.06.01.15.52.54;	author gtarcea;	state Exp;
+branches;
+next	1.10;
+deltatype	text;
+permissions	777;
+commitid	a0c429dd99732de;
+kopt	kv;
+filename	@sygfs.cpp@;
+
+1.10
+date	2005.05.20.14.00.34;	author gtarcea;	state Exp;
+branches;
+next	1.9;
+deltatype	text;
+permissions	777;
+commitid	170428ded6833c4;
+kopt	kv;
+filename	@sygfs.cpp@;
+
+1.9
+date	2005.05.10.17.23.09;	author gtarcea;	state Exp;
+branches;
+next	1.8;
+deltatype	text;
+permissions	777;
+commitid	fd04280ede64186;
+kopt	kv;
+filename	@sygfs.cpp@;
+
+1.8
+date	2005.04.28.21.12.07;	author gtarcea;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	777;
+commitid	9744271517f46f5;
+kopt	kv;
+filename	@sygfs.cpp@;
+
+1.7
+date	2005.04.27.21.37.45;	author gtarcea;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	777;
+commitid	afc427006120ca9;
+kopt	kv;
+filename	@sygfs.cpp@;
+
+1.6
+date	2005.04.26.22.56.13;	author gtarcea;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	777;
+commitid	eb4426ec6fe7aaf;
+kopt	kv;
+filename	@sygfs.cpp@;
+
+1.5
+date	2005.04.26.17.42.13;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	777;
+commitid	d50426e7d560a27;
+kopt	kv;
+filename	@sygfs.cpp@;
+
+1.4
+date	2005.04.26.13.59.56;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	777;
+commitid	470426e49506045;
+kopt	kv;
+filename	@sygfs.cpp@;
+
+1.3
+date	2005.04.25.23.09.41;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	777;
+commitid	bec426d789436a1;
+kopt	kv;
+filename	@sygfs.cpp@;
+
+1.2
+date	2005.04.19.20.54.37;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	777;
+commitid	d6842656fd77a30;
+kopt	kv;
+filename	@sygfs.cpp@;
+
+1.1
+date	2005.04.15.16.48.30;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+commitid	da4425ff0210532;
+kopt	kv;
+filename	@sygfs.cpp@;
+
+
+desc
+@@
+
+
+1.12
+log
+@Switch File system over to networked Storage Provider
+@
+text
+@/*
+    FUSE: Filesystem in Userspace
+    Copyright (C) 2001-2004  Miklos Szeredi <miklos@@szeredi.hu>
+
+    This program can be distributed under the terms of the GNU GPL.
+    See the file COPYING.
+*/
+
+/*
+** Integrate BlockFileIO into filesystem.
+** Steps:
+**   1. One BlockFileIO, reopen file on each read/write. Keep current locking in place.
+**   2. Extend BlockFileIO to shared a BlockFile, keep a queue of interfaces. Support
+**      only 1 BlockFileIO and BlockFile interface.
+*/
+
+#define USE_NETWORK_BLOCKFILE
+
+#include "config.h"
+#include <sys/types.h>
+#include <linux/unistd.h>
+#include <sys/time.h>
+#include <time.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include "mirrorenv.h"
+#include "next.h"
+#include <cstring>
+#include <cctype>
+#include <queue>
+#include <list>
+#include "PT.hpp"
+
+//#define PT() { struct timeval t ; gettimeofday(&t, NULL); printf("Time = %s (%ul) threadid = %ul\n", ctime(&t.tv_sec), t.tv_usec, pthread_self()) ; }
+
+//#define PT() { struct timeval t ; gettimeofday(&t, NULL); printf("Time = %ul:(%ul) threadid = %ul\n", t.tv_sec, t.tv_usec, pthread_self()) ; }
+
+static pthread_mutex_t ctxmutex = PTHREAD_MUTEX_INITIALIZER ;
+
+/*
+** For snapshots, if we aren't looking at /etc/syneredge/fbmap, then
+** we assume snapshot, and treat FS as readonly. This is another
+** hack that needs to be cleaned up.
+*/
+static int fsreadonly = 0 ;
+
+/*
+** Mirrors to read from.
+*/
+static MIRRORENVP mirrors ;
+
+#define MLOCK pthread_mutex_lock(&ctxmutex)
+#define MUNLOCK pthread_mutex_unlock(&ctxmutex)
+
+#ifdef linux
+/* For pread()/pwrite() */
+#define _XOPEN_SOURCE 500
+#endif
+
+#include "synfs.h"
+
+/*
+** SynerEdge Includes
+*/
+#include "fileblockmap.h"
+#include "fileblockmapdb.h"
+#include "blockdevice.h"
+#include "Block.hpp"
+#include "BlockFile.hpp" // For now we go directly to the file.
+#include "BlockFileIO.hpp"
+
+using namespace std ;
+using namespace SynerEdge ;
+
+static FILEBLOCKMAPP truncfbmap = NULL ;
+
+#define HAVE_SETXATTR
+
+#ifdef HAVE_SETXATTR
+#include <sys/xattr.h>
+#endif
+
+
+/*
+**static const char *gpath = "/etc/syneredge/fbmap" ;
+*/
+
+static char *gpath = NULL ;
+
+
+/*
+** Globals
+*/
+static FILEBLOCKMAPDBP synfsmapdb = NULL ;
+static BLOCKDEVICEP wrbdev = NULL ;
+static int nextblocknum = -1 ;
+
+static struct fuse_operations synfs_oper ;
+
+//static queue<BlockFile *, list<BlockFile *> > bfqueue ;
+
+static BlockFileIO *bfio ;
+
+#ifdef USE_NETWORK_BLOCKFILE
+#include "NetworkBlockFile.hpp"
+static TCPServerSocket *socket ;
+static ClientSocket *cli ;
+static NetworkBlockFile *bf ;
+#else
+static BlockFile *bf ;
+#endif
+
+/*
+static struct fuse_operations synfs_oper = {
+    .getattr	= synfs_getattr,
+    .readlink	= synfs_readlink,
+    .getdir	= synfs_getdir,
+    .mknod	= synfs_mknod,
+    .mkdir	= synfs_mkdir,
+    .symlink	= synfs_symlink,
+    .unlink	= synfs_unlink,
+    .rmdir	= synfs_rmdir,
+    .rename	= synfs_rename,
+    .link	= synfs_link,
+    .chmod	= synfs_chmod,
+    .chown	= synfs_chown,
+    .truncate	= synfs_truncate,
+    .utime	= synfs_utime,
+    .open	= synfs_open,
+    .read	= synfs_read,
+    .write	= synfs_write,
+    .statfs	= synfs_statfs,
+    .flush	= synfs_flush,
+    .release	= synfs_release,
+    .fsync	= synfs_fsync,
+#ifdef HAVE_SETXATTR
+    .setxattr	= synfs_setxattr,
+    .getxattr	= synfs_getxattr,
+    .listxattr	= synfs_listxattr,
+    .removexattr= synfs_removexattr,
+#endif
+};
+*/
+
+static char *make_path(const char *path)
+{
+	static char mypath[255] ;
+
+	sprintf(mypath, "%s%s", gpath, path) ;
+	return mypath ;
+}
+
+static const char *
+getfilename(const char *path)
+{
+	char *slash ;
+	/*
+	** Update this to add /etc/syneredge/fbmap?
+	*/
+
+	slash = strrchr(path, '/') ;
+
+	if (slash) {
+		/*
+		** Found slash, strip of and return filename
+		*/
+		slash++ ;
+		return slash ;
+	} else {
+		/*
+		** No slash! Ok, well then just return filename.
+		*/
+		return path ;
+	}
+}
+
+int synfs_getattr(const char *path, struct stat *stbuf)
+{
+	int res;
+	FILEBLOCKMAPP fbmap ;
+	char *filename ;
+	int myerrno ;
+
+	MLOCK ;
+
+	printf("pid = %d synfs_getattr() %s\n", getpid(), path ) ;
+	PT("synfs_gettr") ;
+
+	filename = const_cast<char *>( getfilename(path) );
+
+	memset(stbuf, 0, sizeof(struct stat)) ;
+	res = lstat(make_path(path), stbuf) ;
+	myerrno = errno ;
+	printf("Doing lstat on '%s'\n", make_path(path)) ;
+	if (res < 0) {
+		printf("lstat failed\n") ;
+		MUNLOCK ;
+		return -errno ;
+	}
+
+	if (S_ISREG(stbuf->st_mode)) {
+		fbmap = fileblockmapdb_findfileblockmap(synfsmapdb, const_cast<char *>(path)) ;
+		if (! fbmap) {
+			// This should never happen....
+			printf("S_ISREG ! fbmap\n") ;
+			MUNLOCK ;
+			return -ENOENT ;
+		}
+		stbuf->st_mode = S_IFREG | 0755;
+		stbuf->st_nlink = 2;
+		stbuf->st_size = fileblockmap_getbytecount(fbmap) ;
+		fileblockmap_close(fbmap, 0) ; /* free blockmap list */
+	}
+
+	MUNLOCK ;
+	return 0;
+}
+
+int synfs_readlink(const char *path, char *buf, size_t size)
+{
+    int res;
+
+	printf("synfs_readlink() %s\n", path ) ;
+    res = readlink(gpath, buf, size - 1);
+    if(res == -1)
+        return -errno;
+
+    buf[res] = '\0';
+    return 0;
+}
+
+
+int 
+synfs_getdir(const char *path, fuse_dirh_t h, fuse_dirfil_t filler)
+{
+	int res = 0;
+    	DIR *dp;
+    	struct dirent *de;
+	char pathtouse[1024] ;
+
+	MLOCK ;
+	printf("synfs_getdir() %s\n", path) ;
+
+	sprintf(pathtouse, "%s/%s", fileblockmapdb_getdbpath(synfsmapdb), path) ;
+	dp = opendir(pathtouse);
+	if(dp == NULL) {
+		return -errno;
+	}
+
+	while((de = readdir(dp)) != NULL) {
+		res = filler(h, de->d_name, de->d_type);
+		if(res != 0) {
+			break;
+		}
+	}
+
+	closedir(dp);
+
+	MUNLOCK ;
+	return res ;
+}
+
+int synfs_mknod(const char *path, mode_t mode, dev_t rdev)
+{
+	char *filename ;
+	FILEBLOCKMAPP fbmap ;
+
+	MLOCK ;
+
+	printf("synfs_mknod() %s\n", path ) ;
+	PT("synfs_mknod") ;
+
+	if (fsreadonly) {
+		MUNLOCK ;
+		return -EACCES ;
+	}
+
+	//filename = const_cast<char *>(getfilename(path)) ;
+
+	if (fileblockmap_exists(make_path(path))) {
+		MUNLOCK ;
+		return -EEXIST ;
+	}
+	
+	/*
+	** If we are here then we are creating a new file.
+	*/
+	fbmap = fileblockmapdb_openfileblockmap(synfsmapdb, const_cast<char *>(path), 1) ;
+
+	if (! fbmap) {
+		/*
+		** If we couldn't create the map, then some part of the
+		** path didn't exist.
+		*/
+		MUNLOCK ;
+		return -ENOENT ;
+	}
+
+	fileblockmap_close(fbmap, 1) ; /* Save new entry */
+
+	MUNLOCK ;
+	return 0 ;
+}
+
+int synfs_mkdir(const char *path, mode_t mode)
+{
+	int res;
+	char pathtomake[1024] ;
+
+	printf("synfs_mkdir() %s\n", path ) ;
+	sprintf(pathtomake, "%s/%s", gpath, path) ;
+	res = mkdir(pathtomake, mode);
+	if(res == -1)
+		return -errno;
+
+	return 0;
+}
+
+int synfs_unlink(const char *path)
+{
+	int rc ;
+	char *filename ;
+
+	MLOCK ;
+	printf("synfs_unlink() %s\n", path ) ;
+	
+	/*
+	** Need to clean up the blocks as well.
+	*/
+	filename = const_cast<char *>(getfilename(path)) ;
+	rc = fileblockmapdb_removefileblockmap(synfsmapdb, filename) ;
+
+	if (! rc) {
+		MUNLOCK ;
+		return -ENOENT ;
+	}
+
+	MUNLOCK ;
+	return 0;
+}
+
+int synfs_rmdir(const char *path)
+{
+    int res;
+
+	printf("synfs_rmdir() %s\n", path) ;
+    res = rmdir(gpath);
+    if(res == -1)
+        return -errno;
+
+    return 0;
+}
+
+int synfs_symlink(const char *from, const char *to)
+{
+    int res;
+
+	printf("synfs_symlink() %s %s\n", from, to ) ;
+    res = symlink(from, to);
+    if(res == -1)
+        return -errno;
+
+    return 0;
+}
+
+int synfs_rename(const char *from, const char *to)
+{
+    int res;
+
+	printf("synfs_rename() %s %s\n", from, to ) ;
+    res = rename(from, to);
+    if(res == -1)
+        return -errno;
+
+    return 0;
+}
+
+int synfs_link(const char *from, const char *to)
+{
+    int res;
+
+	printf("synfs_link() %s %s\n", from, to ) ;
+    res = link(from, to);
+    if(res == -1)
+        return -errno;
+
+    return 0;
+}
+
+int synfs_chmod(const char *path, mode_t mode)
+{
+    int res;
+
+	printf("synfs_chmod() %s\n", path ) ;
+    res = chmod(gpath, mode);
+    if(res == -1)
+        return -errno;
+    
+    return 0;
+}
+
+int synfs_chown(const char *path, uid_t uid, gid_t gid)
+{
+    int res;
+
+	printf("synfs_chown() %s\n", path ) ;
+    res = lchown(gpath, uid, gid);
+    if(res == -1)
+        return -errno;
+
+    return 0;
+}
+
+
+int synfs_truncate(const char *path, off_t size)
+{
+	char *filename ;
+	bool rc ;
+    
+	MLOCK ;
+	printf("pid = %d synfs_truncate() %s\n", getpid(), path ) ;
+	PT("synfs_truncate") ;
+
+	if (fsreadonly) {
+		MUNLOCK ;
+		return -EACCES ;
+	}
+
+	/*
+	** Is all this fileblockmapdb stuff needed?
+	*/
+	filename = const_cast<char *>(getfilename(path)) ;
+	truncfbmap = fileblockmapdb_findfileblockmap(synfsmapdb, filename) ;
+
+	if (! truncfbmap) {
+		/*
+		** File map doesn't exist, so lets create
+		*/
+		truncfbmap = fileblockmapdb_openfileblockmap(synfsmapdb, filename, 1) ;
+
+		if (!truncfbmap) {
+			/*
+			** If we are here, then some portion of the path doesn't exist
+			*/
+			MUNLOCK ;
+			return -ENOTDIR ;
+		}
+	}
+
+	string f = "/etc/syneredge/fbmap/" ;
+	f.append(path) ;
+	rc = bfio->open(f, 0) ;
+
+	if (rc) {
+//		cout << "Calling bfio->truncate" << endl ;
+		rc = bfio->truncate(size) ;
+	}
+
+	if (! rc) {
+		/*
+		** Figure out a proper error code.
+		*/
+		MUNLOCK ;
+		return -EIO ;
+	}
+
+	bfio->release() ;
+
+	MUNLOCK ;
+	return 0;
+}
+
+int synfs_utime(const char *path, struct utimbuf *buf)
+{
+    int res;
+    
+	printf("synfs_utime() %s\n", path ) ;
+    res = utime(gpath, buf);
+    if(res == -1)
+        return -errno;
+
+    return 0;
+}
+
+
+int synfs_open(const char *path, int flags) 
+	/* struct fuse_file_info *finfo */
+{
+	FILEBLOCKMAPP fbmap ;
+	char *filename ;
+	int exists ;
+	
+	MLOCK ;
+
+	printf("synfs_open() %s\n", path ) ;
+	PT("synfs_open") ;
+
+	if (fsreadonly) {
+		if (flags & O_WRONLY || flags & O_RDWR) {
+			MUNLOCK ;
+			return -EACCES ;
+		}
+	}
+
+	filename = const_cast<char *>(getfilename(path)) ;
+
+	printf("filename = %s\n", path) ;
+	/*
+	** Really simple for now. We will ignore all flags, and
+	** just treat all opens as rw, with create set if the file
+	** doesn't exist. This will be fine for the demo.
+	*/
+	
+	exists = fileblockmapdb_fileblockmapexists(synfsmapdb, filename) ;
+
+	if (! exists) {
+		if (flags != -43) {
+			/*
+			** Hack for unit tests.
+			*/
+			MUNLOCK ;
+			return -ENOENT ;
+		}
+		/*
+		** File map doesn't exist, so lets create
+		*/
+		fbmap = fileblockmapdb_openfileblockmap(synfsmapdb, filename, 1) ;
+		fileblockmap_close(fbmap, 1) ;
+	}
+
+	string f = "/etc/syneredge/fbmap/" ;
+	f.append(path) ;
+	bool openrc = bfio->open(f, 0) ;
+
+	MUNLOCK ;
+	return 0;
+}
+
+static int
+determinereadsize(int bytesinblock, int offset, int sizelefttoread)
+{
+	int sizetoread ;
+
+	printf("bytesinblock = %d, offset = %d, sizelefttoread = %d\n",
+		bytesinblock, offset, sizelefttoread) ;
+	if (offset > bytesinblock) {
+		/*
+		** We are reading past last of data.
+		*/
+		sizetoread = 0 ;
+		printf("1st if sizetoread = %d\n", sizetoread) ;
+	} else if (offset + sizelefttoread > bytesinblock) {
+		sizetoread = (bytesinblock - offset) ;
+		printf("2nd if sizetoread = %d\n", sizetoread) ;
+	} else if (sizelefttoread < bytesinblock) {
+		sizetoread = sizelefttoread ;
+		printf("3rd if sizetoread = %d\n", sizetoread) ;
+	} else if (bytesinblock <= sizelefttoread) {
+		sizetoread = bytesinblock ;
+		printf("4th if sizetoread = %d\n", sizetoread) ;
+	} else {
+		printf("CASE WE DIDN'T THINK OF!!!\n") ;
+		printf("bytesinblock = %d, offset = %d, sizelefttoread = %d\n",
+			bytesinblock, offset, sizelefttoread) ;
+		exit(1) ;
+		sizetoread = 0 ;
+	}
+
+	if (sizetoread < 0) {
+		printf("negative sizetoread!\n") ;
+		exit(1) ;
+	}
+	return sizetoread ;
+}
+
+int synfs_read(const char *path, char *buf, size_t size, off_t offset)
+	/* struct fuse_file_info *finfo */
+{
+	char *filename ;
+	FILEBLOCKMAPP fbmap ;
+	int rc = -EINVAL ;
+	bool openrc ;
+
+	MLOCK ;
+
+	printf("synfs_read() %s\n", path ) ;
+
+	PT("synfs_read") ;
+
+	filename = const_cast<char *>(getfilename(path)) ;
+
+	fbmap = fileblockmapdb_findfileblockmap(synfsmapdb, filename) ;
+	if (! fbmap) {
+		/*printf("EINVAL\n") ;*/
+		MUNLOCK ;
+		return -EINVAL ;
+	}
+
+//	string f = "/etc/syneredge/fbmap/" ;
+//	f.append(path) ;
+//	openrc = bfio->open(f, 0) ;
+	openrc = true ;
+	if (openrc) {
+//		cout << "Calling bfio->read()" << endl ;
+		rc = bfio->read(offset, buf, size) ;
+//		bfio->release() ;
+	}
+
+	MUNLOCK ;
+	return rc ;
+}
+
+int synfs_write(const char *path, const char *buf, size_t size,
+                     off_t offset)
+	/* struct fuse_file_info *finfo */
+{
+	int rc ;
+	FILEBLOCKMAPP fbmap ;
+	char *filename ;
+	bool openrc ;
+	int isize = size ;
+
+	MLOCK ;
+
+	printf("\n\npid = %d synfs_write() %s size = %d\n", getpid(), path, size) ;
+	PT("synfs_write()") ;
+
+	//filename = const_cast<char *>(getfilename(path)) ;
+	//fbmap = fileblockmapdb_findfileblockmap(synfsmapdb, filename) ;
+
+//	string f = "/etc/syneredge/fbmap/" ;
+//	f.append(path) ;
+//	openrc = bfio->open(f, 0) ;
+	openrc = true ;
+	if (openrc) {
+//		cout << "Calling bfio->write()" << endl ;
+		rc = bfio->write(offset, buf, size) ;
+		//bfio->release() ;
+	}
+
+	PT("Leaving synfs_write()") ;
+	printf("\n\n") ;
+	MUNLOCK ;
+	return rc ;
+}
+
+int synfs_statfs(const char *path, struct statfs *stbuf)
+{
+	int res;
+
+	printf("synfs_statfs() %s\n", path) ;
+
+	/*
+	** Call statfs on a file system to fill in the structure.
+	*/
+	res = statfs(gpath, stbuf);
+	if (res == -1)
+		return -errno;
+
+	/*
+	** Now change some of the information around.
+	*/
+
+	cout << "stbuf->f_blocks = " << bfio->getBlockFileNumBlocks() << endl ;
+	cout << "stbuf->f_bfree = " << bfio->getBlockFileNumFreeBlocks() << endl ;
+	cout << "stbuf->f_bavail = " << bfio->getBlockFileNumFreeBlocks() << endl ;
+
+	stbuf->f_blocks = bfio->getBlockFileNumBlocks() ;
+	stbuf->f_bfree = bfio->getBlockFileNumFreeBlocks() ;
+	stbuf->f_bavail = bfio->getBlockFileNumFreeBlocks() ;
+
+	return 0;
+}
+
+int synfs_release(const char *path, int flags)
+	/* struct fuse_file_info *finfo */
+{
+	/* Just a stub.  This method is optional and can safely be left
+	unimplemented */
+
+	printf("synfs_release() %s\n", path) ;
+	bfio->release() ;
+
+    	char duppath[255] ;
+	char command[255] ;
+	static int diddup = 0 ;
+
+	return 0;
+}
+
+int synfs_fsync(const char *path, int isdatasync)
+	/* struct fuse_file_info *finfo */
+{
+    /* Just a stub.  This method is optional and can safely be left
+       unimplemented */
+
+    (void) path;
+    (void) isdatasync;
+    return 0;
+}
+
+int synfs_flush(const char *path)
+	/* struct fuse_file_info *finfo */
+{
+	bfio->flush() ;
+	return 0 ;
+}
+
+#ifdef HAVE_SETXATTR
+/* xattr operations are optional and can safely be left unimplemented */
+int synfs_setxattr(const char *path, const char *name, const char *value,
+                        size_t size, int flags)
+{
+	printf("synfs_setxattr %s\n", path ) ;
+    /*int res = lsetxattr(gpath, name, value, size, flags);
+    if(res == -1)
+        return -errno;*/
+    return 0;
+}
+
+int synfs_getxattr(const char *path, const char *name, char *value,
+                    size_t size)
+{
+
+	printf("synfs_getxattr() %s\n", path ) ;
+/*    int res = lgetxattr(gpath, name, value, size);
+    if(res == -1)
+        return -errno;
+    return res;*/
+	return 0 ;
+}
+
+int synfs_listxattr(const char *path, char *list, size_t size)
+{
+/*
+	printf("synfs_listxattr() %s\n", path ) ;
+    int res = llistxattr(gpath, list, size);
+    if(res == -1)
+        return -errno;
+    return res;*/
+	return 0 ;
+}
+
+int synfs_removexattr(const char *path, const char *name)
+{
+	/*printf("synfs_removexattr() %s\n", path ) ;
+    int res = lremovexattr(gpath, name);
+    if(res == -1)
+        return -errno;*/
+    return 0;
+}
+#endif /* HAVE_SETXATTR */
+
+static char *
+syg_dir()
+{
+	static char *sygdir ;
+	static int sygdirset = 0 ;
+	char *envvar ;
+
+	if (sygdirset) {
+		return sygdir ;
+	}
+
+	envvar = getenv("SYG_DIR") ;
+	if (envvar) {
+		sygdir = strdup(envvar) ;
+	} else {
+		sygdir = strdup("/etc/syneredge") ;
+	}
+
+	sygdirset = 1 ;
+
+	return sygdir ;
+}
+
+static char *
+getfbmapdbdir()
+{
+	/*
+	** This hack needs to be cleaned up. This was put in to
+	** get snapshots quickly working.
+	*/
+	static char mapdir[1024] ;
+
+	sprintf(mapdir, "%s/fbmap", syg_dir()) ;
+	gpath = strdup(mapdir) ;
+
+	return mapdir ;
+}
+
+static int
+check_for_mirrors()
+{
+	MIRRORENTRYP mentry ;
+	int count = 0 ;
+
+	mentry = mirrorenv_getnextmirror(mirrors, LSTART) ;
+	while(1) {
+		if (!mentry) {
+			break ;
+		}
+		count++ ;
+		mentry = mirrorenv_getnextmirror(mirrors, LNEXT) ;
+	}
+
+	if (! count) {
+		printf("No mirrors\n") ;
+		exit(1) ;
+	}
+}
+
+static int
+init_fuse_ops()
+{
+	synfs_oper.getattr	= synfs_getattr ;
+	synfs_oper.readlink	= synfs_readlink ;
+	synfs_oper.getdir	= synfs_getdir ;
+	synfs_oper.mknod	= synfs_mknod ;
+	synfs_oper.mkdir	= synfs_mkdir ;
+	synfs_oper.symlink	= synfs_symlink ;
+	synfs_oper.unlink	= synfs_unlink ;
+	synfs_oper.rmdir	= synfs_rmdir ;
+	synfs_oper.rename	= synfs_rename ;
+	synfs_oper.link		= synfs_link ;
+	synfs_oper.chmod	= synfs_chmod ;
+	synfs_oper.chown	= synfs_chown ;
+	synfs_oper.truncate	= synfs_truncate ;
+	synfs_oper.utime	= synfs_utime ;
+	synfs_oper.open		= synfs_open ;
+	synfs_oper.read		= synfs_read ;
+	synfs_oper.write	= synfs_write ;
+	synfs_oper.statfs	= synfs_statfs ;
+	synfs_oper.flush	= synfs_flush ;
+	synfs_oper.release	= synfs_release ;
+	synfs_oper.fsync	= synfs_fsync ;
+#ifdef HAVE_SETXATTR
+	synfs_oper.setxattr	= synfs_setxattr ;
+	synfs_oper.getxattr	= synfs_getxattr ;
+	synfs_oper.listxattr	= synfs_listxattr ;
+	synfs_oper.removexattr	= synfs_removexattr ;
+#endif
+}
+
+static bool
+open_block_files()
+{
+/*
+	MIRRORENTRYP mentry ;
+	int count = 0 ;
+
+	mentry = mirrorenv_getnextmirror(mirrors, LSTART) ;
+	while(1) {
+		if (!mentry) {
+			break ;
+		}
+		BlockFile bf = new BlockFile(mentry->file) ;
+		count++ ;
+		mentry = mirrorenv_getnextmirror(mirrors, LNEXT) ;
+	}
+
+	if (! count) {
+		printf("No mirrors\n") ;
+		exit(1) ;
+	}
+*/
+
+	/*
+	** This is a hack. This needs to be put into a parameter file.
+	*/
+#ifdef USE_NETWORK_BLOCKFILE
+	Protocol tcp(L"tcp");
+	Host hst(L"localhost", false);
+	Service serv(L"sygsrv", tcp);
+
+	socket = new TCPServerSocket(serv, false, 10);
+	socket->setReuseAddress(true);
+	socket->listenSocket();
+	cli = socket->acceptSocket();
+	cli->setTimeout(10000);
+	bf = new NetworkBlockFile((*cli)) ;
+#else
+	bf = new BlockFile("/tmp/syneredgeblocks1") ;
+	bool rc = bf->open() ;
+	if (! rc) {
+		// Doesn't exist so create
+		rc = bf->create(1, 10000, 1024) ;
+	}
+
+	if (! rc) {
+		return false ;
+	}
+#endif
+
+	bf->close() ;
+
+	bfio = new BlockFileIO((*bf)) ;
+
+	return true ;
+}
+
+int
+synfs_init(char *dbpath, char *bdevpath, int bsize, int numblocks)
+{
+	synfsmapdb = fileblockmapdb_open(getfbmapdbdir(), 1) ;
+
+	if (! synfsmapdb) {
+		printf("Failed to open fileblockmap db.\n") ;
+		return 0 ;
+	}
+
+	//wrbdev = blockdevice_create("/dev/whatever", 1024, 100) ;
+
+	//if (!wrbdev) {
+	//	printf("Failed to create block device.\n") ;
+	//	return 0 ;
+	//}
+
+//	mirrors = mirrorenv_open(syg_dir()) ;
+//	if (!mirrors) {
+//		printf("mirrorenv_open() failed\n") ;
+//		return 0 ;
+//	}
+
+	if (! open_block_files() ) {
+		printf("Failed to open block file(s).\n") ;
+		return 0 ;
+	}
+
+	init_fuse_ops() ;
+
+	return 1 ;
+}
+
+int
+synfs_run(int argc, char **argv)
+{
+	fuse_main(argc, argv, &synfs_oper);
+}
+
+int synfs_shutdown(int freememory)
+{
+	cout << "synfs_shutdown" << endl ;
+	delete bfio ;
+	return 1 ;
+}
+
+FILEBLOCKMAPP
+synfs_getfbmap(char *filename)
+{
+	FILEBLOCKMAPP fbmap ;
+
+	string f = "/etc/syneredge/fbmap/" ;
+	f.append(filename) ;
+	cout << "looking for " << f << endl ;
+	fbmap = fileblockmapdb_findfileblockmap(synfsmapdb, filename) ;
+	return fbmap ;
+}
+@
+
+
+1.11
+log
+@Change BlockFileIO to take a &BlockFileBase as the blockfile to write to.
+This allows the class to be instantiated with different types of blockfiles,
+including a networked blockfile.
+
+Change sygfs.cpp to support the new BlockFileIO class.
+@
+text
+@d17 2
+d103 7
+d111 1
+d871 12
+d893 1
+@
+
+
+1.10
+log
+@Fixup sygfs_mknod and sygfs_getattr to support subdirectories.
+@
+text
+@d101 1
+d861 2
+a862 2
+	BlockFile bf("/tmp/syneredgeblocks1") ;
+	bool rc = bf.open() ;
+d865 1
+a865 1
+		rc = bf.create(1, 10000, 1024) ;
+d872 1
+a872 1
+	bf.close() ;
+d874 1
+a874 1
+	bfio = new BlockFileIO("/tmp/syneredgeblocks1") ;
+@
+
+
+1.9
+log
+@Added directory support (not really abstracted away at the moment)
+@
+text
+@d171 1
+d182 2
+d191 1
+a191 1
+		fbmap = fileblockmapdb_findfileblockmap(synfsmapdb, filename) ;
+d194 1
+d267 1
+a267 1
+	filename = const_cast<char *>(getfilename(path)) ;
+d269 1
+a269 1
+	if (fileblockmap_exists(filename)) {
+d277 1
+a277 1
+	fbmap = fileblockmapdb_openfileblockmap(synfsmapdb, filename, 1) ;
+@
+
+
+1.8
+log
+@
+Implement synfs_flush(). Change synfs_read() to require a synfs_open() before
+it is called.
+@
+text
+@a38 9
+** This variable is a hack for the demo to get around the locking
+** issue when synfs_truncate() calls synfs_write() and synfs_write()
+** then tries to acquire the mutex that synfs_truncate() already has.
+** synfs_write() will check this variable to see if it should try to
+** acquire the mutex.
+*/
+static int synfscalledwrite = 0 ;
+
+/*
+d177 9
+a185 2
+	if (strcmp(path, "/") != 0) {
+		filename = const_cast<char *>( getfilename(path) );
+d187 1
+a188 1
+
+d190 1
+a190 1
+			printf("returning -ENOENT for %s\n", path) ;
+a193 3
+		memset(stbuf, 0, sizeof(struct stat)) ;
+		res = lstat(make_path(path), stbuf) ;
+
+a196 1
+
+d292 2
+a293 1
+    int res;
+d296 4
+a299 3
+    res = mkdir(gpath, mode);
+    if(res == -1)
+        return -errno;
+d301 1
+a301 1
+    return 0;
+@
+
+
+1.7
+log
+@
+Changes to speed up the filesystem.
+@
+text
+@d588 4
+a591 3
+	string f = "/etc/syneredge/fbmap/" ;
+	f.append(path) ;
+	openrc = bfio->open(f, 0) ;
+d595 1
+a595 1
+		bfio->release() ;
+d694 1
+@
+
+
+1.6
+log
+@Updates to find performance issues.
+@
+text
+@d616 2
+a617 2
+	filename = const_cast<char *>(getfilename(path)) ;
+	fbmap = fileblockmapdb_findfileblockmap(synfsmapdb, filename) ;
+@
+
+
+1.5
+log
+@
+Make sure the bfio object is cleaned up on shutdown. Add statfs functionality.
+@
+text
+@d20 1
+d30 1
+d32 3
+a34 1
+#define PT() { time_t tu ; tu = time(0) ; printf("Time = %s threadid = %ul\n", ctime(&tu), pthread_self()) ; }
+d184 1
+a184 1
+	PT() ;
+d262 1
+a262 1
+	PT() ;
+d411 1
+a411 1
+	PT() ;
+d485 1
+a485 1
+	PT() ;
+d520 4
+d577 1
+a577 1
+	PT() ;
+d609 1
+d613 2
+a614 2
+	printf("pid = %d synfs_write() %s \n", getpid(), path) ;
+	PT() ;
+d619 4
+a622 3
+	string f = "/etc/syneredge/fbmap/" ;
+	f.append(path) ;
+	openrc = bfio->open(f, 0) ;
+d626 1
+a626 1
+		bfio->release() ;
+d629 2
+d670 1
+d917 1
+@
+
+
+1.4
+log
+@remove extraneous cout statement
+@
+text
+@d640 7
+a646 3
+	stbuf->f_blocks = 100000000 ;
+	stbuf->f_bfree = 100000000 ;
+	stbuf->f_bavail = 10000000 ;
+d842 3
+a848 1
+		//cout << "Calling bf.create()" << endl ;
+d856 2
+a860 1
+
+d904 1
+@
+
+
+1.3
+log
+@Port to new BlockFileIO interface. Still only single threaded. No real mirroring,
+and not remote (we are getting there...).
+@
+text
+@d842 1
+a842 1
+		cout << "Calling bf.create()" << endl ;
+d873 5
+a877 5
+	mirrors = mirrorenv_open(syg_dir()) ;
+	if (!mirrors) {
+		printf("mirrorenv_open() failed\n") ;
+		return 0 ;
+	}
+@
+
+
+1.2
+log
+@
+New BlockFile interface and corresponding unit tests. These build, not all
+unit tests run. But this has not yet been integrated into the filesystem so
+that still runs.
+@
+text
+@d9 8
+d73 1
+d103 3
+a105 1
+static queue<BlockFile *, list<BlockFile *> > bfqueue ;
+a146 122
+static int
+remainder_of_offset(int offsetin)
+{
+	return offsetin%1024 ;
+}
+
+static int 
+offset_blocksin(int what)
+{
+	int whole ;
+	int remainder ;
+
+	remainder = what%1024 ;
+
+	whole = what/1024 ;
+        if (! whole) {
+                return 1 ;
+        } else {
+		return whole+1 ;
+		/*if (remainder) {
+                	return whole+1;
+		} else {
+			return whole ;
+		}*/
+        }
+}
+
+static int
+offset_blocksin_zerobased(int what)
+{
+	int whole ;
+
+	whole = what/1024 ;
+	return whole;
+}
+
+static char *
+make_blocknum_path(int blocknum)
+{
+	static char mypath[255] ;
+
+	sprintf(mypath, "/tmp/syneredgeblocks/%d", blocknum) ;
+
+	return mypath ;
+}
+
+static int
+open_block(int blockno, int *errnotoreturn)
+{
+	MIRRORENTRYP mentry ;
+	int fd ;
+	char filename[1024] ;
+
+	printf("open_block() %d\n", blockno) ;
+	mentry = mirrorenv_getnextmirror(mirrors, LSTART) ;
+	while(1) {
+		if (! mentry) {
+			printf("!mentry\n") ;
+			break ;
+		}
+
+		sprintf(filename, "%s/%d", mentry->file, blockno) ;
+		printf("trying to open '%s'\n", filename) ;
+		fd = open(filename, O_RDONLY) ;
+		if (fd >= 0) {
+			printf("opened block '%s'\n", filename) ;
+			break ;
+		}
+
+		mentry = mirrorenv_getnextmirror(mirrors, LNEXT) ;
+	}
+
+	if (fd < 0) {
+		*errnotoreturn = errno ;
+	}
+
+	return fd ;
+}
+
+static char *
+make_backup_blocknum_path(int blocknum)
+{
+	static char mypath[255] ;
+
+	sprintf(mypath, "/tmp/syneredgeblocks2/%d", blocknum) ;
+
+	return mypath ;
+}
+
+static int
+open_nextblocknum_db()
+{
+	FILE *fp ;
+	char s[32] ;
+
+	fp = fopen("/etc/syneredge/nextblocknum", "r") ;
+
+	if (fp == NULL) {
+		nextblocknum = 1 ;
+		return 1 ;
+	}
+
+	fgets(s, 32, fp) ;
+	nextblocknum = atoi(s) ;
+
+	fclose(fp) ;
+
+	return 1 ;
+}
+
+static int
+close_nextblocknum_db()
+{
+	FILE *fp ;
+
+	fp = fopen("/etc/syneredge/nextblocknum", "w+") ;
+	fprintf(fp, "%d", nextblocknum) ;
+	fclose(fp) ;
+
+	return 1 ;
+}
+
+d151 3
+a289 6
+
+/* res = mknod(mypath, mode, rdev);
+if(res == -1)
+return -errno;
+
+return 0;*/
+a398 253
+static int
+writezeroblock(const char *path, int size, int offset)
+{
+	char buf[1024] ;
+	int rc ;
+	time_t t ;
+
+	printf("writezeroblock()\n") ;
+	PT() ;
+	memset(buf, 0, 1024) ;
+	t = time(0) ;
+	printf("%s writing zeroblock size = %d, at offset = %d\n", ctime(&t), size, offset) ;
+	synfscalledwrite = 1 ;
+	rc = synfs_write(path, buf, size, offset) ;
+	synfscalledwrite = 0 ;
+
+	t = time(0) ;
+	printf("%s synfs_write() returned %d on write of %d\n", ctime(&t), rc, size) ;
+	return 1 ;
+}
+
+static int
+updateblockat(FILEBLOCKMAPP fbmap, int blockindex, int newsize)
+{
+	FILEBLOCKP fblock ;
+	int count ;
+
+	printf("updateblockat()\n") ;
+	PT() ;
+
+	if (blockindex == 0) {
+		printf("blockindex = 0\n") ;
+		exit(1) ;
+	}
+	count = 1 ;
+	printf("fileblockmap_getnextblock()\n") ;
+	PT() ;
+	fblock = fileblockmap_getnextblock(fbmap, LSTART) ;
+	printf("past fileblockmap_getnextblock()\n") ;
+	PT() ;
+	while(1) {
+		if (count == blockindex) {
+			break ;
+		}
+
+		printf("count = %d, blockindex = %d\n", count, blockindex) ;
+		PT() ;
+		count++ ;
+		fblock = fileblockmap_getnextblock(fbmap, LNEXT) ;
+	}
+	printf("updateblockat() left loop\n") ;
+	PT() ;
+
+	if (fblock) {
+		printf("update block to size %d\n", newsize) ;
+		fileblock_setbytesused(fblock, newsize) ;
+	}
+
+	return 1 ;
+}
+
+static int
+fixupblockat(const char *path, FILEBLOCKMAPP fbmap, int blockindex, int fremainder, int sizeremainder)
+{
+	/*
+	** Are the remainders the same?
+	*/
+	printf("fixupblockat()\n") ;
+	PT() ;
+
+	if (fremainder > sizeremainder) {
+		/*
+		** we are truncating the file, just update
+		** the blockmap, no need to write to file.
+		*/
+		updateblockat(fbmap, blockindex, sizeremainder) ;
+	} else if (sizeremainder > fremainder) {
+		/*
+		** We are extending the file. We'll
+		** need to zero out the blocks because
+		** we don't know if it was truncated and
+		** is now being extended or not.
+		*/
+		updateblockat(fbmap, blockindex, sizeremainder) ;
+		writezeroblock(path, 1024-fremainder, fremainder) ;
+	} /* Else sizes are equal nothing to do */
+}
+
+static int
+createzeroblocks(const char *path, int numblocks, int size)
+{
+	int i ;
+
+	for(i = 0 ; i < numblocks; i++) {
+		printf("createzeroblocks() %d\n", i) ;
+		PT() ;
+		if (i == numblocks - 1) {
+			/*
+			** Last block, we'll need
+			** to set its size appropriately.
+			*/
+			writezeroblock(path, remainder_of_offset(size), i*1024) ;
+		} else {
+			writezeroblock(path, 1024, i*1024) ;
+		}
+	}
+}
+
+static int
+removelastblock(FILEBLOCKMAPP fbmap)
+{
+	int blockcount ;
+	int blocknum ;
+	int i ;
+	FILEBLOCKP fblock ;
+
+	blockcount = fileblockmap_getblockcount(fbmap) ;
+	i = 1;
+	fblock = fileblockmap_getnextblock(fbmap, LSTART) ;
+	while(1) {
+		if (i == blockcount) {
+			break ;
+		}
+		i++ ;
+		fblock = fileblockmap_getnextblock(fbmap, LNEXT) ;
+	}
+	blocknum = fileblock_getblocknum(fblock) ;
+	printf("removing blocknum %d\n", blocknum) ;
+
+	/*
+	** Need to delete block files as well at some point.
+	*/
+	fileblockmap_removeblock(fbmap, blocknum) ;
+
+	return 1 ;
+}
+
+static int
+removeextrablocks(FILEBLOCKMAPP fbmap, int numblockstoremove)
+{
+	int i ;
+
+	printf("removeextrablocks() numblockstoremove = %d\n", numblockstoremove) ;
+	for (i = 0 ; i < numblockstoremove ; i++) {
+		/*
+		** Find last block, and remove it. There must be a faster
+		** way...
+		*/
+		removelastblock(fbmap) ;
+	}
+}
+
+/*
+** This routine is messy and needs to be cleaned up.
+*/
+static int
+truncate_or_extend(const char *path, FILEBLOCKMAPP fbmap, int size, int newfile)
+{
+	int numblocks ;
+	int i ;
+	int blockcount ;
+	int filesize ;
+	int fremainder ;
+	int sizeremainder ;
+
+	printf("truncate_or_extend() newfile = %d\n", newfile) ;
+	PT() ;
+
+	numblocks = offset_blocksin(size) ;
+
+	if (! newfile) {
+		blockcount = fileblockmap_getblockcount(fbmap) ;
+		printf("blockcount = %d\n", blockcount) ;
+	}
+	/*
+	** If blockcount == 0 then treat as new file.
+	*/
+	if (! blockcount) {
+		newfile = 1 ;
+	}
+	if (newfile) {
+		/*
+		** Create blocks, and zero them out.
+		*/
+		printf("newfile, calling createzeroblocks()\n") ;
+		PT() ;
+		createzeroblocks(path, numblocks, size) ;
+	} else {
+	/*	blockcount = fileblockmap_getblockcount(fbmap) ;*/
+		filesize = fileblockmap_getbytecount(fbmap) ;
+		printf("blockcount =%d, numblocks=%d\n", blockcount, numblocks) ;
+		if (blockcount == numblocks) {
+			/*
+			** We'll need to do some cleanup on the last block
+			*/
+			fremainder = remainder_of_offset(filesize) ;
+			sizeremainder = remainder_of_offset(size) ;
+			printf("fremainder = %d, sizeremainder =%d\n", fremainder,
+				sizeremainder) ;
+			fixupblockat(path, fbmap, blockcount, fremainder, sizeremainder) ;
+
+		} else {
+			/*
+			** May need to zero part of blocks, and
+			** create new zero sized blocks.
+			*/
+			if (blockcount < numblocks) {
+				/*
+				** File is being extended by blocks. There are
+				** a couple of things to do:
+				**  1. Current last block may need to be zeroed.
+				**  2. Add new zero'd blocks.
+				**  3. New last block is probably not a full size block.
+				*/
+				fremainder = remainder_of_offset(filesize) ;
+				sizeremainder = 1024 - fremainder; /* fill up rest of block */
+				printf("Fixing up blockat %d, fremainder %d, sizeremainder %d\n", blockcount, fremainder, sizeremainder) ;
+				fixupblockat(path, fbmap, blockcount, fremainder, 1024) ;
+				/*
+				** Now create remaining zeroblocks.
+				*/
+				for (i = 0 ; i < numblocks-blockcount; i++) {
+					if (i == (numblocks - blockcount) - 1) {
+						/*
+						** Last block, we'll need
+						** to set its size appropriately.
+						*/
+						writezeroblock(path, remainder_of_offset(size), i*1024 + (blockcount*1024)) ;
+					} else {
+						writezeroblock(path, 1024, i*1024 + (blockcount*1024)) ;
+					}
+				}
+			} else {
+				/* numblocks < blockcount */
+				/*
+				** File is being truncated by blocks.
+				** The steps:
+				**   1. Remove any extra whole blocks.
+				**   2. Resize last remaining block as it is probably not
+				**      a whole block.
+				*/
+				fremainder = remainder_of_offset(filesize) ;
+				sizeremainder = remainder_of_offset(size) ;
+				removeextrablocks(fbmap, blockcount - numblocks) ;
+				printf("blockcount = %d, numblocks = %d\n", blockcount, numblocks) ;
+				printf("Calling fixupblockat numblocks = %d, fremainder = %d, sizeremainder = %d\n", numblocks, fremainder, sizeremainder) ;
+				fixupblockat(path, fbmap, numblocks, fremainder, sizeremainder) ;
+			}
+		}
+	}
+
+	return 1 ;
+}
+a401 1
+	int res;
+d403 1
+a403 2
+	int newfile ;
+	int rc ;
+d414 3
+a416 1
+	newfile = 0 ;
+a420 2
+		newfile = 1 ;
+
+d435 8
+a442 3
+	printf("Calling truncate_or_extend\n") ;
+	rc = truncate_or_extend(path, truncfbmap, size, newfile) ;
+	printf("Past truncate_or_extend\n") ;
+d452 1
+a452 2
+	printf("calling fileblockmap_save()\n") ;
+	fileblockmap_close(truncfbmap, 1) ;
+a520 56
+getblocknumat(FILEBLOCKMAPP fbmap, int blockindex)
+{
+	FILEBLOCKP fblock ;
+	int count ;
+
+	count = 1 ;
+	fblock = fileblockmap_getnextblock(fbmap, LSTART) ;
+	while(1) {
+		if (count == blockindex) {
+			return fileblock_getblocknum(fblock) ;
+		}
+
+		count++ ;
+		fblock = fileblockmap_getnextblock(fbmap, LNEXT) ;
+	}
+}
+
+static int
+findblocknum(FILEBLOCKMAPP fbmap, int offset, int *blocknum_to_use)
+{
+	int blockcount ;
+	int blocksin ;
+
+	/*
+	** First check if the file has any blocks, if not then
+	** really easy - this is a new block.
+	*/
+	blockcount = fileblockmap_getblockcount(fbmap) ;
+	if (! blockcount) {
+		/*
+		** No blocks, so new block.
+		*/
+		*blocknum_to_use = nextblocknum ;
+		nextblocknum++ ;
+		return 1 ;
+	} 
+
+	/*
+	** Ok, either we are adding a new block, or updating
+	** an existing one. Get how many blocks in to write.
+	** If we have that many that we are updating a block
+	** otherwise we are writing to a new one.
+	*/
+	blocksin = offset_blocksin(offset) ;
+	printf("blockcount = %d, blocksin = %d\n", blockcount, blocksin) ;
+	if (blocksin <= blockcount) {
+		*blocknum_to_use = getblocknumat(fbmap, blocksin) ;
+		return 0 ;
+	} else {
+		*blocknum_to_use = nextblocknum ;
+		nextblocknum++ ;
+		return 1 ;
+	}
+}
+
+static int
+a556 22
+static int
+getfilesize(FILEBLOCKMAPP fbmap)
+{
+	int fsize = 0 ;
+	FILEBLOCKP fblock ;
+
+	fblock = fileblockmap_getnextblock(fbmap, LSTART) ;
+	while (1) {
+		if (! fblock) {
+			break ;
+		}
+
+		fsize += fileblock_getbytesused(fblock) ;
+		fblock = fileblockmap_getnextblock(fbmap, LNEXT) ;
+	}
+
+	return fsize ;
+}
+
+/*
+** This routine is very messy and needs to be cleaned up.
+*/
+a559 2
+	int fd;
+	int res;
+d562 2
+a563 14
+	int blocknum_to_use ;
+	int ioffset ;
+	int offsetin ;
+	int offsetinblock ;
+	int sizetoread ;
+	int sizeleft ;
+	int firsttime ;
+	char *wherebuf ;
+	int blockcount ;
+	int bytesused ;
+	int totalfilesize ;
+	int valtoreturn ;
+	int errnotoreturn ;
+	FILEBLOCKP fblock ;
+a567 6
+	ioffset = (int) offset ;
+	offsetin = ioffset ;
+	sizeleft = size ;
+	firsttime = 1 ;
+	wherebuf = buf ;
+	printf("    offset = %d, size = %d\n", ioffset, size) ;
+d580 7
+a586 30
+	/*blockcount = fileblockmap_getblockcount(fbmap) ;
+	if (blockcount == 0) {
+		return 0 ;
+	}*/
+
+	totalfilesize = getfilesize(fbmap) ;
+
+	/*
+	** Fixup original settings. This fixes up the case where we are
+	** asked to read more bytes than there is left in the file.
+	**
+	*/
+	printf(" totalfilesize (%d) - ioffset (%d) = %d\n",
+		totalfilesize, ioffset, totalfilesize - ioffset) ;
+
+	if ((totalfilesize-ioffset) < sizeleft) {
+		sizeleft = totalfilesize-offset ;
+	}
+
+	if (totalfilesize < size) {
+		/*
+		** If a read request asks for less data than in
+		** the file, then just set amount to read to filesize.
+		*/
+		sizeleft = totalfilesize ;
+	}
+
+	if (sizeleft == 0) {
+		MUNLOCK ;
+		return 0 ;
+a588 65
+	printf("totalfilesize = %d, size = %d, sizeleft = %d\n",
+		totalfilesize, size, sizeleft) ;
+
+	if (! fbmap) {
+		printf("EINVAL\n") ;
+		MUNLOCK ;
+		return -EINVAL ;
+	}
+
+	while(1) {
+		/* Get block to read from */
+		findblocknum(fbmap, offsetin, &blocknum_to_use) ;
+		fblock = fileblockmap_findblock(fbmap, blocknum_to_use) ;
+		bytesused = fileblock_getbytesused(fblock) ;
+		if (firsttime) {
+			offsetinblock = remainder_of_offset(offsetin) ;
+			if (offsetinblock) {
+				/*
+				** Zero based counting, not starting at 1.
+				*/
+				offsetinblock--;
+			}
+		} else {
+			offsetinblock = 0 ;
+		}
+		sizetoread = determinereadsize(bytesused, offsetinblock, sizeleft) ;
+
+		fd = open_block(blocknum_to_use, &errnotoreturn) ;
+		printf("fd = %d\n", fd) ;
+		if (fd == -1) {
+			perror("The error") ;
+			fileblockmap_close(fbmap, 0) ;
+			MUNLOCK ;
+			return errnotoreturn;
+		}
+
+		printf("reading size %d offset %d blocknum %d\n", sizetoread, offsetinblock, blocknum_to_use) ;
+		printf("wherebuf address = %ul\n", wherebuf) ;
+		res = pread(fd, wherebuf, sizetoread, offsetinblock);
+		printf("closing fd = %d\n", fd) ;
+		close(fd);
+		printf("pread() read %d bytes\n", res) ;
+		/*wherebuf[res] = 0 ;
+		printf("wherebuf = '%s'\n", wherebuf) ;*/
+		if(res == -1) {
+			/*perror("The error") ;
+			printf("res = -1\n") ;*/
+			res = -errno;
+		}
+
+		offsetin += sizetoread ;
+		sizeleft -= sizetoread ;
+		firsttime = 0 ;
+		wherebuf+=sizetoread ;
+		if (!sizeleft) {
+			break ;
+		}
+	}
+    
+	fileblockmap_close(fbmap, 0) ;
+	printf("returning size = %d\n", totalfilesize < size ? totalfilesize : size) ;
+	/*buf[totalfilesize < size ? totalfilesize : size] = 0 ;
+	printf("synfs_read buf = '%s'\n", buf) ;*/
+	valtoreturn = (totalfilesize < size ? totalfilesize : size) ;
+	printf("valtoreturn = %d\n", valtoreturn) ;
+d590 1
+a590 1
+	return valtoreturn ;
+a592 3
+/*
+** This return is very messy and needs to be cleaned up.
+*/
+a598 1
+	FILEBLOCKP fblock ;
+d600 3
+a602 10
+	int sizetowrite ;
+	int ioffset ;
+	int blocknum_to_use ;
+	int isnewblock ;
+	int offsetin ;
+	int offsetinblock ;
+	int firsttime ;
+	int sizeleft ;
+	char *wherebuf ;
+	int blockbytes ;
+a603 3
+	if (! synfscalledwrite) {
+		MLOCK ;
+	}
+d608 1
+d610 7
+a616 13
+	ioffset = (int) offset ; /* convert offset to integer */
+	offsetin = ioffset ;
+	/*printf("writing size %d, at offset %d\n", size, ioffset) ;*/
+	if (synfscalledwrite) {
+		/*
+		** We were called by synfs_truncate(), so we are sharing a
+		** a fbmap. This is ugly, but will resolve itself once we
+		** put the fbmaps into a db and get just used that as a shared
+		** storage.
+		*/
+		fbmap = truncfbmap ;
+	} else {
+		fbmap = fileblockmapdb_findfileblockmap(synfsmapdb, filename) ;
+a617 24
+	firsttime = 1 ;
+	sizeleft = size ;
+	wherebuf = const_cast<char *>(buf) ;
+	while ( 1 ) {
+
+		/*printf("findblocknum(offsetin = %d)\n", offsetin) ;*/
+		isnewblock = findblocknum(fbmap, offsetin, &blocknum_to_use) ;
+		/*printf("using block %d, isnewblock = %d\n", 
+			blocknum_to_use, isnewblock) ;*/
+		if (firsttime) {
+			offsetinblock = remainder_of_offset(offsetin) ;
+			if (size < 1024-offsetinblock) {
+				sizetowrite = size ;
+			} else {
+				sizetowrite = 1024-offsetinblock ;
+			}
+		} else {
+			offsetinblock = 0 ;
+			if (sizeleft <= 1024) {
+				sizetowrite = sizeleft ;
+			} else {
+				sizetowrite = 1024 ;
+			}
+		}
+d619 2
+a620 71
+/*		printf("writing at offsetinblock %d, sizetowrite %d, blocknum_to_use %d\n",
+				offsetinblock, sizetowrite, blocknum_to_use) ;*/
+		rc = blockdevice_writeblock(wrbdev, wherebuf, offsetinblock, sizetowrite,
+			blocknum_to_use, 1) ;
+		if (rc < 0) {
+			if (! synfscalledwrite) {
+				MUNLOCK ;
+			}
+			/*
+			** Do we need to save the fbmap here??
+			*/
+			return size - sizeleft ;
+		}
+		if (isnewblock) {
+			printf("isnewblock %d sizetowrite %d\n", blocknum_to_use,
+				sizetowrite) ;
+			fileblockmap_addblock(fbmap, blocknum_to_use, sizetowrite) ;
+			fileblockmap_addhost(fbmap, "spelljammer") ;
+		} else {
+			fblock = fileblockmap_findblock(fbmap, blocknum_to_use) ;
+			blockbytes = fileblock_getbytesused(fblock) ;
+			if (sizetowrite > blockbytes) {
+				printf("sizetowrite > blockbytes, block %d, sizetowrite %d, blockbytes %d\n",
+			blocknum_to_use, sizetowrite, blockbytes) ;
+				rc = fileblockmap_updateblock(fbmap, blocknum_to_use, 
+					sizetowrite) ;
+			} else if ((sizetowrite+offsetinblock) > blockbytes) {
+				printf("sizetowrite+offsetinblock > blockbytes, block %d, sizetowrite %d, blockbytes %d, offsetinblock %d\n",
+			blocknum_to_use, sizetowrite, blockbytes, offsetinblock) ;
+				rc = fileblockmap_updateblock(fbmap, blocknum_to_use, 
+					sizetowrite+offsetinblock) ;
+			} /* else nothing to update */
+		}
+		offsetin += sizetowrite ;
+		sizeleft -= sizetowrite ;
+		firsttime = 0 ;
+		wherebuf += sizetowrite ;
+		/* printf("offsetin = %d, sizeleft = %d, ioffset = %d, size = %d\n",
+			offsetin, sizeleft, ioffset, size) ;*/
+		if (!sizeleft) {
+			/*
+			** If this is true then we have written all
+			** data.
+			*/
+			break ;
+		}
+	}
+
+	if (! synfscalledwrite) {
+		/*
+		** Only save fbmap if we aren't being called by synfs_truncate()
+		*/
+		fileblockmap_close(fbmap, 1) ;
+		MUNLOCK ;
+	}
+	return size ;
+
+/*
+    int fd;
+    int res;
+    fd = open(make_path(path), O_WRONLY);
+    if(fd == -1)
+        return -errno;
+
+    res = pwrite(fd, buf, size, offset);
+    if(res == -1)
+        res = -errno;
+    
+    close(fd);
+    return res;
+*/
+d815 1
+a815 1
+static int
+d818 1
+d827 1
+a827 1
+		//BlockFile bf = new BlockFile(mentry->file) ;
+d836 18
+d880 1
+a880 6
+		printf("Failed to open block files.\n") ;
+		return 0 ;
+	}
+
+	if (! open_nextblocknum_db()) {
+		printf("Failed to open nextblocknum db.\n") ;
+a896 4
+	if (! fsreadonly) {
+		close_nextblocknum_db() ;
+	}
+
+d905 3
+@
+
+
+1.1
+log
+@
+Begin transition of filesystem to C++. Step 1: convert the main filesystem
+proper over to C++. Eventually we will eliminate all (or atleast most) of
+the C code that the filesystem depends on.
+@
+text
+@d19 2
+d63 5
+d93 3
+d197 1
+a197 1
+		sprintf(filename, "%s/%d", mentry->directory, blockno) ;
+d1478 22
+d1510 1
+a1510 1
+	wrbdev = blockdevice_create("/dev/whatever", 1024, 100) ;
+d1512 8
+a1519 2
+	if (!wrbdev) {
+		printf("Failed to create block device.\n") ;
+d1523 2
+a1524 2
+	if (! open_nextblocknum_db()) {
+		printf("Failed to open nextblocknum db.\n") ;
+d1528 2
+a1529 3
+	mirrors = mirrorenv_open(syg_dir()) ;
+	if (!mirrors) {
+		printf("mirrorenv_open() failed\n") ;
+a1531 2
+
+	check_for_mirrors() ;
+@
+

@@ -1,0 +1,458 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.3
+date	2005.07.23.02.00.21;	author rdesai;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	6c42e1a4a21522;
+kopt	kv;
+filename	makefile_platforms;
+
+1.2
+date	2005.04.13.19.01.02;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	528425d6c344e68;
+kopt	kv;
+filename	makefile_platforms;
+
+1.1
+date	2005.04.09.22.14.38;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	7cc425853c52aac;
+kopt	kv;
+filename	makefile_platforms;
+
+
+desc
+@@
+
+
+1.3
+log
+@Cygwin reports Windows_NT for $(OS)
+@
+text
+@VER := 0_1_0
+
+ifeq ($(OS),)
+os := $(shell uname)
+else
+os := $(OS)
+endif
+
+ifeq ($(os), Windows_NT)
+os := WINDOWS
+PATHSEP := "\\"
+else
+PATHSEP := "/"
+endif
+
+ifndef $(THREADS)
+ifeq ($(os), Linux)
+THREADS := nptl
+else
+THREADS := multi
+endif
+endif
+
+ifndef $(OPTIMIZE)
+OPTIMIZE := debug
+endif
+
+ifndef $(BITS)
+BITS := 32
+endif
+
+fulldir := $(shell pwd)
+SUBDIR := $(subst $(SYGHOME)/code/,,$(fulldir))
+SUBDIR := $(subst /,_,$(SUBDIR))
+SUBDIR := $(strip $(SUBDIR))
+
+ifndef $(DISTDIR)
+DISTRIB := $(SYGHOME)/build/$(VER)
+else
+DISTRIB := $(DISTDIR)/syneredge/build/$(VER)
+endif
+
+objarea := $(DISTRIB)/obj/$(OPTIMIZE)_$(BITS)/
+libarea := $(DISTRIB)/lib/$(OPTIMIZE)_$(BITS)/
+binarea := $(DISTRIB)/bin/$(OPTIMIZE)_$(BITS)/
+hdrarea := $(DISTRIB)/include/
+
+CCHDRS := -I$(SYGHOME)/code -I$(SYGHOME)/code/tools
+
+ifeq ($(os), WINDOWS)
+
+test := $(shell cl 2> GNUmakefile.test)
+compiler_version := $(shell grep Version GNUmakefile.test | cut -d" " -f8 | cut -d"." -f1)
+test := $(shell rm GNUmakefile.test)
+compare_compiler_version := 13
+sharedlibarea := $(DISTRIB)/bin/$(OPTIMIZE)_$(BITS)/
+TAR := zip -r 
+COMPRESS := 
+COMPRESSEXT := 
+
+else
+
+test := $(shell g++ -v 2> GNUmakefile.test)
+compiler_version := $(shell grep version GNUmakefile.test | cut -d" " -f3 | cut -d"." -f1)
+test := $(shell rm GNUmakefile.test)
+compare_compiler_version := 3
+sharedlibarea := $(DISTRIB)/lib/$(OPTIMIZE)_$(BITS)/
+TAR := tar cvf
+ifeq ($(os), Linux)
+COMPRESS := gzip
+COMPRESSEXT := .gz
+else
+COMPRESS := compress
+COMPRESSEXT := .Z
+endif
+
+endif
+
+ifeq ($(os), Linux)
+#
+#**LINUX**
+#  Note: Linux builds ignore the BITS flag, only 32 bit is supported.
+#
+osver := $(shell uname -r | cut -d"-" -f1)
+TARBALL := LINUX_$(osver)_$(THREADS)_lib.tar
+HASO32BIT := 0
+HAS32BIT := 1
+HAS64BIT := 0
+
+CC := gcc
+LINK := gcc
+LINK_DLL := gcc
+
+C++ := g++
+LINK++ := g++
+LINK++_DLL := g++
+
+AR := ar ru
+RANLIB := ranlib
+SUFEXE := 
+SUFSHR := .so
+SUFSHRLINK := 
+SUFLIB := .a
+SUFOBJ := .o
+PRELIB := lib
+
+CCFLAGS := -DLinux -D_BSD_SOURCE -static-libgcc -D_FILE_OFFSET_BITS=64
+LINKFLAGS := -static-libgcc -W1,lrpath
+LINKFLAGS_DLL := -shared -static-libgcc
+
+ifneq ($(THREADS), single)
+	ifeq ($(THREADS), nptl)
+	CCFLAGS += -D_REENTRANT -D_POSIX_C_SOURCE=200112L -D_POSIX_PTHREAD_SEMANTICS -D_XOPEN_SOURCE=600L
+	else
+	CCFLAGS += -DLinuxThread -D_REENTRANT -D_POSIX_C_SOURCE=200112L -D_POSIX_PTHREAD_SEMANTICS -D_XOPEN_SOURCE=600L
+	endif
+	LINKLIBS := -lpthread
+endif
+
+ifeq ($(OPTIMIZE), debug)
+	OPTIM := -g
+else
+ifeq ($(OPTIMIZE), release)
+	OPTIM :=
+else
+ifeq ($(OPTIMIZE), speed)
+	OPTIM := -O2
+else
+ifeq ($(OPTIMIZE), size)
+	OPTIM = -Os
+endif #debug
+endif #release
+endif #speed
+endif #size
+
+OPTIM_LINK := $(OPTIM)
+LINKLIBS += -lrt
+C++FLAGS := $(CCFLAGS)
+
+else
+ifeq ($(os), CYGWIN_NT-5.1)
+
+#
+#**CYGWIN**
+#  Note: Cygwin builds ignore the BITS flag, only 32 bit is supported.
+#
+osver := $(shell uname -r | cut -d"-" -f1)
+TARBALL := CYGWIN_$(osver)_$(THREADS)_lib.tar
+HASO32BIT := 0
+HAS32BIT := 1
+HAS64BIT := 0
+
+CC := gcc
+LINK := gcc
+LINK_DLL := gcc
+
+C++ := g++
+LINK++ := g++
+LINK++_DLL := g++
+
+AR := ar ru
+RANLIB := ranlib
+SUFEXE := 
+SUFSHR := .so
+SUFSHRLINK := 
+SUFLIB := .a
+SUFOBJ := .o
+PRELIB := lib
+
+CCFLAGS := -static-libgcc -DLinux -D_BSD_SOURCE -fPIC
+LINKFLAGS :=  -static-libgcc
+LINKFLAGS_DLL := -shared -nostartfiles
+
+ifneq ($(THREADS), single)
+	ifeq ($(THREADS), nptl)
+	CCFLAGS += -D_REENTRANT -D_POSIX_C_SOURCE=199506L -D_POSIX_PTHREAD_SEMANTICS -D_XOPEN_SOURCE=500L
+	else
+	CCFLAGS += -DLinuxThread -D_REENTRANT -D_POSIX_C_SOURCE=199506L -D_POSIX_PTHREAD_SEMANTICS -D_XOPEN_SOURCE=500L
+	endif
+	LINKLIBS := -lpthread
+endif
+
+ifeq ($(OPTIMIZE), debug)
+	OPTIM := -g
+else
+ifeq ($(OPTIMIZE), release)
+	OPTIM :=
+else
+ifeq ($(OPTIMIZE), speed)
+	OPTIM := -O2
+else
+ifeq ($(OPTIMIZE), size)
+	OPTIM = -Os
+endif #debug
+endif #release
+endif #speed
+endif #size
+
+OPTIM_LINK := $(OPTIM)
+LINKLIBS += -lgcc
+C++FLAGS := $(CCFLAGS)
+
+else
+ifeq ($(os), Darwin)
+#
+#** MACOSX **
+#   Note: MACOSX builds ignore the BITS flag, only 32 bit is supported.
+#
+osver := 10.2
+TARBALL := MACOSX_$(osver)_lib.tar
+HASO32BIT := 0
+HAS32BIT := 1
+HAS64BIT := 0
+
+CC := gcc
+LINK := gcc
+LINK_DLL := gcc
+
+C++ := g++
+LINK++ := g++
+LINK++_DLL := g++
+
+AR := libtool -o
+RANLIB := ranlib
+SUFEXE := 
+SUFSHR := .dylib
+SUFSHRLINK := 
+SUFLIB := .a
+SUFOBJ := .o
+PRELIB := lib
+
+CCFLAGS := -DOSX -D_BSD_SOURCE -static-libgcc 
+CCFLAGS_DLL := -fPIC -dynamic
+LINKFLAGS :=  -static-libgcc
+LINKFLAGS_DLL :=  -dynamiclib
+
+ifeq ($(THREADS), single)
+	LINKLIBS=-lgcc
+else
+	CCFLAGS += -D_REENTRANT -D_POSIX_C_SOURCE=199506L -D_POSIX_PTHREAD_SEMANTICS -D_XOPEN_SOURCE=500L
+	LINKLIBS := -lpthread -lgcc
+endif
+
+ifeq ($(OPTIMIZE), debug)
+	OPTIM := -g
+else
+ifeq ($(OPTIMIZE), release)
+	OPTIM :=
+else
+ifeq ($(OPTIMIZE), speed)
+	OPTIM := -O2
+else
+ifeq ($(OPTIMIZE), size)
+	OPTIM = -Os
+endif #debug
+endif #release
+endif #speed
+endif #size
+
+OPTIM_LINK := $(OPTIM)
+C++FLAGS := $(CCFLAGS)
+
+else
+ifeq ($(os), WINDOWS)
+#** WINDOWS **
+osver := NT
+TARBALL := Windows_lib.zip
+HASO32BIT := 0
+HAS32BIT := 1
+HAS64BIT := 1
+
+THREADS := multi
+OPTIMIZE := debug
+BITS := 32
+
+CC := cl /nologo
+LINK := link /nologo
+LINK_DLL := link /nologo
+
+C++ := cl /nologo /wd4290
+LINK++ := link /nologo
+LINK++_DLL := link /nologo
+
+AR := lib
+RANLIB := 
+SUFEXE := .exe
+SUFSHR := .dll
+SUFSHRLINK := .lib
+SUFLIB := .lib
+SUFOBJ := .obj
+PRELIB :=
+
+ifeq ($(BITS), 64)
+	LIB := $(addprefix $(MSSDK)\\Lib\\IA64;$(MSSDK)\\Lib\\IA64\\mfc;, $(LIB))
+	INCLUDE := $(addprefix $(MSSDK)\\Include;$(MSSDK)\\Include\\Win64\\crt;$(MSSDK)\\Include\\Win64\\crt\\sys;$(MSSDK)\\Include\\Win64\\mfc;$(MSSDK)\\Include\\Win64\\atl, $(INCLUDE))
+	PATH := $(shell cygpath -u "${MSSDK}\\Bin\\Win64"):$(PATH)
+	PATH := $(shell cygpath -u "${MSSDK}\\Bin:"):$(PATH)
+	PATH := $(shell cygpath -u "${MSSDK}\\Bin\\WinNT"):$(PATH)
+	CCFLAGS := /W3 /GX /Wp64 /DMSSDK /D_WIN32_WINNT=0x0501 /D_WIN32 /DWIN32 /D_MBCS /D_LIB /DMICROSOFT /FD
+else
+	CCFLAGS := /W3 /GX /D_WIN32_WINNT=0x0501 /D_WIN32 /DWIN32 /D_MBCS /D_LIB /DMICROSOFT /FD
+	ifdef MSSDK
+		CCFLAGS += /DMSSDK /I"$(MSSDK)\\include"
+	endif
+endif
+
+C++FLAGS := $(CCFLAGS) /GR
+LINKFLAGS := /map
+LINKFLAGS_DLL := /dll
+LINKLIBS := ws2_32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib winmm.lib
+
+ifeq ($(THREADS), single)
+	CCFLAGS_DLL := /ML
+	CCFLAGS_NONDLL := /ML	
+else
+	CCFLAGS_DLL := /MD
+	CCFLAGS_NONDLL := /MT
+endif
+
+ifeq ($(OPTIMIZE), debug)
+	ifeq ($(BITS), 64)
+		OPTIM := /Od /Z7 /D_DEBUG
+	else
+		OPTIM := /Od /Z7 /GZ /D_DEBUG
+	endif
+	OPTIM_LINK := /debug
+	CCFLAGS_DLL := $(CCFLAGS_DLL)d
+	CCFLAGS_NONDLL := $(CCFLAGS_NONDLL)d
+else
+ifeq ($(OPTIMIZE), release)
+	OPTIM := 
+	OPTIM_LINK := 	
+else
+ifeq ($(OPTIMIZE), speed)
+	OPTIM := /O2
+	OPTIM_LINK := 
+else
+ifeq ($(OPTIMIZE), size)
+	OPTIM := /O1
+	OPTIM_LINK := 
+else
+	ifeq ($(BITS), 64)
+		OPTIM := /Od /Z7 /D_DEBUG
+	else
+		OPTIM := /Od /Z7 /GZ /D_DEBUG
+	endif
+	OPTIM_LINK := /debug 
+	CCFLAGS_DLL += d
+	CCFLAGS_NONDLL += d
+endif #debug
+endif #release
+endif #speed
+endif #size
+
+else
+	$(error Platform $(os) not supported!)
+endif #WINDOWS
+endif #darwin
+endif #LINUX
+endif #CYGWIN
+
+
+ifeq ($(os), WINDOWS)
+#** NT **
+
+LINKOUT := /out:
+AROUT := /out:
+COMPOUT := /Fo
+LIBPATH := /libpath:
+#IMPLIB = /implib:$(@@:$(SUFSHR)=$(SUFSHRLINK))
+IMPLIB = $(addprefix /implib:, $(patsubst $(sharedlibarea)%$(SUFSHR), $(libarea)%$(SUFSHRLINK), $(@@)))
+COMPONLY := /c
+LIBINLINK :=
+
+else
+#** Unix **
+
+LINKOUT := -o # Need space after -o
+AROUT := 
+COMPOUT := -o # Need space after -o
+LIBPATH := -L
+IMPLIB := 
+COMPONLY := -c
+LIBINLINK := -l
+
+endif
+
+@
+
+
+1.2
+log
+@Add support to build C-Files in makefile. Add a -D into makefile_platforms for FUSE support.
+@
+text
+@d9 2
+a10 1
+ifeq ($(os), WINDOWS)
+@
+
+
+1.1
+log
+@make environment
+@
+text
+@d106 1
+a106 1
+CCFLAGS := -DLinux -D_BSD_SOURCE -static-libgcc
+@
+

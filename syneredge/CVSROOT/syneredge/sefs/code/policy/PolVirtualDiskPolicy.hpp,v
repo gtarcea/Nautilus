@@ -1,0 +1,95 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.06.16.53.21;	author irrer;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	ad442a47f5c6821;
+kopt	kv;
+filename	@PolVirtualDiskPolicy.hpp@;
+
+1.1
+date	2005.06.02.20.52.41;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	ac4429f718c6715;
+kopt	kv;
+filename	@PolVirtualDiskPolicy.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Added transaction handling.
+Added better error checking for parameters.
+Improved error messages.
+@
+text
+@
+#ifndef POL_VIRTUAL_DISK_POLICY
+#define POL_VIRTUAL_DISK_POLICY
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <vector>
+
+#include <DBinterface.hpp>
+#include <DBexception.hpp>
+#include <PolUtil.hpp>
+#include <SEDB.h>
+
+class PolVirtualDiskPolicy
+{
+  private:
+    /** database handle */
+    DBinterface *db;
+
+    /** contains latest error message */
+    string errorMessage;
+
+    /** True if a Select has been performed and the result is
+     * still valid.  Any other query executed on the database will
+     * invalidate the result and set this to false.
+     */
+    bool selected;
+
+  public:
+
+    PolVirtualDiskPolicy(void);
+    ~PolVirtualDiskPolicy(void);
+    bool initialize(void);
+    bool Insert(const char *name, const char *policy);
+    bool Delete(const char *name);
+    bool Select(void);
+    const char *get(int row, int col);
+    const char *Error(void);
+
+};
+
+#endif
+@
+
+
+1.1
+log
+@Renamed to avoid naming collisions.
+@
+text
+@d12 1
+a12 1
+#include <PolicyUtil.hpp>
+@
+

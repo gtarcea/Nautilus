@@ -1,0 +1,910 @@
+head	1.12;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.12
+date	2005.06.10.18.34.29;	author gtarcea;	state Exp;
+branches;
+next	1.11;
+deltatype	text;
+permissions	666;
+commitid	adc42a9dd1f6e42;
+kopt	kv;
+filename	@Block.cpp@;
+
+1.11
+date	2005.06.09.22.47.06;	author aprakash;	state Exp;
+branches;
+next	1.10;
+deltatype	text;
+permissions	666;
+commitid	b3c42a8c6d5617b;
+kopt	kv;
+filename	@Block.cpp@;
+
+1.10
+date	2005.06.09.22.01.37;	author aprakash;	state Exp;
+branches;
+next	1.9;
+deltatype	text;
+permissions	666;
+commitid	75842a8bc2a3ea5;
+kopt	kv;
+filename	@Block.cpp@;
+
+1.9
+date	2005.06.09.16.49.01;	author aprakash;	state Exp;
+branches;
+next	1.8;
+deltatype	text;
+permissions	666;
+commitid	f2442a8723e4d3f;
+kopt	kv;
+filename	@Block.cpp@;
+
+1.8
+date	2005.04.27.21.38.39;	author gtarcea;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	666;
+commitid	ecc4270064e0d6d;
+kopt	kv;
+filename	@Block.cpp@;
+
+1.7
+date	2005.04.22.20.35.19;	author gtarcea;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	e5442695ff65649;
+kopt	kv;
+filename	@Block.cpp@;
+
+1.6
+date	2005.04.22.18.43.39;	author gtarcea;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	7fc426945ca00d2;
+kopt	kv;
+filename	@Block.cpp@;
+
+1.5
+date	2005.04.21.16.48.36;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	2fc4267d9355a40;
+kopt	kv;
+filename	@Block.cpp@;
+
+1.4
+date	2005.04.19.20.55.54;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	498426570457b97;
+kopt	kv;
+filename	@Block.cpp@;
+
+1.3
+date	2005.04.15.15.24.28;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	894425fdc084391;
+kopt	kv;
+filename	@Block.cpp@;
+
+1.2
+date	2005.04.14.21.04.20;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	728425edab37b3a;
+kopt	kv;
+filename	@Block.cpp@;
+
+1.1
+date	2005.04.12.23.22.14;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	da0425c57f4484a;
+kopt	kv;
+filename	@Block.cpp@;
+
+
+desc
+@@
+
+
+1.12
+log
+@Clean up cout message in setSize() call.
+@
+text
+@#include <string.h>
+#include <iostream>
+#include "seerror.hpp"
+#include "Block.hpp"
+
+/* Author: Glenn Tarcea
+ * Modifications: Atul Prakash.
+ */
+
+using namespace std ;
+
+namespace SynerEdge {
+
+Block::Block(int64 bnum, int size) : blocknum(bnum), numbytes(0), size(size), allocatedbytes(true)
+{
+	//
+	// Why doesn't it compile if I replace the numbytes<1024... check below with
+	// if (! validBlockSize(numbytes)) {
+	//	throw seerror("Block must be between 1024 and 8192 bytes in size") ;
+	// }
+	if ((size < 1024) || (size > 8192)) {
+		throw seerror("Block must be between 1024 and 8192 bytes in size") ;
+	}
+
+	if (blocknum < 0) {
+		throw seerror("Blocknum must be a positive number") ;
+	}
+
+//	cout << "blocknum = " << blocknum << endl ;
+
+	bytes = new char[size] ;
+	memset(bytes, 0, size) ;
+	memset(reserved, 0, 8) ;
+
+
+	/*cout << "sizeof individual elements:\n" ;
+	cout << "nextblock: " << sizeof(nextblock) << endl ;
+	cout << "prevblock: " << sizeof(prevblock) << endl ;
+	cout << "reserved: " << sizeof(reserved) << endl ;
+	cout << "size: " << sizeof(size) << endl ;
+	cout << "freechunks: " << sizeof(freechunks) << endl ;
+	cout << "bytes: " << sizeof(bytes) << endl ;*/
+}
+
+Block::Block(int size) : blocknum(0), numbytes(0), size(size), allocatedbytes(true)
+{
+	if (! validBlockSize(size)) {
+		throw seerror("Block must be between 1024 and 8192 bytes in size") ;
+	}
+
+	bytes = new char[size] ;
+	memset(bytes, 0, size) ;
+	memset(reserved, 0, 8) ;
+}
+
+Block::Block() : blocknum(0), numbytes(0), size(0), allocatedbytes(false)
+{
+	bytes = NULL;
+}
+
+
+/*
+This is a special case for performance optimization. Only BlockFile.cpp
+uses this function to speed up the writes to the blockfile to avoid
+an extra copy. The "size" in this case is same as the size of the data
+and the block.
+*/
+Block::Block(int size, char *data) : blocknum(0), numbytes(size), size(size), bytes(data), allocatedbytes(false)
+{
+	if (! validBlockSize(size)) {
+		throw seerror("Block must be between 1024 and 8192 bytes in size") ;
+	}
+}
+
+Block::~Block()
+{
+	if (allocatedbytes) {
+		delete [] bytes ;
+		bytes = NULL;
+		allocatedbytes = false;
+	}
+}
+ostream &operator<<(ostream &output, const Block &block)
+{
+
+	// assert(block.size > 0);
+	// assert(block.numBytes > 0);
+	//cout << "write blocknum = " << block.blocknum << endl ;
+	output.write(reinterpret_cast<const char *>(&block.blocknum), 
+		sizeof(int64)) ;
+//	cout << "write isfree = " << block.isfree << endl ;
+	output.write(reinterpret_cast<const char *>(&block.isfree),
+			   sizeof(int)) ;
+	output.write(reinterpret_cast<const char *>(block.reserved), 
+		sizeof(char)*8) ;
+//	cout << "write block.numbytes = " << block.bytes << endl ;
+	output.write(reinterpret_cast<const char *>(&block.numbytes), 
+		sizeof(int)) ;
+//	cout << "write block.size = " << block.size << endl ;
+	output.write(reinterpret_cast<const char *>(&block.size), 
+		sizeof(short)) ;
+//	cout << "write block.bytes = " << block.bytes << endl ;
+	if (block.size > 0) output.write(block.bytes, sizeof(char) * block.size) ;
+//	cout << "Writing blocknum : " << block.blocknum << endl ;
+	return output ;
+}
+
+istream &operator>>(istream &input, Block &block)
+{
+//	cout << "block.size before starting read = " << block.size << endl ;
+	input.read(reinterpret_cast<char *>(&block.blocknum), 
+			 sizeof(int64)) ;
+//	cout << "read blocknum = " << block.blocknum << endl ;
+	input.read(reinterpret_cast<char *>(&block.isfree),
+			 sizeof(int));
+	input.read(reinterpret_cast<char *>(block.reserved), 
+		sizeof(char)*8) ;
+//	cout << "read reserved = " << block.reserved << endl ;
+	input.read(reinterpret_cast<char *>(&block.numbytes), 
+		sizeof(int)) ;
+//	cout << "read numbytes = " << block.numbytes << endl ;
+	short newblocksize;
+	input.read(reinterpret_cast<char *>(&newblocksize), 
+		sizeof(short)) ;
+	assert(newblocksize >= 0);
+//	cout << "read size = " << block.size << endl ;
+	if (newblocksize > 0) {
+		if (newblocksize == block.size) {
+			input.read(reinterpret_cast<char *>(block.bytes), sizeof(char) * block.size) ;
+		} else {
+			if (block.allocatedbytes) {delete []block.bytes;}
+			block.size = newblocksize;
+			block.bytes = new char[block.size];
+			input.read(reinterpret_cast<char *>(block.bytes), sizeof(char) * block.size) ;
+			block.allocatedbytes = true;
+		}
+	} else { // newblocksize = 0
+		if (block.allocatedbytes) delete []block.bytes;
+		block.allocatedbytes = false;
+		block.size = 0;
+		block.bytes = NULL;
+	}
+	return input ;
+}
+
+bool
+Block::zeroBytes(int offset, int length)
+{
+	if (offset >= size || offset < 0) {
+		return false ;
+	}
+
+	if (length > size || length < 0 || offset + length > size) {
+		return false ;
+	}
+	assert(bytes);
+	memset(bytes+offset, 0, length) ;
+
+	return true ;
+}
+
+/*
+// No copy if length == size
+
+int
+Block::setBytesPointer(char *data, int length)
+{
+	if (length == size) {
+		// No copy, just set the pointer.
+		if (allocatedbytes) {
+			delete [] bytes ;
+			bytes = NULL;
+			allocatedbytes = false ;
+		}
+		bytes = data ;
+		return length ;
+	} else {
+		return setBytes(0, data, length) ;
+	}
+}
+
+*/
+
+int
+Block::setBytes(int offset, char *data, int length)
+{
+	if (offset >= size || offset < 0) {
+		return 0 ;
+	}
+
+	if (length > size || length < 0 || offset + length > size) {
+		return 0 ;
+	}
+
+	memcpy(bytes+offset, data, length) ;
+	if (numbytes < offset+length) {
+		numbytes = offset+length ;
+	}
+
+	//	isfree = 0 ;
+
+	return length ;
+}
+
+/* 
+ * This is used to truncate a block
+ */
+
+bool
+Block::setNumBytes(int length)
+{
+	if (length < 0 || length > numbytes) {
+		return false ;
+	}
+
+	numbytes = length ;
+
+	return true ;
+}
+
+int
+Block::getNumBytes()
+{
+	return numbytes ;
+}
+
+int
+Block::getSize(void)
+{
+	return size ;
+}
+
+bool
+Block::setBlockNum(int64 bnum)
+{
+	if (bnum < 0) {
+		return false ;
+	}
+
+	blocknum = bnum ;
+	return true ;
+}
+
+int64
+Block::getBlockNum()
+{
+	return blocknum ;
+}
+
+
+/******************
+ * What does this do?
+ * Does it also truncate the block?
+ * Modify numBytes to be the size of the block?
+ ******************/
+bool
+Block::setSize(int newsize)
+{
+	if (! validBlockSize(newsize)) {
+		return false ;
+	}
+
+	if (size != 0 && size != newsize) {
+		return false;		  // not allowed to change size.
+	} else if (size == 0) {           // size must be 0 or size = newsize
+		// No allocation, so allocate new
+		size = newsize ;
+		allocatedbytes = true ;
+		bytes = new char[size] ;
+		memset(bytes, 0, size) ;
+	} else {
+		// Possibly do nothing. New size is same as old size
+		//cout << "possibly redundant operation memset" << endl;
+		memset(bytes, 0, size) ;
+	}
+	return true ;
+}
+
+bool
+Block::validBlockSize(int sizetocheck)
+{
+	if ((sizetocheck < 1024) || (sizetocheck > 8192)) {
+		return false ;
+	}
+
+	return true ;
+}
+
+int
+Block::getObjectSize(int size)
+{
+	return headersize + size ;
+}
+
+int
+Block::getHeaderSize()
+{
+	return headersize ;
+}
+
+char *
+Block::getBytes()
+{
+	return bytes ;
+}
+
+char *
+Block::getBytes(int offset)
+{
+	if (offset < 0 || offset >= numbytes) {
+		return NULL ;
+	}
+
+	return bytes+offset ;
+
+}
+
+
+/*
+* void
+* Block::setIsFree(bool freeblock)
+* {
+* 	if (freeblock) {
+* 		isfree = 1 ;
+* 	} else {
+* 		isfree = 0 ;
+* 	}
+* }
+* 
+* bool
+* Block::isFree()
+* {
+* 	if (isfree == 1) {
+* 		return true ;
+* 	} else {
+* 		return false ;
+* 	}
+* }
+*/
+
+} // namespace SynerEdge
+@
+
+
+1.11
+log
+@Caught one more bound check error after adding tests on bound checking.
+@
+text
+@d273 1
+a273 1
+		cout << "possibly redundant operation memset" << endl;
+@
+
+
+1.10
+log
+@Corrected a bound check.
+@
+text
+@d310 1
+a310 1
+	if (offset >= numbytes) {
+@
+
+
+1.9
+log
+@Changes:
+
+Block.*: isfree is useless in this version.
+           Some bug fixes with bound checking.
+           zeroBlock modified to avoid a read.
+	   Some functionality to change block sizes dynamically removed.
+
+BlockFile.*: delete freeBlock functionality. releaseBlock is the correct
+              way to remove a block.
+	    Main change: readBlock, writeBlock would fail if a block
+			is free.
+             Some bug fixes.
+             Avoid use of isFree in a block.
+
+FreeBlockMap.*: added a function to check if a blocknum is free. Used
+	    by BlockFile
+
+NOTES: code review notes.
+@
+text
+@d191 1
+a191 1
+	if (length > size || length < 0 || offset + length >= size) {
+@
+
+
+1.8
+log
+@Changes to speed up filesystem.
+@
+text
+@d6 4
+d14 1
+a14 1
+Block::Block(int64 bnum, int size) : blocknum(bnum), isfree(1), numbytes(0), size(size), allocatedbytes(true)
+d35 1
+d45 1
+a45 1
+Block::Block(int size) : blocknum(0), isfree(1), numbytes(0), size(size), allocatedbytes(true)
+d56 1
+a56 1
+Block::Block() : blocknum(0), isfree(1), numbytes(0), size(0), allocatedbytes(false)
+d58 1
+d61 8
+a68 1
+Block::Block(int size, char *data) : blocknum(0), isfree(1), numbytes(size), size(size), bytes(data), allocatedbytes(false)
+d79 2
+a82 1
+
+d85 3
+d93 1
+a93 1
+		sizeof(int)) ;
+d103 1
+a103 1
+	output.write(block.bytes, sizeof(char)*block.size) ;
+d112 1
+a112 1
+		sizeof(int64)) ;
+d115 1
+a115 2
+		sizeof(int)) ;
+//	cout << "read isfree = " << block.isfree << endl ;
+d122 2
+a123 1
+	input.read(reinterpret_cast<char *>(&block.size), 
+d125 1
+d127 16
+a142 1
+	input.read(reinterpret_cast<char *>(block.bytes), sizeof(char)*block.size) ;
+d149 1
+a149 1
+	if (offset > size || offset < 0) {
+d156 1
+a156 1
+
+d162 1
+d164 1
+d172 1
+d182 1
+d187 1
+a187 1
+	if (offset > size || offset < 0) {
+d191 1
+a191 1
+	if (length > size || length < 0 || offset + length > size) {
+d200 1
+a200 1
+	isfree = 0 ;
+d205 4
+d250 6
+d263 3
+a265 4
+	if (size >= newsize) {
+		// Already allocated bytes, just reset size
+		size = newsize ;
+	} else if ( ! numbytes) {
+d270 1
+d272 3
+a274 10
+		// If we are here, then numbytes < numBytes and
+		// numbytes != 0. In this case we have an allocated
+		// array that is too small. We'll just free and
+		// readjust.
+		if (allocatedbytes) {
+			delete [] bytes ;
+		}
+		size = newsize ;
+		bytes = new char[newsize] ;
+		allocatedbytes = true ;
+a275 4
+
+	// Zero data in block
+	memset(bytes, 0, size) ;
+
+d310 1
+a310 1
+	if (offset > numbytes) {
+a317 9
+void
+Block::setIsFree(bool freeblock)
+{
+	if (freeblock) {
+		isfree = 1 ;
+	} else {
+		isfree = 0 ;
+	}
+}
+d319 21
+a339 9
+bool
+Block::isFree()
+{
+	if (isfree == 1) {
+		return true ;
+	} else {
+		return false ;
+	}
+}
+@
+
+
+1.7
+log
+@Added zeroBytes() call
+@
+text
+@d10 1
+a10 1
+Block::Block(int64 bnum, int size) : blocknum(bnum), isfree(1), numbytes(0), size(size)
+d40 1
+a40 1
+Block::Block(int size) : blocknum(0), isfree(1), numbytes(0), size(size)
+d51 1
+a51 1
+Block::Block() : blocknum(0), isfree(1), numbytes(0), size(0)
+d55 7
+d64 3
+a66 1
+	delete [] bytes ;
+d129 18
+d222 1
+d229 3
+a231 1
+		delete [] bytes ;
+d234 1
+@
+
+
+1.6
+log
+@Make sure block data is set to all zeros when block is resized.
+@
+text
+@d104 16
+@
+
+
+1.5
+log
+@Move Unit Tests to utest directory. Move FreeBlockMap to storprovider. Fix up
+BlockFile to call FreeBlockMap to get freeblocks.
+@
+text
+@d190 3
+@
+
+
+1.4
+log
+@
+Added debug output to BlockFile.cpp and added functionality to Block.cpp
+@
+text
+@d10 1
+a10 1
+Block::Block(off_t bnum, int size) : blocknum(bnum), isfree(1), numbytes(0), size(size)
+d64 1
+a64 1
+		sizeof(off_t)) ;
+d86 1
+a86 1
+		sizeof(off_t)) ;
+d150 1
+a150 1
+Block::setBlockNum(off_t bnum)
+d160 1
+a160 1
+off_t
+@
+
+
+1.3
+log
+@Finished unit testing Block and BlockFile interfaces. The BlockFile interface is
+currently very simple, and is missing a persistent sense of freeblocks. This
+needs to be fixed up.
+
+Currently neither interface does any thread syncroniziation. For BlockFile we should
+probably consider keeping numfreeblocks as a static member shared across all classes
+and syncing on it. Might need to put in block level locking as well. This way multiple
+BlockFile's can be instantiated pointing to the same disk file, and thread access
+to it.
+@
+text
+@d221 11
+@
+
+
+1.2
+log
+@
+Write interfaces and unit tests for new block interface. The next step will
+be to port the filesystem over to the new interface.
+@
+text
+@d10 1
+a10 1
+Block::Block(off_t bnum, int size) : blocknum(bnum), numbytes(0), size(size)
+d40 1
+a40 1
+Block::Block(int size) : blocknum(0), numbytes(0), size(size)
+d51 1
+a51 1
+Block::Block() : blocknum(0), numbytes(0), size(0)
+d57 1
+a57 1
+	//delete [] bytes ;
+d62 1
+a62 1
+	cout << "write blocknum = " << block.blocknum << endl ;
+d65 3
+d70 1
+a70 1
+	cout << "write block.numbytes = " << block.bytes << endl ;
+d73 1
+a73 1
+	cout << "write block.size = " << block.size << endl ;
+d76 1
+a76 1
+	cout << "write block.bytes = " << block.bytes << endl ;
+d88 3
+d120 2
+d219 20
+@
+
+
+1.1
+log
+@
+Buildable (but not functional) syg_storprovider. The move from fs to the
+storprovider directory has started. Right now there are duplicated files
+that will be cleaned up. This doesn't affect the build.
+@
+text
+@d8 3
+a10 1
+Block::Block(off_t blocknum) : size(0), nextblock(-1), prevblock(-2), blocknum(blocknum)
+d12 9
+a20 2
+	memset(bytes, 0, 4096) ;
+	memset(reserved, 0, 8) ;
+d22 1
+a22 1
+//		throw seerror("negative blocknum") ;
+d25 6
+d40 15
+d57 1
+d62 13
+a74 1
+	output.write(reinterpret_cast<const char *>(&block), sizeof(Block)) ;
+a75 1
+//	cout << block.nextblock << endl ;
+d81 14
+a94 5
+//	cout << "sizeof(Block) = " << sizeof(Block) << endl ;
+	input.read(reinterpret_cast<char *>(&block), sizeof(Block)) ;
+	cout << "blocknum = " << block.blocknum << endl ;
+	cout << "nextblock = " << block.nextblock << endl ;
+	cout << "prevbloc = " << block.prevblock << endl ;
+d101 1
+a101 1
+	if (offset > 4096 || offset < 0) {
+d105 1
+a105 1
+	if (length > 4096 || length < 0 || offset + length > 4096) {
+d110 2
+a111 2
+	if (size < offset+length) {
+		size = offset+length ;
+d114 1
+a114 7
+	return 1 ;
+}
+
+int
+Block::setBytes(int chunk, int offset, char *data, int length)
+{
+	return 0 ;
+d117 2
+a118 2
+int
+Block::setSize(int chunk, int length)
+d120 2
+a121 8
+	return 0 ;
+}
+
+int
+Block::setSize(int length)
+{
+	if (length < 0 || length > 4096) {
+		return 0 ;
+d124 1
+a124 1
+	size = length ;
+d126 1
+a126 1
+	return 1 ;
+d130 1
+a130 1
+Block::getSize(int chunk)
+d132 1
+a132 1
+	return 0 ;
+d141 2
+a142 2
+void
+Block::setPrevBlock(off_t prevblock)
+d144 6
+a149 1
+	Block::prevblock = prevblock ;
+d153 1
+a153 1
+Block::getPrevBlock() const 
+d155 1
+a155 1
+	return prevblock ;
+d158 2
+a159 2
+void
+Block::setNextBlock(off_t nextblock)
+d161 22
+a182 1
+	Block::nextblock = nextblock ;
+d185 2
+a186 2
+off_t
+Block::getNextBlock()
+d188 5
+a192 1
+	return nextblock ;
+d196 1
+a196 1
+Block::getFreeChunk()
+d198 1
+a198 1
+	return 0 ;
+d202 1
+a202 1
+Block::freeChunk(int chunk)
+d204 1
+a204 1
+	return 0 ;
+d207 2
+a208 2
+int
+Block::setBlockNum(off_t blocknum)
+d210 1
+a210 6
+	if (blocknum < 0) {
+		return 0 ;
+	}
+
+	Block::blocknum = blocknum ;
+	return 1 ;
+d213 1
+a213 5
+off_t
+Block::getBlockNum()
+{
+	return blocknum ;
+}
+@
+

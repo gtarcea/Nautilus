@@ -1,0 +1,71 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.12.23.23.42;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+commitid	f58425c587449ec;
+kopt	kv;
+filename	@ClientSocket.cpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@
+Add daemon and socket code.
+@
+text
+@// Implementation of the ClientSocket class
+
+#include "ClientSocket.hpp"
+#include "SocketException.hpp"
+
+
+ClientSocket::ClientSocket ( std::string host, int port )
+{
+  if ( ! Socket::create() )
+    {
+      throw SocketException ( "Could not create client socket." );
+    }
+
+  if ( ! Socket::connect ( host, port ) )
+    {
+      throw SocketException ( "Could not bind to port." );
+    }
+
+}
+
+
+const ClientSocket& ClientSocket::operator << ( const std::string& s ) const
+{
+  if ( ! Socket::send ( s ) )
+    {
+      throw SocketException ( "Could not write to socket." );
+    }
+
+  return *this;
+
+}
+
+
+const ClientSocket& ClientSocket::operator >> ( std::string& s ) const
+{
+  if ( ! Socket::recv ( s ) )
+    {
+      throw SocketException ( "Could not read from socket." );
+    }
+
+  return *this;
+}
+@

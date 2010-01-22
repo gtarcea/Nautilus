@@ -1,0 +1,348 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.02.19.38.53;	author irrer;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	97c429f60342e72;
+kopt	kv;
+filename	@ConstructVirtualDisk.cpp@;
+
+1.1
+date	2005.05.09.12.57.12;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	908427f5e1527e5;
+kopt	kv;
+filename	@ConstructVirtualDisk.cpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Rework of policy engine.
+@
+text
+@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <vector>
+
+#include <DBinterface.hpp>
+#include <DBexception.hpp>
+#include <PolicyUtil.hpp>
+
+static void usage (char **argv, const char *msg)
+{
+    // show the user the special error
+    fprintf(stderr, "%s\n", msg);
+
+    // determine the name of this executable
+    char *myname = argv[0];
+    while (strchr(myname, '/') != NULL) {
+        myname = strchr(myname, '/');
+    }
+    // print standard usage message
+    fprintf(stderr, "Usage: \n    %s policy_name kbytes virtual_disk_name block_size\n", myname);
+
+    // abort with error exit status
+    exit(1);
+}
+
+// ------------------------------------------------------------------------
+
+// define the pertinent information for a single physical disk
+typedef struct PhysDiskStruct
+{
+    char name[31];       // name of physical disk
+    int64 kilo_unused;   // remaining number of kilobytes (from database)
+    int64 taking;        // amount taking from kilo_unused
+} PhysDisk;
+
+typedef PhysDisk* PhysDiskPtr;
+
+typedef vector<PhysDiskPtr> PhysDiskList;
+
+// ------------------------------------------------------------------------
+
+/**
+ * Check to see that the policy exists.  If not, print out
+ * the list of policies to choose from.
+ *
+ * @@return Policy if policy is ok, NULL if there is a
+ *         problem.  Caller must delete returned value.
+ */
+static char* GetPolicy(DBinterface *db, const char *policyName)
+{
+    char *policy = NULL;   // return value
+
+    char *query = new char[100 + strlen(policyName)];
+    sprintf (query,
+        "SELECT name,policy FROM virt_disk_policy WHERE name = '%s'", policyName);
+    if (db->execute(query)) {
+
+        // If there is a row, then there is such a policy.  Return the policy.
+        if (db->nextRow()) {
+            policy = new char[strlen(db->column(1))+1];
+            strcpy(policy, db->column(1));
+        }
+        else {
+            // No such policy - return NULL.
+            printf("No such virtual_disk_policy %s.  Choices are:\n", policyName);
+            if(db->execute("SELECT name FROM virt_disk_policy")) {
+                while (db->nextRow()) {
+                    printf("    %s\n", db->column(0));
+                }
+            }
+        }
+    }
+    else {
+        fprintf(stderr, "Could not execute query: %s.\n", query);
+    }
+
+    delete []query;
+    return policy;
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Check to see that the virtual disk exists.
+ *
+ * @@return true if virtual disk is ok, false if there is a problem.
+ */
+static bool ValidateVirtualDisk(DBinterface *db, const char *virtDiskName)
+{
+    bool ok = false;
+    char *query = new char[100 + strlen(virtDiskName)];
+    sprintf (query,
+        "SELECT name FROM virt_disk WHERE name = '%s'", virtDiskName);
+    if (db->execute(query) ) {
+        if (db->nextRow()) {
+            ok = false;
+            printf("There is already a virtual disk '%s'.\n", virtDiskName);
+        }
+        else {
+            ok = true;
+        }
+    }
+    else {
+        fprintf(stderr, "Could not execute query: %s.\n", query);
+    }
+    delete [] query;
+    return ok;
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Get a list of disks to be used in making the virtual disk drive.
+ *
+ * @@param db Database handle.
+ *
+ * @@param requiredKbytes Number of kilobytes required.
+ *
+ * @@param policy Policy dictating what kind of disks can be used.
+ */
+static PhysDiskList *GetDiskList(DBinterface *db,
+    const int64 requiredKbytes, const char *policy)
+{
+    char *query = new char[200 + strlen(policy)];
+    int64 totalKbytes = 0;
+    PhysDiskList *list = NULL;   // return value
+    sprintf(query, "SELECT name,kilo_unused FROM physical_disk WHERE %s", policy);
+    int64 kb;
+    if (db->execute(query)) {
+        list = new PhysDiskList();
+        while (db->nextRow() && (totalKbytes < requiredKbytes)) {
+            // only look at disks with unused space
+            kb = atoll(db->column(1));
+            if (kb > 0) {
+                PhysDisk *physDisk = new PhysDisk();
+                strcpy(physDisk->name, db->column(0));
+                physDisk->kilo_unused = kb;
+                physDisk->taking = -1;
+                list->push_back(physDisk);
+                totalKbytes += kb;
+            }
+        }
+        if (totalKbytes < requiredKbytes) {
+            fprintf(stderr,
+                "Insufficient disk space.  %Ld requested, but only %Ld available.  Short by %Ld kbytes.\n",
+                requiredKbytes, totalKbytes, requiredKbytes - totalKbytes);
+            while (list->size() > 0) {
+                PhysDisk *physDisk = list->back();
+                list->pop_back();
+                delete physDisk;
+            }
+            delete list;
+            list = NULL;
+        }
+    }
+    else {
+        fprintf(stderr, "Could not query database with %s\n", query);
+    }
+    delete [] query;
+    return list;
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Update the physical disk records with their new unused values.
+ *
+ * @@param db Database handle.
+ *
+ * @@param disks List of physical disks to use.
+ *
+ * @@param requiredKbytes Total kilobytes required for virtual disk.
+ *
+ * @@return True on success, false on failure.
+ */ 
+static bool UpdatePhysicalDisks(DBinterface *db, int64 requiredKbytes, PhysDiskList *disks)
+{
+    bool ok = true;
+    char query[100];
+    int64 used = 0;
+    int64 kb = 0;
+    int64 needed = 0;
+    for (int d = 0; d < disks->size(); d++) {
+        PhysDisk *pd = (*disks)[d];
+        needed = requiredKbytes - used;
+        if (pd->kilo_unused < needed) {
+            kb = 0;   // need all of the space
+            pd->taking = pd->kilo_unused;
+        }
+        else {
+            kb = pd->kilo_unused - needed;   // need some of the space
+            pd->taking = needed;
+        }
+
+        sprintf(query, "UPDATE physical_disk SET kilo_unused = '%Ld' WHERE name = '%s'",
+            kb, pd->name);
+        if(!db->execute(query)) {
+            fprintf(stderr, "Unable to update database with: %s\n", query);
+            ok = false;
+            break;
+        }
+        used += pd->taking;
+    }
+    return ok;
+}
+
+// ------------------------------------------------------------------------
+
+int main(int argc, char **argv)
+{
+    if (argc != 5) {
+        usage(argv, "Wrong number of parameters");
+    }
+
+    // put convenient names on parameters
+    char *policyName = argv[1];
+    char *kbytes = argv[2];
+    char *virtDiskName = argv[3];
+    char *block_size = argv[4];
+
+    // check that kbytes is a valid integer greater than zero
+    int64 requiredKbytes;
+    char c;
+    if (sscanf(kbytes, "%Ld%c", &requiredKbytes, &c) != 1) {
+        usage(argv, "kbytes must be an integer");
+    }
+    if (requiredKbytes < 1) {
+        usage(argv, "kbytes must be an integer greater than zero.");
+    }
+
+    int blockSize;
+    if (sscanf(block_size, "%d%c", &blockSize, &c) != 1) {
+        usage(argv, "block size must be an integer");
+    }
+    if (blockSize < 1) {
+        usage(argv, "block size must be an integer greater than zero.");
+    }
+
+
+    // database to query.
+
+    DBinterface *db = NULL;
+    try {
+        db = new DBinterface();
+    }
+    catch (DBexception *ex) {
+        fprintf(stderr, "Unable to open database: %s\n", ex->toString());
+        exit(1);
+    }
+
+    // check that policy exists.  If it does not, then print the
+    // list of policies.
+    char *policy = GetPolicy(db, policyName);
+    if (policy == NULL) {
+        exit(1);
+    }
+
+    // check that virtual disk does not already exist
+    if (!ValidateVirtualDisk(db, virtDiskName)) {
+        exit(1);
+    }
+
+    // query for disks and determine if there is enough space. 
+    // Get list of disks.
+    PhysDiskList *disks = GetDiskList(db, requiredKbytes, policy);
+
+    if (disks == NULL) {
+        exit(1);
+    }
+
+    // change physical disk allocation
+    if(!UpdatePhysicalDisks(db, requiredKbytes, disks)) {
+        exit(1);
+    }
+
+    // add virtual disk entry.
+    char *query = new char[500];
+    for (int d = 0; d < disks->size(); d++) {
+        PhysDisk *pd = (*disks)[d];
+        sprintf(query, "INSERT INTO virt_disk VALUES ('%s', '%s', '%Ld', '%s', '%d')",
+            virtDiskName, pd->name, pd->taking, policyName, blockSize);
+        if(!db->execute(query)) {
+            fprintf(stderr, "Unable to insert virt_disk entry:\n%s\n", query);
+            delete [] query;
+            exit(1);
+        }
+    }
+
+    // print a happy, informative, message
+    printf("Virtual disk '%s' created.  List of physical disks:\n", virtDiskName);
+    for (int d = 0; d < disks->size(); d++) {
+        PhysDisk *pd = (*disks)[d];
+        printf("    %8s  %8Ld\n", pd->name, pd->taking);
+    }
+    delete [] policy;
+    delete [] query;
+    delete db;
+    exit(0);
+}
+@
+
+
+1.1
+log
+@Added files for policy manipulation.
+@
+text
+@@
+

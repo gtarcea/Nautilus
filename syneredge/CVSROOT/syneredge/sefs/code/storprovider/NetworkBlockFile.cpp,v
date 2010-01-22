@@ -1,0 +1,252 @@
+head	1.5;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.5
+date	2005.06.12.23.36.41;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	e3c42acc6f271ce;
+kopt	kv;
+filename	@NetworkBlockFile.cpp@;
+
+1.4
+date	2005.06.12.01.39.04;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	76442ab91ef00b4;
+kopt	kv;
+filename	@NetworkBlockFile.cpp@;
+
+1.3
+date	2005.06.07.18.57.18;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	bc842a5edfa1559;
+kopt	kv;
+filename	@NetworkBlockFile.cpp@;
+
+1.2
+date	2005.06.07.16.31.54;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	39442a5cbea261d;
+kopt	kv;
+filename	@NetworkBlockFile.cpp@;
+
+1.1
+date	2005.06.01.18.53.16;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	85c429e040c3d83;
+kopt	kv;
+filename	@NetworkBlockFile.cpp@;
+
+
+desc
+@@
+
+
+1.5
+log
+@Get RPC interfaces working with new Orb changes. Still need to move to
+threaded Orb.
+@
+text
+@
+#include "NetworkBlockFile.hpp"
+#include "StorProvClntInterface.hpp"
+#include "PT.hpp"
+
+using namespace std ;
+namespace SynerEdge {
+
+int blocksize = -1 ;
+
+NetworkBlockFile::NetworkBlockFile(ClientSocket &sock)
+{
+	sp = new StorProvClntInterface(sock) ;
+	blocksize = sp->getBlockSize() ;
+}
+
+NetworkBlockFile::~NetworkBlockFile()
+{
+	// Not sure what to do here...
+}
+
+bool 
+NetworkBlockFile::open()
+{
+	return true ; // Nothing to do?
+}
+
+bool 
+NetworkBlockFile::close()
+{
+	// Nothing to do?
+	return true ;
+}
+
+uint64 
+NetworkBlockFile::getNumBlocks()
+{
+	return sp->getNumBlocks() ;
+}
+
+uint64
+NetworkBlockFile::getNumFreeBlocks()
+{
+	return sp->getNumFreeBlocks() ;
+}
+
+uint64 
+NetworkBlockFile::getFreeBlock()
+{
+	uint64 blocknum ;
+	PT("Entering NetworkingBlockFile::getFreeBlock()") ;
+	blocknum = sp->getFreeBlock() ;
+	PT("Leaving NetworkingBlockFile::getFreeBlock()") ;
+	return blocknum ;
+}
+
+bool 
+NetworkBlockFile::releaseBlock(uint64 blocknum)
+{
+	return sp->releaseBlock(blocknum) ;
+}
+
+bool 
+NetworkBlockFile::flushFreeBlockList()
+{
+	return sp->flushFreeBlockList() ;
+}
+
+int 
+NetworkBlockFile::getBlockSize() const
+{
+	return blocksize ;
+}
+
+bool 
+NetworkBlockFile::writeBlock(uint64 blocknum, int offset, int size, char *data)
+{
+	// ?? what to do about conversion to string...
+	return sp->writeBlock(blocknum, offset, size, string(data, size)) ;
+}
+
+bool 
+NetworkBlockFile::writeBlock(Block &block)
+{
+	return sp->writeBlock(block.getBlockNum(), 0, block.getNumBytes(),
+			string(block.getBytes(), block.getNumBytes()) ) ;
+}
+
+bool 
+NetworkBlockFile::readBlock(uint64 blocknum, Block &block)
+{
+	return sp->readBlock(blocknum, block) ;
+}
+
+bool 
+NetworkBlockFile::zeroBlock(uint64 blocknum)
+{
+	return sp->zeroBlock(blocknum) ;
+}
+
+} // namespace SynerEdge
+@
+
+
+1.4
+log
+@
+Move BlockFileBase.hpp to iBlockIO.hpp
+Cleaned up interfaces to support uint64 rather than int64
+VirtualDisk and VirtualBlockFile now also inherit from iBlockIO, so now
+BlockFileIO can use any of these interfaces.
+@
+text
+@d4 1
+d50 5
+a54 1
+	return sp->getFreeBlock() ;
+@
+
+
+1.3
+log
+@Add support for writeBlock(block) call.
+@
+text
+@d27 1
+a27 1
+void 
+d31 1
+d34 2
+a35 2
+int64 
+NetworkBlockFile::getNumBlocks() const
+d40 2
+a41 2
+int64
+NetworkBlockFile::getNumFreeBlocks() const
+d46 1
+a46 1
+int64 
+d53 1
+a53 1
+NetworkBlockFile::releaseBlock(int64 blocknum)
+d71 1
+a71 1
+NetworkBlockFile::writeBlock(int64 blocknum, int offset, int size, char *data)
+d85 1
+a85 1
+NetworkBlockFile::readBlock(int64 blocknum, Block &block)
+d91 1
+a91 1
+NetworkBlockFile::zeroBlock(int64 blocknum)
+@
+
+
+1.2
+log
+@Mostly working version of NetworkBlockFile class
+@
+text
+@d79 2
+a80 2
+	// ?? how to convert...
+	return false ;
+@
+
+
+1.1
+log
+@Add interfaces to use BlockFiles on other hosts.
+@
+text
+@d8 2
+d13 1
+d66 1
+a66 1
+	// ??
+d72 2
+a73 2
+	// ?? what to do...
+	return sp->writeBlock(blocknum, offset, size, string(data)) ;
+d80 1
+@
+

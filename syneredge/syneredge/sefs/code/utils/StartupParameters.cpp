@@ -1,0 +1,126 @@
+#include "StartupParameters.hpp"
+#include "boost/format.hpp"
+#include "StringConversion.hpp"
+#include <iostream>
+#include "SignalThread.hpp"
+
+namespace SynerEdge
+{
+
+StartupParameters *StartupParameters::_instance = 0;
+boost::once_flag StartupParameters::_sentry = BOOST_ONCE_INIT;
+
+void StartupParameters::storeStartupArgs(int argc, char **argv)
+{
+	for (int i = 0; i < argc; i++)
+	{
+		std::wstring wc(StringConversion::toUTF16(argv[i]));
+		_args.push_back(wc);
+	}
+}
+
+StartupParameters *StartupParameters::instance()
+{
+	boost::call_once(&StartupParameters::createInstance, _sentry);
+	return _instance;
+}
+
+void StartupParameters::createInstance()
+{
+	_instance = new StartupParameters();
+}
+
+StartupParameters::~StartupParameters()
+{
+	_instance = 0;
+	std::wcout << "startup parameters destructed" << std::endl;
+}
+
+StartupParameters::StartupParameters() : parametersWereReparsed(this)
+{
+	std::wifstream env("/etc/syneredge.env", std::ios::in);
+	if (env)
+	{
+		parseInputStream(env);
+		env.close();
+	
+		SignalThread::instance(SIGHUP)->raisedSignal += 
+			new ObserverDelegate<StartupParameters, int>(*this, 
+			&StartupParameters::reparseInputStream);
+	}
+	else
+	{
+		boost::wformat fmt(L"Could not open startup parameters: %s");
+		fmt % L"/etc/syneredge.env";
+		throw StartupParametersException(fmt.str());
+	}
+
+}
+
+void StartupParameters::reparseInputStream(Observable *obs, const int &sig)
+{
+	{
+		boost::mutex::scoped_lock lk(_mtx, true);
+
+		_env.clear();
+		std::wifstream env("/etc/syneredge.env", std::ios::in);
+		if (env)
+		{
+			parseInputStream(env);	
+		}
+		env.close();
+	}
+
+	BaseEventArgs e;
+	parametersWereReparsed(e);
+}
+
+void StartupParameters::parseInputStream(std::wifstream &env)
+{
+	while (! env.eof())
+	{
+		std::wstring param, value;
+		if (env >> param >> value)
+		{
+			_env[param] = value;	
+		}
+	}
+}
+
+StartupParameters::argsiterator StartupParameters::args_begin()
+{
+	return _args.begin();
+}
+
+StartupParameters::argsiterator StartupParameters::args_end()
+{
+	return _args.end();
+}
+
+size_t StartupParameters::args_count()
+{
+	return _args.size();
+}
+
+bool StartupParameters::env_find(const std::wstring &param, std::wstring &out)
+{
+	boost::mutex::scoped_lock lk(_mtx, true);
+
+	bool result = false;
+	enviterator itor = _env.find(param);
+	if (itor != _env.end())
+	{
+		result = true;
+		out = (*itor).second;
+	}
+
+	return result;
+}
+
+std::wostream &operator<<(std::wostream &out, const StartupParametersException &exp)
+{
+        out << exp.getMsg();
+        return out;
+}
+
+} //namespace SynerEdge

@@ -1,0 +1,305 @@
+head	1.5;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.5
+date	2005.06.09.22.46.25;	author aprakash;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	cd442a8c6b16106;
+kopt	kv;
+filename	@BlockUnitTest.cpp@;
+
+1.4
+date	2005.06.09.17.02.37;	author aprakash;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	98042a875f55961;
+kopt	kv;
+filename	@BlockUnitTest.cpp@;
+
+1.3
+date	2005.05.01.21.58.20;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	ff8427550e854fc;
+kopt	kv;
+filename	@BlockUnitTest.cpp@;
+
+1.2
+date	2005.04.22.20.34.45;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	c1042695fdb55f1;
+kopt	kv;
+filename	@BlockUnitTest.cpp@;
+
+1.1
+date	2005.04.21.17.04.03;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	3b44267dce5664a;
+kopt	kv;
+filename	@BlockUnitTest.cpp@;
+
+
+desc
+@@
+
+
+1.5
+log
+@Added tests for bound checking.
+@
+text
+@#include "BlockUnitTest.hpp"
+#include "Block.hpp"
+#include "seerror.hpp"
+#include <iostream>
+#include <fstream>
+using namespace std ;
+using namespace SynerEdge ;
+
+
+
+// This is specified in testOrder.
+// CPPUNIT_TEST_SUITE_REGISTRATION(BlockUnitTest) ;
+
+void
+BlockUnitTest::setUp()
+{
+	//tb1 = new Block() ;
+	//tb2 = new Block() ;
+}
+
+void
+BlockUnitTest::tearDown()
+{
+//	delete tb1 ;
+//	delete tb2 ;
+}
+
+void
+BlockUnitTest::testConstructor()
+{
+//	cout << "BlockUnitTest::testConstructor()" << endl ;
+	Block tb(1048) ;
+	CPPUNIT_ASSERT(tb.getBlockNum() == 0) ;
+	CPPUNIT_ASSERT(tb.getSize() == 1048) ;
+
+	Block tb2(2, 1048) ;
+	CPPUNIT_ASSERT(tb2.getSize() == 1048) ;
+	CPPUNIT_ASSERT(tb2.getBlockNum() == 2) ;
+
+	// Test boundary conditions
+	try {
+		Block tooBig(9000) ;
+		CPPUNIT_FAIL("Allowed creation of block that is too big") ;
+	} catch (seerror &exception) { }
+
+	try {
+		Block tooSmall(1) ;
+		CPPUNIT_FAIL("Allowed creation of block that is too small") ;
+	} catch (seerror &exception) { }
+
+	try {
+		Block negativeBlocknum(-1, 5000) ;
+		CPPUNIT_FAIL("Allowed creation of block with negative blocknum") ;
+	} catch (seerror &exception) { }
+	
+}
+
+void
+BlockUnitTest::testSetGet()
+{
+	//cout << "BlockUnitTest::testSetGet()" << endl ;
+
+	Block b;  // empty block of size 0
+	CPPUNIT_ASSERT(b.getSize() == 0);
+	CPPUNIT_ASSERT(b.setSize(1024) == true);
+	CPPUNIT_ASSERT(b.getSize() == 1024);
+
+	Block tb(1024) ;
+	char *buf = "abc123" ;
+
+	char largebuf[2000];
+	init_buffer(largebuf, 2000);
+	
+	CPPUNIT_ASSERT(tb.getBlockNum() == 0) ;
+	CPPUNIT_ASSERT(tb.setBlockNum(-1) == false) ;
+	CPPUNIT_ASSERT(tb.getBlockNum() == 0) ;
+	CPPUNIT_ASSERT(tb.setBlockNum(12) == true) ;
+	CPPUNIT_ASSERT(tb.getBlockNum() == 12) ;
+	CPPUNIT_ASSERT(tb.getNumBytes() == 0) ;
+	CPPUNIT_ASSERT(tb.setBytes(0,buf,7) == 7) ;
+	CPPUNIT_ASSERT(tb.getNumBytes() == 7) ;
+	CPPUNIT_ASSERT(tb.setNumBytes(4) == true) ;
+	CPPUNIT_ASSERT(tb.getNumBytes() == 4) ;
+	CPPUNIT_ASSERT(tb.setNumBytes(8) == false) ;
+	CPPUNIT_ASSERT(tb.getNumBytes() == 4) ;
+
+	// check for off-by-one errors
+	CPPUNIT_ASSERT(tb.setBytes(0,largebuf, 1024) == 1024) ;
+	CPPUNIT_ASSERT(tb.setBytes(0,largebuf, 1023) == 1023) ;
+	CPPUNIT_ASSERT(tb.setBytes(0,largebuf, 1025) == 0) ;
+	CPPUNIT_ASSERT(tb.setBytes(1024,largebuf,1) == 0) ;
+	CPPUNIT_ASSERT(tb.setBytes(1024, largebuf, 0) == 0) ;
+	CPPUNIT_ASSERT(tb.setBytes(0, largebuf, 0) == 0) ;
+	CPPUNIT_ASSERT(tb.setBytes(-1, largebuf, 0) == 0) ;
+	CPPUNIT_ASSERT(tb.setBytes(1023, largebuf, 1) == 1) ;
+	CPPUNIT_ASSERT(tb.setBytes(1023, largebuf, INT_MAX - 1) == 0) ;
+
+	// Now check for reads for off-by-one errors
+
+	CPPUNIT_ASSERT(tb.getBytes() != NULL);
+	CPPUNIT_ASSERT(tb.getBytes(0) != NULL);
+	CPPUNIT_ASSERT(tb.getBytes(1023) != NULL);
+	CPPUNIT_ASSERT(tb.getBytes(1024) == NULL);
+	CPPUNIT_ASSERT(tb.getBytes(1025) == NULL);
+	CPPUNIT_ASSERT(tb.getBytes(-1) == NULL);
+     
+
+
+
+
+
+	CPPUNIT_ASSERT(tb.zeroBytes(-1, 500) == false) ;
+	// Check for off-by-one errors
+	CPPUNIT_ASSERT(tb.zeroBytes(0, 1024) == true) ;
+	CPPUNIT_ASSERT(tb.zeroBytes(0, 1023) == true) ;
+	CPPUNIT_ASSERT(tb.zeroBytes(0, 1025) == false) ;
+	CPPUNIT_ASSERT(tb.zeroBytes(1, 1023) == true) ;
+	CPPUNIT_ASSERT(tb.zeroBytes(1, 1024) == false) ;
+
+
+	CPPUNIT_ASSERT(tb.zeroBytes(1, 100) == true) ;
+}
+
+void BlockUnitTest::iotest()
+{
+	Block tb(2048) ;
+	fstream file;
+	char filename[] = "/tmp/iotest";
+	tb.setBytes(0, "hello there", 12);
+	char *data = tb.getBytes();
+	// cout << "BlockUnitTest: iotest. Written bytes are " << tb.getBytes() << endl;
+	file.open(filename, ios::in | ios::out | ios::binary) ;
+	if (! file.is_open()) {
+		CPPUNIT_ASSERT(false);
+	}
+	file.seekg(0, ios::beg) ;
+	file << tb; // write the buffer to the file.
+	file.close();
+
+	Block outblock(2048);
+	file.open(filename, ios::in | ios::out | ios::binary) ;
+	if (! file.is_open()) {
+		CPPUNIT_ASSERT(false);
+	}
+	file.seekg(0, ios::beg) ;
+	file >> outblock; // write the buffer to the file.
+	file.close();
+	char *outblockdata = outblock.getBytes();
+	// cout << "BlockUnitTest: iotest. Read Bytes are " << outblockdata << endl;
+	CPPUNIT_ASSERT(!strcmp(data, outblockdata));   // should be equal
+}
+
+
+void
+BlockUnitTest::init_buffer(char *buf, int length)
+{
+	int i, j ;
+	char *abc="abcdefghijklmnopqrstuvwxy" ; /* 25 in length */
+
+	j = 0 ;
+	for(i = 0 ; i < length; i++) {
+		if (j == 25) {
+			j = 0 ;
+		}
+		buf[i] = abc[j] ;
+		j++ ;
+	}
+}
+@
+
+
+1.4
+log
+@These are partially converted tests. Many will break because of the changes
+to how readBlock and writeBlock behave -- they will fail if blocks are
+not allocated.
+
+testOrder.cpp controls the order of tests.
+@
+text
+@d9 2
+d70 4
+d86 26
+d113 1
+d115 6
+d151 17
+@
+
+
+1.3
+log
+@Removed cout of unit function tests
+@
+text
+@d5 1
+d9 2
+a10 1
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockUnitTest) ;
+d60 6
+a67 11
+
+	CPPUNIT_ASSERT(tb.isFree() == true) ;
+	tb.setIsFree(false) ;
+	CPPUNIT_ASSERT(tb.isFree() == false) ;
+	CPPUNIT_ASSERT(tb.getSize() == 1024) ;
+	CPPUNIT_ASSERT(tb.setSize(900) == false) ;
+	CPPUNIT_ASSERT(tb.getSize() == 1024) ;
+	CPPUNIT_ASSERT(tb.setSize(4000) == true) ;
+	CPPUNIT_ASSERT(tb.getSize() == 4000) ;
+	CPPUNIT_ASSERT(tb.setSize(2048) == true) ;
+	CPPUNIT_ASSERT(tb.getSize() == 2048) ;
+d83 29
+@
+
+
+1.2
+log
+@Updated unit tests
+@
+text
+@d27 1
+a27 1
+	cout << "BlockUnitTest::testConstructor()" << endl ;
+d57 1
+a57 1
+	cout << "BlockUnitTest::testSetGet()" << endl ;
+@
+
+
+1.1
+log
+@Moved Unit Tests to utest directory. Renamed all UnitTests to include "UnitTest" in the
+name of the file and the class.
+@
+text
+@d83 3
+@
+

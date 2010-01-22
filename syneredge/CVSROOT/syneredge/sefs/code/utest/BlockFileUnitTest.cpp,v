@@ -1,0 +1,478 @@
+head	1.8;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.8
+date	2005.06.10.18.36.28;	author gtarcea;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	666;
+commitid	9f442a9dd8a6f9f;
+kopt	kv;
+filename	@BlockFileUnitTest.cpp@;
+
+1.7
+date	2005.06.10.17.37.32;	author gtarcea;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	a042a9cfca42b8;
+kopt	kv;
+filename	@BlockFileUnitTest.cpp@;
+
+1.6
+date	2005.06.10.02.54.37;	author aprakash;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	57042a900e31f10;
+kopt	kv;
+filename	@BlockFileUnitTest.cpp@;
+
+1.5
+date	2005.06.09.17.02.37;	author aprakash;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	98042a875f55961;
+kopt	kv;
+filename	@BlockFileUnitTest.cpp@;
+
+1.4
+date	2005.05.01.21.58.20;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	ff8427550e854fc;
+kopt	kv;
+filename	@BlockFileUnitTest.cpp@;
+
+1.3
+date	2005.04.25.23.23.11;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	f08426d7bca411d;
+kopt	kv;
+filename	@BlockFileUnitTest.cpp@;
+
+1.2
+date	2005.04.22.18.43.09;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	a80426945b0007d;
+kopt	kv;
+filename	@BlockFileUnitTest.cpp@;
+
+1.1
+date	2005.04.21.17.04.03;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	3b44267dce5664a;
+kopt	kv;
+filename	@BlockFileUnitTest.cpp@;
+
+
+desc
+@@
+
+
+1.8
+log
+@Rather than freeing block 4, free 1 past last block allocated to check function
+returns false trying to free an unallocated block.
+@
+text
+@#include "BlockFileUnitTest.hpp"
+#include "BlockFile.hpp"
+#include "Block.hpp"
+#include "BlockUnitTest.hpp"
+#include <stdlib.h>
+#include <iostream>
+
+using namespace std ;
+using namespace SynerEdge ;
+
+// CPPUNIT_TEST_SUITE_REGISTRATION(BlockFileUnitTest) ;
+
+void
+BlockFileUnitTest::setUp()
+{
+//	cout << "BlockFileUnitTest::setUp()" << endl ;
+	system("rm -f /tmp/newblockfile*") ; // Important. Otherwise state is left between tests.
+	bf = new BlockFile("/tmp/newblockfile") ;
+	assert(bf->create(1, 10, 1024));
+
+	//tb1 = new Block() ;
+	//tb2 = new Block() ;
+}
+
+void
+BlockFileUnitTest::tearDown()
+{
+//	cout << "BlockFileUnitTest::tearDown()" << endl ;
+	delete bf ;
+//	delete tb1 ;
+//	delete tb2 ;
+}
+
+void
+BlockFileUnitTest::testConstructor()
+{
+	//cout << "BlockFileUnitTest::testConstructor()" << endl ;
+	BlockFile nbf("/tmp/newblockfile") ;
+
+	CPPUNIT_ASSERT(nbf.getNumBlocks() == 0) ;
+	CPPUNIT_ASSERT(nbf.getStartingBlockNum() == 0) ;
+	CPPUNIT_ASSERT(nbf.getBlockSize() == 1024) ;
+	//cout << "Leaving BlockFileUnitTest::testConstructor" << endl ;
+}
+
+void
+BlockFileUnitTest::testCreateFile()
+{
+	//cout << "BlockFileUnitTest::testCreateFile()" << endl ;
+	system("rm -f /tmp/newblockfile*") ;
+	BlockFile nbf("/tmp/newblockfile") ;
+	CPPUNIT_ASSERT(nbf.create(1, 10, 1024) == true) ;
+	//nbf.printStuff() ;
+	// Test that 10 blocks were written
+	Block tb ;
+	for (int i = 1 ; i < 12 ; i++) {
+		CPPUNIT_ASSERT(nbf.readBlock(i, tb) == false); // blocks are not allocated.
+		CPPUNIT_ASSERT(nbf.zeroBlock(i) == false); // Can't zero an unallocated block
+		CPPUNIT_ASSERT(nbf.writeBlock(i, 0, 2, "a") == false); // Can't write an unallocated block
+	}
+
+	int alloclist[10];
+	for (int i = 0 ; i < 10 ; i++) {
+		alloclist[i] = nbf.getFreeBlock();
+		CPPUNIT_ASSERT(nbf.readBlock(alloclist[i], tb)); // should work. block is Allocated
+		CPPUNIT_ASSERT(nbf.zeroBlock(alloclist[i]) == true); 
+		CPPUNIT_ASSERT(nbf.writeBlock(alloclist[i], 0, 2, "a") == true);
+		// cout << "tb.getBlockNum() = " << tb.getBlockNum() << " and allocated block = " << alloclist[i] << endl;
+		CPPUNIT_ASSERT(tb.getBlockNum() == alloclist[i]) ;
+	}
+	// Check the out-of-bound case
+	int extraalloc = nbf.getFreeBlock();
+	CPPUNIT_ASSERT(extraalloc == 0);
+	
+	// Do more out-of-bound checks. Block numbers start at 1. 0 is invalid
+	CPPUNIT_ASSERT(nbf.readBlock(0, tb) == false); 
+	CPPUNIT_ASSERT(nbf.zeroBlock(0) == false); 
+	CPPUNIT_ASSERT(nbf.writeBlock(0, 0, 2, "a") == false); 
+
+
+	
+
+	// Free up all the blocks
+	for (int i = 0; i < 10; i++) {
+		CPPUNIT_ASSERT(nbf.releaseBlock(alloclist[i]));
+	}
+	system("rm -f /tmp/newblockfile*") ;
+
+}
+
+void BlockFileUnitTest::testOpenFile()
+{
+	//cout << "BlockFileUnitTest::testOpenFile()" << endl ;
+	// testCreateFile() should have already run.
+	
+	CPPUNIT_ASSERT(bf->open() == true) ;
+	CPPUNIT_ASSERT(bf->getNumBlocks() == 10) ;
+	// cout << "BlackFileUnitTest::testOpenFile: number of free blocks = " << bf->getNumFreeBlocks() << endl;
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 10) ;
+	CPPUNIT_ASSERT(bf->getBlockSize() == 1024) ;
+	CPPUNIT_ASSERT(bf->getStartingBlockNum() == 1) ;
+
+	// Test open of non-existent file
+	BlockFile nbf("/tmp/doesnotexist") ;
+	CPPUNIT_ASSERT(nbf.open() == false) ;
+
+	system("rm -f /tmp/newblockfile*") ;
+}
+
+void BlockFileUnitTest::testReadWriteBlocks()
+{
+	char *buf = "DEF456123" ;
+	//cout << "BlockFileUnitTest::testReadWriteBlocks()" << endl ;
+	CPPUNIT_ASSERT(bf->open() == true) ;
+
+	int first = bf->getFreeBlock();
+	int second = bf->getFreeBlock();
+	int third  = bf->getFreeBlock();
+	CPPUNIT_ASSERT(bf->writeBlock(first, 0, 10, buf) == true) ;
+	Block b ;
+	CPPUNIT_ASSERT(bf->readBlock(first, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+	CPPUNIT_ASSERT(bf->writeBlock(second, 0, 10, buf) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(second, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+	CPPUNIT_ASSERT(b.getBlockNum() == 2) ;
+	b.setBlockNum(third) ;
+	CPPUNIT_ASSERT(bf->writeBlock(b) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(third, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 10) ;
+	CPPUNIT_ASSERT(b.getBlockNum() == 3) ;
+
+	// Do some boundary checks on read/writes
+	char data[4096];
+	BlockUnitTest::init_buffer(data, 4096);
+	CPPUNIT_ASSERT(bf->writeBlock(first, 0,  bf->getBlockSize(), data) == true);
+	CPPUNIT_ASSERT(bf->writeBlock(first, 0,  bf->getBlockSize()+1, data) == false);
+	CPPUNIT_ASSERT(bf->writeBlock(first, 1023, 1, data) == true);
+	CPPUNIT_ASSERT(bf->writeBlock(first, 1024, 1, data) == false);
+	CPPUNIT_ASSERT(bf->writeBlock(first, 1023, -1, data) == false);
+	CPPUNIT_ASSERT(bf->writeBlock(first, -1, 10, data) == false);
+
+
+	CPPUNIT_ASSERT(bf->releaseBlock(first));
+	CPPUNIT_ASSERT(bf->releaseBlock(second));
+	CPPUNIT_ASSERT(bf->releaseBlock(third));
+
+	// Boundary check
+	CPPUNIT_ASSERT(bf->releaseBlock(third+1) == false);  // block not allocated previously.
+
+	system("rm -f /tmp/newblockfile*") ;
+}
+
+void
+BlockFileUnitTest::testZeroAndFreeBlocks()
+{
+	Block b ;
+	//cout << "BlockFileUnitTest::testZeroAndFreeBlocks()" << endl ;
+
+	CPPUNIT_ASSERT(bf->open() == true) ;
+
+	int first = bf->getFreeBlock();
+
+	CPPUNIT_ASSERT(bf->readBlock(first, b) == true) ;
+	// The assertion below has been changed.
+	CPPUNIT_ASSERT(b.getNumBytes() == 0) ; 
+	CPPUNIT_ASSERT(bf->zeroBlock(first) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(first, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 0) ;
+	// CPPUNIT_ASSERT(b.isFree() == false) ;
+
+	CPPUNIT_ASSERT(bf->releaseBlock(first) == true) ;
+	// CPPUNIT_ASSERT(bf->readBlock(first, b) == false) ;  uncomment later.
+	system("rm -f /tmp/newblockfile*") ;
+}
+
+void
+BlockFileUnitTest::testFreeBlockListMethods()
+{
+
+	//cout << "BlockFileUnitTest::testFreeBlockListMethods()" << endl ;
+	CPPUNIT_ASSERT(bf->open() == true) ;
+
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 10) ;
+	int64 bn = bf->getFreeBlock() ;
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 9) ;
+	CPPUNIT_ASSERT(bf->releaseBlock(bn) == true) ;
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 10) ;
+	bn = bf->getFreeBlock() ;
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 9) ;
+	bf->close() ;
+	CPPUNIT_ASSERT(bf->open() == true) ;
+	CPPUNIT_ASSERT(bf->getNumFreeBlocks() == 9) ;
+	CPPUNIT_ASSERT(bf->flushFreeBlockList() == true) ;
+
+	system("rm -f /tmp/newblockfile*") ;
+}
+
+@
+
+
+1.7
+log
+@Remove extraneous cout statements
+@
+text
+@d149 1
+a149 1
+	CPPUNIT_ASSERT(bf->releaseBlock(4) == false);  // block not allocated previously.
+@
+
+
+1.6
+log
+@*** empty log message ***
+@
+text
+@d37 1
+a37 1
+	cout << "BlockFileUnitTest::testConstructor()" << endl ;
+d43 1
+a43 1
+	cout << "Leaving BlockFileUnitTest::testConstructor" << endl ;
+d49 1
+a49 1
+	cout << "BlockFileUnitTest::testCreateFile()" << endl ;
+d93 1
+a93 1
+	cout << "BlockFileUnitTest::testOpenFile()" << endl ;
+d113 1
+a113 1
+	cout << "BlockFileUnitTest::testReadWriteBlocks()" << endl ;
+d158 1
+a158 1
+	cout << "BlockFileUnitTest::testZeroAndFreeBlocks()" << endl ;
+d181 1
+a181 1
+	cout << "BlockFileUnitTest::testFreeBlockListMethods()" << endl ;
+@
+
+
+1.5
+log
+@These are partially converted tests. Many will break because of the changes
+to how readBlock and writeBlock behave -- they will fail if blocks are
+not allocated.
+
+testOrder.cpp controls the order of tests.
+@
+text
+@d4 1
+d7 1
+d56 4
+a59 3
+	for (int i = 1 ; i < 11 ; i++) {
+		//	CPPUNIT_ASSERT(nbf.readBlock(i, tb) == false); // blocks are not allocated.
+		// CPPUNIT_ASSERT(tb.getBlockNum() == i) ; // Wouldn't work, since readBlock failed.
+d66 2
+d71 12
+d132 12
+d147 4
+@
+
+
+1.4
+log
+@Removed cout of unit function tests
+@
+text
+@d9 1
+a9 1
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockFileUnitTest) ;
+d15 1
+d17 2
+d35 1
+a35 1
+	//cout << "BlockFileUnitTest::testConstructor()" << endl ;
+d41 1
+a41 1
+	//cout << "Leaving BlockFileUnitTest::testConstructor" << endl ;
+d47 2
+a48 2
+	//cout << "BlockFileUnitTest::testCreateFile()" << endl ;
+	system("rm -f /tmp/newblockfile") ;
+d55 14
+a68 2
+		nbf.readBlock(i, tb) ;
+		CPPUNIT_ASSERT(tb.getBlockNum() == i) ;
+d70 2
+d76 1
+a76 1
+	//cout << "BlockFileUnitTest::testOpenFile()" << endl ;
+d78 1
+d81 1
+d89 2
+d96 1
+a96 1
+//	cout << "BlockFileUnitTest::testReadWriteBlocks()" << endl ;
+d98 5
+a102 1
+	CPPUNIT_ASSERT(bf->writeBlock(1, 0, 10, buf) == true) ;
+d104 1
+a104 1
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == true) ;
+d106 2
+a107 2
+	CPPUNIT_ASSERT(bf->writeBlock(2, 0, 10, buf) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(2, b) == true) ;
+d110 1
+a110 1
+	b.setBlockNum(3) ;
+d112 1
+a112 1
+	CPPUNIT_ASSERT(bf->readBlock(3, b) == true) ;
+d115 4
+d125 1
+a125 1
+//	cout << "BlockFileUnitTest::testZeroAndFreeBlocks()" << endl ;
+d128 8
+a135 4
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == true) ;
+	CPPUNIT_ASSERT(b.getNumBytes() != 0) ;
+	CPPUNIT_ASSERT(bf->zeroBlock(1) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == true) ;
+d137 5
+a141 4
+	CPPUNIT_ASSERT(b.isFree() == false) ;
+	CPPUNIT_ASSERT(bf->freeBlock(1) == true) ;
+	CPPUNIT_ASSERT(bf->readBlock(1, b) == true) ;
+	CPPUNIT_ASSERT(b.isFree() == true) ;
+d147 2
+d150 1
+d163 1
+a163 1
+	system("rm -f /tmp/newblockfile.*") ;
+d165 1
+@
+
+
+1.3
+log
+@Add additional CPPUNIT_ASSERT() test.
+@
+text
+@d32 1
+a32 1
+	cout << "BlockFileUnitTest::testConstructor()" << endl ;
+d44 1
+a44 1
+	cout << "BlockFileUnitTest::testCreateFile()" << endl ;
+d59 1
+a59 1
+	cout << "BlockFileUnitTest::testOpenFile()" << endl ;
+d75 1
+a75 1
+	cout << "BlockFileUnitTest::testReadWriteBlocks()" << endl ;
+d96 1
+a96 1
+	cout << "BlockFileUnitTest::testZeroAndFreeBlocks()" << endl ;
+@
+
+
+1.2
+log
+@Updated unit tests
+@
+text
+@d66 4
+@
+
+
+1.1
+log
+@Moved Unit Tests to utest directory. Renamed all UnitTests to include "UnitTest" in the
+name of the file and the class.
+@
+text
+@d121 2
+@
+

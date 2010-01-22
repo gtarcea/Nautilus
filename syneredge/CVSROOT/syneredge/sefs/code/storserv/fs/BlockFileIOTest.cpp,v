@@ -1,0 +1,114 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.04.21.16.50.09;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	ed84267d9b75be8;
+kopt	kv;
+filename	@BlockFileIOTest.cpp@;
+
+1.1
+date	2005.04.19.20.54.34;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	d6842656fd77a30;
+kopt	kv;
+filename	@BlockFileIOTest.cpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Move to utest directory.
+@
+text
+@#include "BlockFileIOTest.hpp"
+#include "BlockFileIO.hpp"
+#include "seerror.hpp"
+#include <iostream>
+using namespace std ;
+using namespace SynerEdge ;
+
+bool BlockFileIOTest::blockfilecreated = false ;
+CPPUNIT_TEST_SUITE_REGISTRATION(BlockFileIOTest) ;
+
+void
+BlockFileIOTest::setUp()
+{
+	if (! blockfilecreated) {
+		system("rm -f /tmp/blockfileiotest") ;
+		cout << "BlockFile constructor" << endl ;
+		BlockFile bf("/tmp/blockfileiotest") ;
+		cout << "BlockFile create" << endl ;
+		bf.create(1, 100, 1024) ;
+		cout << "BlockFileIO constructor" << endl ;
+		blockfilecreated = true ;
+	}
+	bfio = new BlockFileIO("/tmp/blockfileiotest") ;
+	//tb1 = new Block() ;
+	//tb2 = new Block() ;
+}
+
+void
+BlockFileIOTest::tearDown()
+{
+	delete bfio ;
+//	delete tb1 ;
+//	delete tb2 ;
+}
+
+void
+BlockFileIOTest::testConstructor()
+{
+	cout << "BlockFileIOTest::testConstructor()" << endl ;
+	BlockFileIO bfiotc("/tmp/blockfileiotest") ;
+}
+
+void
+BlockFileIOTest::testOpenRelease()
+{
+	cout << "BlockFileIOTest::testOpenRelease()" << endl ;
+	CPPUNIT_FAIL("not implemented") ;
+}
+
+void
+BlockFileIOTest::testReadWrite()
+{
+	cout << "BlockFileIOTest::testReadWrite()" << endl ;
+	// Test small write
+	CPPUNIT_ASSERT(bfio->open("/etc/syneredge/fbmap/bfiotest.file", 0) == true) ;
+	CPPUNIT_FAIL("not implemented") ;
+}
+
+void
+BlockFileIOTest::testTruncate()
+{
+	cout << "BlockFileIOTest::testTruncate()" << endl ;
+	CPPUNIT_FAIL("not implemented") ;
+}
+@
+
+
+1.1
+log
+@
+New BlockFile interface and corresponding unit tests. These build, not all
+unit tests run. But this has not yet been integrated into the filesystem so
+that still runs.
+@
+text
+@@
+

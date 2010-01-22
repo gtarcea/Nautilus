@@ -1,0 +1,41 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.09.22.20.58;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	648425855332f58;
+kopt	kv;
+filename	@SynerEdge.cpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@utils directory initial checkin
+@
+text
+@#include "SynerEdge.hpp"
+
+namespace SynerEdge
+{
+
+std::wostream &operator<<(std::wostream &out, const SynerEdgeException &exp)
+{
+	out << exp.getMsg();
+	return out;
+}
+
+}
+
+@

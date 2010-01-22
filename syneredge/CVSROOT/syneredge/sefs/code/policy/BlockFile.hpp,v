@@ -1,0 +1,86 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.02.20.34.22;	author irrer;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	b08429f6d3658ec;
+kopt	kv;
+filename	@BlockFile.hpp@;
+
+1.1
+date	2005.06.02.19.38.52;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	97c429f60342e72;
+kopt	kv;
+filename	@BlockFile.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Renaming files to Pol* to avoid naming conflicts.
+@
+text
+@
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <vector>
+
+#include <DBinterface.hpp>
+#include <DBexception.hpp>
+#include <PolicyUtil.hpp>
+#include <SEDB.h>
+
+class BlockFile
+{
+  private:
+    /** database handle */
+    DBinterface *db;
+
+    /** contains latest error message */
+    string errorMessage;
+
+    /** True if a Select has been performed and the result is
+     * still valid.  Any other query executed on the database will
+     * invalidate the result and set this to false.
+     */
+    bool selected;
+
+  public:
+
+    BlockFile(void);
+    ~BlockFile(void);
+    bool initialize(void);
+    bool Insert(const char **fields);
+    bool Delete(const char *host, const char *directory);
+    bool Select(void);
+    const char *get(int row, int col);
+    const char *Error(void);
+
+};
+@
+
+
+1.1
+log
+@Rework of policy engine.
+@
+text
+@@
+

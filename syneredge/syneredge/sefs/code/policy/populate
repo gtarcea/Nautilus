@@ -1,0 +1,120 @@
+#!/bin/bash
+
+# ------------------------------------------------------------------------
+
+# remove the temporary files used for populating the database
+rm_lod()
+{
+    rm -f block_file.lod virtual_disk_policy.lod
+}
+
+# ------------------------------------------------------------------------
+
+col()
+{
+    if [ $# == 0 ] ; then
+	echo
+    else
+	echo -n $1'	'
+    fi
+}
+
+# ------------------------------------------------------------------------
+
+rm_lod
+
+# ------------------------------------------------------------------------
+
+num_building=3;    # there are up to this many buildings
+num_room=3;        # there are up to this many rooms
+
+for (( b=0; b <= $num_building; b++ )) ; do
+    for (( r=0; r <= $num_room; r++ )) ; do
+	(
+	    col r${r}_b${b}
+	    echo "( room = 'room_$r' ) AND ( building = 'building_$b' )"
+	) >> virtual_disk_policy.lod
+    done
+done
+
+# ------------------------------------------------------------------------
+
+# pick a random room
+rand_room()
+{
+    echo room_`expr $RANDOM % $num_room`
+}
+
+# ------------------------------------------------------------------------
+
+# pick a random building
+rand_building()
+{
+    echo building_`expr $RANDOM % $num_building`
+}
+
+# ------------------------------------------------------------------------
+
+# pick a random number of bytes
+rand_bytes()
+{
+    #echo '(('$RANDOM' % 100000) + 100000) * 1000000 ' | bc
+    echo 1000000
+}
+
+# ------------------------------------------------------------------------
+
+
+num_disk=100;   # there are this many disks
+host_base=100
+dir_base=100
+dir_num=20
+host=0
+dir=0
+for (( d=0; d < $num_disk; d++ )) ; do
+    col host_`expr $host_base + $host`    # host
+    col dir_`expr $dir_base + $dir`       # directory
+    bytes=`rand_bytes`
+    col $bytes                            # max_bytes
+    col $bytes                            # bytes
+    col `rand_room`                       # room
+    echo `rand_building`                  # building
+
+    # increment directory, and host if necessary
+    dir=`expr $dir + 1`
+    if [ $dir -ge $dir_num ] ; then
+        dir=0
+	host=`expr $host + 1`
+    fi
+    dir=`expr $dir + 1`
+
+done > block_file.lod
+
+# delete the old database.  Do this in a separate command
+# (from gen_db) in case the database does not exist, which
+# would cause an error and the script would abort.
+echo 'DROP DATABASE sedb;' | mysql >/dev/null 2>&1
+
+mysql < gen_db > populate.log
+status=$?
+
+# clean up temporary files
+rm_lod
+
+# generate the header file.  If the new one is the same as
+# the old one, then do not touch the old one, because copying
+# it would change the time stamp and cause files to recompile
+# when they did not have to.
+
+gen_header > SEDB.h_tmp
+diff --ignore-matching-lines='^// Generated:' SEDB.h_tmp SEDB.h >/dev/null 2>&1
+if [ $? != 0 ] ; then
+    rm SEDB.h
+    mv SEDB.h_tmp SEDB.h
+    echo Generated new header file SEDB.h
+fi
+rm -f SEDB.h_tmp
+
+echo Done.  See log file populate.log for details.
+exit $status
+

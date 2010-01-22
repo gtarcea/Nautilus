@@ -1,0 +1,84 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.06.18.43.28;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	89c42a499443cba;
+kopt	kv;
+filename	@sygstorproviderUnitTest.hpp@;
+
+1.1
+date	2005.06.06.16.42.20;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	df842a47cd65fe4;
+kopt	kv;
+filename	@sygstorproviderUnitTest.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Checkin non testing code.
+@
+text
+@// Unit Test the syg_storprovider server.
+
+#include <cppunit/extensions/HelperMacros.h>
+#include "SocketBase.hpp"
+#include "StorProvClntInterface.hpp"
+
+using namespace SynerEdge ;
+
+class sygstorproviderUnitTest : public CppUnit::TestFixture
+{
+	CPPUNIT_TEST_SUITE(sygstorproviderUnitTest) ;
+	CPPUNIT_TEST(testAll) ;
+	CPPUNIT_TEST_SUITE_END() ;
+public:
+	void setUp() ;
+	void tearDown() ;
+	void testAll() ;
+private:
+	void setupSocket() ;
+	TCPServerSocket *socket ;
+	ClientSocket *cli ;
+	StorProvClntInterface *spi ;
+	static bool socketsetup ;
+} ;
+
+@
+
+
+1.1
+log
+@Add unit tests for syg_storprovider. These will fail.
+@
+text
+@d5 1
+d12 1
+a12 3
+	CPPUNIT_TEST(testGets) ;
+	CPPUNIT_TEST(testReadWrite) ;
+	CPPUNIT_TEST(testOther) ;
+d17 1
+a17 3
+	void testGets() ;
+	void testReadWrite() ;
+	void testOther() ;
+d22 1
+@
+

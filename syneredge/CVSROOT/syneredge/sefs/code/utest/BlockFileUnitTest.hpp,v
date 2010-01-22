@@ -1,0 +1,56 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.21.17.04.03;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	3b44267dce5664a;
+kopt	kv;
+filename	@BlockFileUnitTest.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Moved Unit Tests to utest directory. Renamed all UnitTests to include "UnitTest" in the
+name of the file and the class.
+@
+text
+@
+#include <cppunit/extensions/HelperMacros.h>
+#include "BlockFile.hpp"
+
+class BlockFileUnitTest : public CppUnit::TestFixture
+{
+	CPPUNIT_TEST_SUITE(BlockFileUnitTest) ;
+	CPPUNIT_TEST(testConstructor) ;
+	CPPUNIT_TEST(testCreateFile) ;
+	CPPUNIT_TEST(testOpenFile) ;
+	CPPUNIT_TEST(testReadWriteBlocks) ;
+	CPPUNIT_TEST(testZeroAndFreeBlocks) ;
+	CPPUNIT_TEST(testFreeBlockListMethods) ;
+	CPPUNIT_TEST_SUITE_END() ;
+public:
+	void setUp() ;
+	void tearDown() ;
+	void testConstructor() ;
+	void testCreateFile() ;
+	void testOpenFile() ;
+	void testReadWriteBlocks() ;
+	void testZeroAndFreeBlocks() ;
+	void testFreeBlockListMethods() ;
+
+private:
+	SynerEdge::BlockFile *bf ;
+} ;
+@

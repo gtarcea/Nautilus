@@ -1,0 +1,596 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.3
+date	2005.06.10.03.47.45;	author aprakash;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	d5c42a90d404770;
+kopt	kv;
+filename	@BlockCacheStd.cpp@;
+
+1.2
+date	2005.06.09.16.51.27;	author aprakash;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	ce842a873275038;
+kopt	kv;
+filename	@BlockCacheStd.cpp@;
+
+1.1
+date	2005.06.07.02.13.43;	author aprakash;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	6d042a5029c14bd;
+kopt	kv;
+filename	@BlockCacheStd.cpp@;
+
+
+desc
+@@
+
+
+1.3
+log
+@Tightened bound checking for integer overflows.
+
+Put braces around single-line conditionals (style)
+@
+text
+@#include "BlockCacheStd.hpp"
+#include <iostream>
+#include <assert.h>
+#include "Block.hpp"
+
+using namespace SynerEdge;
+
+/* 
+ * Author: Atul Prakash
+ */
+
+/*
+ Locking invariants:
+ Designing thread-safe code is hard. Below are the principles followed in this file:
+
+ Why use locks:
+      -- to ensure that data structures are not manipulated concurrently.
+
+ Design goals: 
+    One could use a single lock to protect all the cache operations -- with the lock
+    called at the beginning of the external call and released at the end.
+  
+    But the problem is going to be performance. If an operation is reading/writing a block
+    on the disk during an operation, it is a bad idea to block all the operations. 
+
+    On the other hand, if an operation is reading/writing something in the cache, we are not
+    worried about ensuring progress of other operations in parallel -- it is OK to block them till
+    the operation completes.  Reading/writing stuff from memory should be fast. 
+
+    So, the design principles are:
+
+    -- use a global lock when anything in the cache is being manipulated.
+    -- when reading/writing to the disk, do not hold the global lock. The global
+       lock must be released during that operation.
+
+   Some issues:
+      What if two threads issue parallel reads/writes for the same block to the disk?
+	 Is that possible?
+
+	 Theoretically, that could happen as follows:
+
+	 Thread 1 and 2:  
+
+	 acquire cachelock; 
+	 read block --> not in the cache
+	 release cachelock
+	 read from the disk into a node
+	 acquire cachelock
+	 add node to the cache
+	 release cachelock
+
+	 Both thread 1 and 2 could end up not finding the block in the cache and issuing a
+	 read to the disk.
+
+	 Possible solutions: READONE
+	    If a disk read is going to be required, create a block in the cache, 
+	    mark it as "readPending" before releasing the cachelock.
+	    The other thread must wait for the read to complete before making progress
+	    (using condition variables).
+
+
+	    OR
+
+	    READTWO:
+	    allow both to make the request to do a remote read. But one attempting to add
+	    the block to the cache later would "undo" the operation (ignore it).
+
+
+	Handling writes:
+	    The buffer cache will always contain dirty blocks. 
+	    Periodically, dirty blocks may be written to disk. During that process,
+	    the block will remain in the cache.
+
+	    They are done by separate "consumer" threads that write to the virtual disk.
+
+	    If a write to disk is being attempted, it will be done as follows:
+
+	    acquire cache lock
+	    make a copy of the buffer
+	    mark the buffer as "writePending"
+	    release cache lock
+	    attempt to write the copy of the buffer to the network disk.
+	    If network write succeeds
+	        acquire cache lock
+		   unmark the buffer as "writePending"
+		   if (buffer is marked as DirtyDuringPendingWrite) {
+		      remove the DirtyDuringPendingWrite mark.
+			 leave the buffer marked as dirty
+		   } else remove the dirty flag on the buffer.
+        release cache lock
+
+	   If a thread is attempting to modify a block, the logic is 
+
+	   acquire cache lock
+
+	   (if block not in cache, release the cache lock and
+	   follow the logic of READONE or READTWO and reacquire the cache lock)
+	   if (writePending) dirtyDuringPendingWrite = true;
+	   else dirty = true;
+	   write the block and update LRU list.
+	   release cache lock
+*/
+
+
+CacheBlockNode::~CacheBlockNode()
+{
+	if (data) {delete data; data = NULL;}
+}
+
+
+
+
+bool BlockCacheStd::writeBlock(uint64 blockID, unsigned int offset, unsigned 
+						 int size, char *data)
+{
+	if (writeBytes(blockID, offset, size, data) < 0) {
+		return false;
+	} else {
+		return true;
+	}
+}
+
+
+bool BlockCacheStd::writeBlock(Block &block)
+{
+	if (writeBytes(block.getBlockNum(), 0, block.getNumBytes(), 
+				block.getBytes()) < 0) {
+		return false;
+	} else {
+		return true;
+	}
+
+}
+
+
+bool BlockCacheStd::readBlock(uint64 blockID, Block &block)
+{
+	char *buf = new char[blockSize];
+	int numBytes = 0;
+	if ((numBytes = readBytes(blockID, 0, blockSize, buf)) >= 0) {
+		block.setBytes(0, buf, numBytes); // Should set block's numbytes as well
+		block.setBlockNum(blockID);
+		return true;
+	} else {return false;}
+
+}
+
+bool BlockCacheStd::zeroBlock(uint64 blocknum)
+{
+	// Extra copy below. Can be avoided by zero'ing cache buffer directly.
+	// Optimize later if needed
+	char buf[blockSize];
+	memset(buf, 0, blockSize);
+	if (writeBytes(blocknum, 0, blockSize, buf) == blockSize) {return true;}
+	else {return false;}
+}
+
+
+/*************************
+ * Free List operations 
+ *************************/
+
+bool BlockCacheStd::releaseBlock(uint64 blocknum)
+{
+	
+	// Free the block from the cache. Need to mark it for freeing later.
+	// If the block is in use, then freeing will be done when it is no
+	// longer in use.
+	CacheBlockNode *bp;
+
+	{ // Critical section
+		boost::mutex::scoped_lock cachelock(bcachemutex, true);
+		bp = lookup(blocknum);
+		bool blockFreed;
+		if (bp == NULL) { // Not in the cache
+			// This is tricky if we want to avoid I/O while holding the cache lock.
+			// If we release the lock, it is possible that another thread could attempt
+			// to read/write this block, while this thread is freeing it up. That would
+			// lead to an insconsistency. 
+			// Solution: Need to create some structure to indicate that this block is
+			// being freed up. Other threads must get an error till the free operation
+			// completes.
+			// Ideally, the higher layer should guarantee this conflict does not happen --
+			// but good to take same precautions at this layer anyway.
+			bp = allocateBlock();
+			bp->free_status = CacheBlockNode::FREEPENDING;
+			bcache[blocknum] = bp;
+		} else {   // it is in the cache. Need to see if used.
+			if (bp->free_status == CacheBlockNode::FREEDONE) {
+				assert(false);	// shouldn't have a free node in the cache.
+			} else if (bp->free_status == CacheBlockNode::FREEPENDING) {
+				// Some other thread is handling the free operation. Can't really determine success code.
+				// Indicates a parallel free operation for the same block. Shouldn't happen
+				assert(false);
+			} else if (bp->free_status == CacheBlockNode::FREEFAILED) {
+				// Freeing failed on a previous attempt. Retry again.
+				bp->free_status = CacheBlockNode::FREEPENDING;
+			} else if (bp->free_status == CacheBlockNode::FREEDONE) {
+				// Can this happen? Indicates that the node is being freed twice.
+				assert(false);
+			} else if (bp->AW+bp->AR > 0) { // being used
+				bp->free_status = CacheBlockNode::FREEDELAYED;
+			} else { // not being used
+				// It doesn't matter if it is dirty.
+				bp->free_status = CacheBlockNode::FREEPENDING;    // Mark the node free.
+			}
+		}
+	}
+
+	// Now check if the block can be freed up.
+	if (bp->free_status == CacheBlockNode::FREEPENDING) {
+		if (disk_releaseBlock(blocknum)) {
+			// Move the node to the free list and remove from the bcache
+			{ // critical section
+				boost::mutex::scoped_lock lock(bcachemutex, true);
+				bcache.erase(blocknum);
+				freelist.push_back(bp);
+				deleteLRUnode(bp);
+				bp->free_status == CacheBlockNode::FREEDONE;
+				bp->data->zeroBytes(0, blockSize);
+			}
+		} else { // could not be freed from disk
+			bp->free_status = CacheBlockNode::FREEFAILED;
+			return false;
+		}
+	}
+
+
+	return true;
+}
+
+
+void BlockCacheStd::processDirtyBlocks()
+{
+	
+
+
+
+
+}
+
+
+CacheBlockNode *BlockCacheStd::allocateBlock()
+{
+	// Assumption: called from within a critical section. Not thread-safe
+	CacheBlockNode *returnval = NULL;
+	if (!freelist.empty()) {
+		returnval = freelist.front();
+		freelist.pop_front();
+
+	} else {
+		// List was empty. Allocate a fresh block
+		returnval = new CacheBlockNode();
+		returnval->data = new Block(blockSize);
+	}
+	returnval->AW = 0;
+	returnval->WW = 0;
+	returnval->WR = 0;
+	returnval->AR = 0;
+	returnval->dirty = false;
+	returnval->dirtyWhileDiskWritePending = false;
+	returnval->data->zeroBytes(0, blockSize);
+	returnval->io_status = CacheBlockNode::OK;
+	returnval->free_status = CacheBlockNode::NONE;
+	returnval->prev = NULL;
+	returnval->next = NULL;
+	return returnval;
+}
+
+
+// This is not thread-safe. Should be used inside a locked region.
+CacheBlockNode *BlockCacheStd::lookup(uint64 blockID)
+{
+	// assumption: called from within a crtical section. Not thread-safe
+	map<uint64, CacheBlockNode *>::iterator p;
+	p = bcache.find(blockID);
+	if (p != bcache.end())  {
+		return p->second;
+	}
+	else {return NULL;}
+}
+
+
+int BlockCacheStd::writeBytes(uint64 blockID, unsigned int start, 
+			      unsigned int numBytes, char *buf) 
+{
+
+	bool newblock = false;
+	CacheBlockNode *blockPtr = NULL;
+
+	// the second part of conditional is useful to detect integer overflows
+	if (start >= blockSize || start + numBytes <= start || start + numBytes > blockSize) { 
+		// bound checking 
+		assert(false);          // Shouldn't happen
+		return -1;
+	}
+	{ // Critical section
+		boost::mutex::scoped_lock cachelock(bcachemutex, true);
+		blockPtr = lookup(blockID);
+		if (blockPtr == NULL) {
+			// Need to get the block into the cache from the virtual disk
+			blockPtr = allocateBlock();
+			if (blockPtr == NULL) {return -1;} // insufficient memory
+			else {
+				blockPtr->AW++;
+				newblock = true;
+			} 
+		} else {
+			if (blockPtr->free_status != CacheBlockNode::NONE) {return -1;} // Node being freed.
+			while (blockPtr->AW + blockPtr->AR > 0) {
+				blockPtr->OkToUse.wait(cachelock);
+			}
+			blockPtr->AW = 1;
+		}
+	}
+	// we have exclusive write access on the block
+	
+	if (newblock && !(start == 0 && numBytes == blockSize) ) {
+		// Partial write. Need to read the block before we can write to it.
+		if (disk_readBlock(blockID, *(blockPtr->data))) { // success reading
+		} else { // failure reading 
+			delete blockPtr;
+			return -1;
+		}
+	}
+	{
+		boost::mutex::scoped_lock lock(bcachemutex, true);
+
+		if (newblock)	{bcache[blockID] = blockPtr;}
+
+		blockPtr->data->setBytes(start, (char *) buf, numBytes);
+
+		if (blockPtr->io_status == CacheBlockNode::DISKWRITEPENDING) {
+			blockPtr->dirtyWhileDiskWritePending = true;
+		} else {
+			blockPtr->dirty = true;
+		}
+
+		makeLRUnode(blockPtr);   // Move the block to the end of the LRU list
+		blockPtr->AW--;
+
+		if (newblock) { // Add it to the map table
+			bcache[blockID] = blockPtr;
+		}
+		blockPtr->OkToUse.notify_all();
+	}
+	return numBytes;
+}
+
+
+
+
+
+int BlockCacheStd::readBytes(uint64 blockID, unsigned int start, unsigned int numBytes,
+					    char *buf)  
+{
+
+
+	CacheBlockNode *blockPtr = NULL;
+	bool newblock = false;
+
+	if (start >= blockSize || start + numBytes <= start || start + numBytes > blockSize) {// bound checking
+		return -1;
+	}
+    
+	// Bounds OK.
+	{ // Critical section
+		boost::mutex::scoped_lock cachelock(bcachemutex, true);
+		blockPtr = lookup(blockID);
+		if (blockPtr == NULL) {
+			// Need to get the block into the cache from the virtual disk
+			blockPtr = allocateBlock();
+			if (blockPtr == NULL) {return -1;}// insufficient memory
+			else {
+				blockPtr->AR++;
+				newblock = true;
+			} 
+		} else {
+			if (blockPtr->free_status != CacheBlockNode::NONE) {return -1;} // Node being freed.
+			while (blockPtr->AW > 0) {
+				blockPtr->OkToUse.wait(cachelock);
+			}
+			blockPtr->AR++;
+		}
+	}
+
+	// we have read lock access on the block
+	if (newblock) {
+		if (disk_readBlock(blockID, *(blockPtr->data))) { // success reading
+		} else { // failure reading or block read is marked free on the disk.
+			// Move the blockPtr to the free list.
+			delete blockPtr;
+			return -1;
+		}
+	}
+
+	
+
+	{
+		int blockbytecount = 0;
+		int bytesread = 0;
+		boost::mutex::scoped_lock cachelock(bcachemutex, true);
+		if ((blockbytecount = blockPtr->data->getNumBytes()) >= numBytes) {
+			memcpy((char *)buf, blockPtr->data->getBytes(start), numBytes);
+			bytesread = numBytes;
+		}
+		else {
+			memcpy((char *)buf, blockPtr->data->getBytes(start), blockbytecount);
+			bytesread = blockbytecount;
+		}
+		makeLRUnode(blockPtr);
+		blockPtr->AR--;
+		if (newblock) { // Add it to the map table
+			bcache[blockID] = blockPtr;
+		}
+		blockPtr->OkToUse.notify_all();
+		return bytesread;
+	}
+
+}
+
+
+
+
+void BlockCacheStd::makeLRUnode(CacheBlockNode *blockPtr) {
+
+	if (headPtr == NULL) {
+		headPtr = blockPtr; 
+		tailPtr = blockPtr;
+		blockPtr->next = blockPtr->prev = NULL;
+		return;
+	}
+
+	// Remove blockPtr from the linked list
+	if (blockPtr->prev) blockPtr->prev->next = blockPtr->next;
+	if (blockPtr->next) blockPtr->next->prev = blockPtr->prev;
+
+	// blockPtr is the first node in the list. Change headPtr
+	if (headPtr == blockPtr && blockPtr->next != NULL) {
+		headPtr = blockPtr->next;
+	} 
+
+	// Now add blockPtr to the end of the list.
+
+	blockPtr->prev = tailPtr;
+	tailPtr->next = blockPtr;
+	tailPtr = blockPtr;
+	blockPtr->next = NULL;
+}
+
+void BlockCacheStd::deleteLRUnode(CacheBlockNode *bp)
+{
+	if (bp->prev) {
+		bp->prev->next = bp->next;
+	} else {
+		headPtr = bp->next;
+	}
+
+	if (bp->next) {
+		bp->next->prev = bp->prev;
+	} else {
+		tailPtr = bp->prev;
+	}
+
+}
+
+
+@
+
+
+1.2
+log
+@*** empty log message ***
+@
+text
+@d144 1
+a144 1
+	} else return false;
+d154 2
+a155 2
+	if (writeBytes(blocknum, 0, blockSize, buf) == blockSize) return true;
+	else return false;
+d277 1
+a277 1
+	if (p != bcache.end()) 
+d279 2
+a280 1
+	else return NULL;
+d291 2
+a292 1
+	if (start >= blockSize || start + numBytes - 1 >= blockSize) { 
+d303 1
+a303 1
+			if (blockPtr == NULL) return -1; // insufficient memory
+d309 1
+a309 1
+			if (blockPtr->free_status != CacheBlockNode::NONE) return -1; // Node being freed.
+d328 3
+a330 1
+		if (newblock)	bcache[blockID] = blockPtr;
+d332 1
+d338 1
+d341 1
+d362 1
+a362 1
+	if (start >= blockSize || start + numBytes - 1 >= blockSize) // bound checking
+d364 1
+d373 1
+a373 1
+			if (blockPtr == NULL) return -1; // insufficient memory
+d379 1
+a379 1
+			if (blockPtr->free_status != CacheBlockNode::NONE) return -1; // Node being freed.
+@
+
+
+1.1
+log
+@This version of block cache uses LRU policy.
+
+Writing back to disk is currently missing. Also, limits on cache size are not currently enforced.
+@
+text
+@d8 4
+d105 4
+d163 1
+a163 1
+bool BlockCacheStd::freeBlock(uint64 blocknum)
+d169 1
+d173 1
+a173 1
+		CacheBlockNode *bp = lookup(blocknum);
+d183 2
+d189 13
+a201 4
+			if (bp->free_status == CacheBlockNode::FREEPENDING || 
+			    bp->free_status == CacheBlockNode::FREESTARTED ||
+			    bp->free_status == CacheBlockNode::FREEDONE) return true;
+			if (bp->AW+bp->AR > 0) { // being used
+d209 20
+d233 10
+d382 2
+a383 1
+		} else { // failure reading 
+d441 16
+@
+

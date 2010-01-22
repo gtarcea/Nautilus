@@ -1,0 +1,436 @@
+head	1.9;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.9
+date	2005.06.12.01.39.04;	author gtarcea;	state Exp;
+branches;
+next	1.8;
+deltatype	text;
+permissions	666;
+commitid	76442ab91ef00b4;
+kopt	kv;
+filename	@BlockFile.hpp@;
+
+1.8
+date	2005.06.09.16.49.02;	author aprakash;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	666;
+commitid	f2442a8723e4d3f;
+kopt	kv;
+filename	@BlockFile.hpp@;
+
+1.7
+date	2005.06.01.15.51.28;	author gtarcea;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	a10429dd95a3216;
+kopt	kv;
+filename	@BlockFile.hpp@;
+
+1.6
+date	2005.05.10.16.14.10;	author gtarcea;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	a3c4280ddb40ca3;
+kopt	kv;
+filename	@BlockFile.hpp@;
+
+1.5
+date	2005.04.30.21.19.23;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	80c4273f63d68e9;
+kopt	kv;
+filename	@BlockFile.hpp@;
+
+1.4
+date	2005.04.21.16.48.36;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	2fc4267d9355a40;
+kopt	kv;
+filename	@BlockFile.hpp@;
+
+1.3
+date	2005.04.15.15.24.28;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	894425fdc084391;
+kopt	kv;
+filename	@BlockFile.hpp@;
+
+1.2
+date	2005.04.14.21.04.21;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	728425edab37b3a;
+kopt	kv;
+filename	@BlockFile.hpp@;
+
+1.1
+date	2005.04.12.23.22.15;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	da0425c57f4484a;
+kopt	kv;
+filename	@BlockFile.hpp@;
+
+
+desc
+@@
+
+
+1.9
+log
+@
+Move BlockFileBase.hpp to iBlockIO.hpp
+Cleaned up interfaces to support uint64 rather than int64
+VirtualDisk and VirtualBlockFile now also inherit from iBlockIO, so now
+BlockFileIO can use any of these interfaces.
+@
+text
+@
+#ifndef __BLOCKFILE_INCLUDE_
+#define __BLOCKFILE_INCLUDE_
+
+#include "SynerEdge.hpp"
+#include "FreeBlockMap.hpp"
+#include <fstream>
+#include <string>
+#include <Block.hpp>
+#include "iBlockIO.hpp"
+
+#include "boost/utility.hpp"
+#include "boost/thread.hpp"
+#include "boost/thread/once.hpp"
+#include "boost/thread/mutex.hpp"
+
+using std::string ;
+using std::fstream ;
+
+namespace SynerEdge {
+
+	class BlockFile : public iBlockIO, private boost::noncopyable 
+	{
+	public:
+		BlockFile(string filename) ;
+		//		BlockFile() {}
+		~BlockFile() ;
+
+		bool open() ;
+		bool close() ;
+		static bool exists(string blockfilename) ;
+		bool create(uint64 startingblocknum, uint64 numblocks, int blocksize) ;
+		string getFilename() const ;
+		uint64 getNumBlocks() ;
+		uint64 getStartingBlockNum() const ;
+		uint64 getNumFreeBlocks() ;
+		uint64 getFreeBlock() ; // allocates a block, unfreeing it.
+		bool releaseBlock(uint64 blocknum) ; // frees up the block
+		bool flushFreeBlockList() ;
+		int getBlockSize() const ;
+		bool writeBlock(uint64 blocknum, int offset, int size, char *data) ; // returns false if block is free or doesn't exist
+		bool writeBlock(Block &block) ; // returns false if block is free or doesn't exist
+		bool readBlock(uint64 blocknum, Block &block) ; // returns false if block is free or doesn't exist
+		bool zeroBlock(uint64 blocknum) ;
+		//void printStuff() ;
+
+private:
+		// Help functions
+		bool validateAccess(uint64 blocknum) ;
+		bool validateAccessAndCheckNotFree(uint64 blocknum);
+		bool flushFreeBlockList(bool lock) ;
+
+		// data members
+		uint64 numfreeblocks ;      // This is fake stuff. freeblockmap is the real stuff.
+		uint64 numblocks ;
+		uint64 startingblocknum ;
+		int blocksize ;
+		string filename ;
+		fstream file ;
+		FreeBlockMap *freeblockmap;
+		fstream freeblockmapfile ;
+
+		boost::mutex _mtx ;
+
+		static const int headersize = sizeof(uint64)*3 +sizeof(int);
+} ;
+
+} ; // namespace SynerEdge
+
+#endif /* __BLOCKFILE_INCLUDE_ */
+@
+
+
+1.8
+log
+@Changes:
+
+Block.*: isfree is useless in this version.
+           Some bug fixes with bound checking.
+           zeroBlock modified to avoid a read.
+	   Some functionality to change block sizes dynamically removed.
+
+BlockFile.*: delete freeBlock functionality. releaseBlock is the correct
+              way to remove a block.
+	    Main change: readBlock, writeBlock would fail if a block
+			is free.
+             Some bug fixes.
+             Avoid use of isFree in a block.
+
+FreeBlockMap.*: added a function to check if a blocknum is free. Used
+	    by BlockFile
+
+NOTES: code review notes.
+@
+text
+@d10 1
+a10 1
+#include "BlockFileBase.hpp"
+d22 1
+a22 1
+	class BlockFile : public BlockFileBase, private boost::noncopyable 
+d30 1
+a30 1
+		void close() ;
+d32 1
+a32 1
+		bool create(int64 startingblocknum, int64 numblocks, int blocksize) ;
+d34 5
+a38 5
+		int64 getNumBlocks() const ;
+		int64 getStartingBlockNum() const ;
+		int64 getNumFreeBlocks() const ;
+		int64 getFreeBlock() ; // allocates a block, unfreeing it.
+		bool releaseBlock(int64 blocknum) ; // frees up the block
+d41 1
+a41 1
+		bool writeBlock(int64 blocknum, int offset, int size, char *data) ; // returns false if block is free or doesn't exist
+d43 2
+a44 2
+		bool readBlock(int64 blocknum, Block &block) ; // returns false if block is free or doesn't exist
+		bool zeroBlock(int64 blocknum) ;
+d49 2
+a50 2
+		bool validateAccess(int64 blocknum) ;
+		bool validateAccessAndCheckNotFree(int64 blocknum);
+d54 3
+a56 3
+		int64 numfreeblocks ;      // This is fake stuff. freeblockmap is the real stuff.
+		int64 numblocks ;
+		int64 startingblocknum ;
+d65 1
+a65 1
+		static const int headersize = sizeof(int64)*3 +sizeof(int);
+@
+
+
+1.7
+log
+@Add BlockFileBase class, change BlockFile class to be an extension of
+BlockFileBase. This will allow us to easily create a networked version of
+BlockFile.
+@
+text
+@d22 2
+a23 1
+class BlockFile : public BlockFileBase, private boost::noncopyable {
+d26 1
+a26 1
+//		BlockFile() {}
+d37 2
+a38 2
+		int64 getFreeBlock() ;
+		bool releaseBlock(int64 blocknum) ;
+d41 3
+a43 3
+		bool writeBlock(int64 blocknum, int offset, int size, char *data) ;
+		bool writeBlock(Block &block) ;
+		bool readBlock(int64 blocknum, Block &block) ;
+a44 1
+		bool freeBlock(int64 blocknum) ;
+d47 1
+a47 1
+	private:
+d50 1
+d54 1
+a54 1
+		int64 numfreeblocks ;
+d60 1
+a60 1
+		FreeBlockMap *freeblockmap ;
+a65 2
+
+//		BlockCache cache ;
+@
+
+
+1.6
+log
+@Added simple locking from boost. Will update once we have decided on what
+threading interface to use for locking.
+@
+text
+@d10 1
+d22 1
+a22 1
+class BlockFile : private boost::noncopyable {
+@
+
+
+1.5
+log
+@Use boost to check for file existence. Add a routine to get the blockfile
+file path.
+@
+text
+@d10 6
+d21 1
+a21 1
+class BlockFile {
+d24 1
+a24 1
+		BlockFile() {}
+d49 1
+d60 2
+@
+
+
+1.4
+log
+@Move Unit Tests to utest directory. Move FreeBlockMap to storprovider. Fix up
+BlockFile to call FreeBlockMap to get freeblocks.
+@
+text
+@d18 1
+d23 1
+d25 1
+a40 2
+		BlockFile() ; // No copy constructor
+
+@
+
+
+1.3
+log
+@Finished unit testing Block and BlockFile interfaces. The BlockFile interface is
+currently very simple, and is missing a persistent sense of freeblocks. This
+needs to be fixed up.
+
+Currently neither interface does any thread syncroniziation. For BlockFile we should
+probably consider keeping numfreeblocks as a static member shared across all classes
+and syncing on it. Might need to put in block level locking as well. This way multiple
+BlockFile's can be instantiated pointing to the same disk file, and thread access
+to it.
+@
+text
+@d5 2
+a6 1
+#include <sys/types.h>
+d22 7
+a28 4
+		bool create(off_t startingblocknum, off_t numblocks, int blocksize) ;
+		off_t getNumBlocks() const ;
+		off_t getStartingBlockNum() const ;
+		off_t getNumFreeBlocks() const ;
+d30 1
+a30 1
+		bool writeBlock(off_t blocknum, int offset, int size, char *data) ;
+d32 3
+a34 3
+		bool readBlock(off_t blocknum, Block &block) ;
+		bool zeroBlock(off_t blocknum) ;
+		bool freeBlock(off_t blocknum) ;
+d41 1
+a41 2
+		bool validateAccess(off_t blocknum) ;
+		bool updateNumFreeBlocks(int by) ;
+d44 3
+a46 3
+		off_t numfreeblocks ;
+		off_t numblocks ;
+		off_t startingblocknum ;
+d50 2
+d53 1
+a53 1
+		static const int headersize = sizeof(off_t)*3 +sizeof(int);
+@
+
+
+1.2
+log
+@
+Write interfaces and unit tests for new block interface. The next step will
+be to port the filesystem over to the new interface.
+@
+text
+@d26 2
+a27 1
+		int writeBlock(off_t blocknum, int offset, int size, char *data) ;
+d35 7
+a42 1
+		off_t numfreeblocks ;
+a49 2
+		bool openBlockFile(string filename) ;
+		bool createBlockFile(string filename, off_t startingblocknum, int numfreeblocks) ;
+@
+
+
+1.1
+log
+@
+Buildable (but not functional) syg_storprovider. The move from fs to the
+storprovider directory has started. Right now there are duplicated files
+that will be cleaned up. This doesn't affect the build.
+@
+text
+@d2 2
+a3 2
+#ifndef __CBLOCKFILE_INCLUDE_
+#define __CBLOCKFILE_INCLUDE_
+d8 1
+d12 2
+a16 1
+		BlockFile(string filename, off_t startingblocknum, int numfreeblocks) ;
+d18 4
+d25 6
+a30 3
+		int writeBlock(int blocknum, int offset, int size, char *data) ;
+		int readBlock(off_t blocknum, int offset, int size, char *data) ;
+		int clearBlock(int blocknum) ;
+d33 3
+a35 1
+		int numblocks ;
+d37 1
+a37 2
+		off_t firstfreeblock ;
+		int numfreeblocks ;
+d41 1
+a41 2
+		static const int headersize = sizeof(int)+sizeof(off_t)+
+				sizeof(off_t)+sizeof(int) ;
+d47 4
+a50 1
+#endif /* __CBLOCKFILE_INCLUDE_ */
+@
+

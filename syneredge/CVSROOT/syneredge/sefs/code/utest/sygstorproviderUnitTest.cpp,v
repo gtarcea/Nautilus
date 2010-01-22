@@ -1,0 +1,290 @@
+head	1.5;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.5
+date	2005.06.10.18.04.00;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	fe442a9d5f856e6;
+kopt	kv;
+filename	@sygstorproviderUnitTest.cpp@;
+
+1.4
+date	2005.06.09.17.02.39;	author aprakash;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	98042a875f55961;
+kopt	kv;
+filename	@sygstorproviderUnitTest.cpp@;
+
+1.3
+date	2005.06.06.20.17.25;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	dc842a4af4b04a9;
+kopt	kv;
+filename	@sygstorproviderUnitTest.cpp@;
+
+1.2
+date	2005.06.06.18.43.28;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	89c42a499443cba;
+kopt	kv;
+filename	@sygstorproviderUnitTest.cpp@;
+
+1.1
+date	2005.06.06.16.42.19;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	df842a47cd65fe4;
+kopt	kv;
+filename	@sygstorproviderUnitTest.cpp@;
+
+
+desc
+@@
+
+
+1.5
+log
+@Fix up unit test to work with new assumptions (blocks must be allocated before they can
+be read or written).
+@
+text
+@// Unit Test the syg_storprovider server.
+#include "sygstorproviderUnitTest.hpp"
+#include "StorProvClntInterface.hpp"
+#include "Timer.hpp"
+
+// CPPUNIT_TEST_SUITE_REGISTRATION(sygstorproviderUnitTest) ;
+
+using namespace std ;
+
+bool socketsetup = false ;
+
+void
+sygstorproviderUnitTest::setupSocket()
+{
+	if (! ::socketsetup) {
+		system("$SYGHOME/code/utest/setupstorprovtest.sh START") ;
+		system("syg_storprovider > /dev/null 2>&1 &") ;
+		Timer::sleep(1000) ;
+		//cout << "Setting up socket" << endl ;
+		Protocol tcp(L"tcp");
+		Host hst(L"localhost", false);
+		Service serv(L"sygsrv", tcp);
+
+		//std::wcout << L"tcpserversocket make: " << std::endl;
+		socket = new TCPServerSocket(serv, false, 10);
+		socket->setReuseAddress(true);
+//		socket->listenSocket();
+//		cli = socket->acceptSocket();
+//		cli->setTimeout(10000);
+		::socketsetup = true ;
+	}
+}
+
+void 
+sygstorproviderUnitTest::setUp()
+{
+	setupSocket() ;
+}
+
+void 
+sygstorproviderUnitTest::tearDown()
+{
+}
+
+void 
+sygstorproviderUnitTest::testAll()
+{
+	socket->listenSocket();
+	cli = socket->acceptSocket();
+	cli->setTimeout(10000);
+	spi = new StorProvClntInterface((*cli)) ;
+
+	// Test get functions
+	int blocksize = spi->getBlockSize() ;
+	CPPUNIT_ASSERT(blocksize == 1024) ;
+
+	int64 numblocks = spi->getNumBlocks() ;
+	CPPUNIT_ASSERT(numblocks == 100) ;
+
+	int64 numfreeblocks = spi->getNumFreeBlocks() ;
+	CPPUNIT_ASSERT(numfreeblocks == 100) ;
+
+	// Test getting and releasing a new block
+	int64 newblock = spi->getFreeBlock() ;
+	CPPUNIT_ASSERT(newblock != 0) ;
+	CPPUNIT_ASSERT(spi->getNumFreeBlocks() == 99) ;
+	CPPUNIT_ASSERT(spi->releaseBlock(newblock) == true) ;
+	CPPUNIT_ASSERT(spi->getNumFreeBlocks() == 100) ;
+	// Try release the same block a second time and make sure count doesn't change
+	spi->releaseBlock(newblock) ;
+	CPPUNIT_ASSERT(spi->getNumFreeBlocks() == 100) ;
+
+	// Test writing & reading a block
+	string data = "abcd" ;
+	newblock = spi->getFreeBlock() ;
+	CPPUNIT_ASSERT(newblock != 0) ;
+	CPPUNIT_ASSERT(spi->writeBlock(newblock, 0, 4, data) == true) ;
+
+	// Read it back and check that its correct
+	Block b(1024) ;
+	CPPUNIT_ASSERT(spi->readBlock(newblock, b) == true) ;
+
+	CPPUNIT_ASSERT(b.getNumBytes() == 4) ;
+	string data2(b.getBytes(), b.getNumBytes()) ;
+	CPPUNIT_ASSERT(data2 == data) ;
+
+	// Zero a block, and then try reading it back.
+	CPPUNIT_ASSERT(spi->zeroBlock(newblock) == true) ;
+	CPPUNIT_ASSERT(spi->readBlock(newblock, b)) ;
+	CPPUNIT_ASSERT(b.getNumBytes() == 0) ;
+
+	// Test flush
+	CPPUNIT_ASSERT(spi->flushFreeBlockList() == true) ;
+	system("$SYGHOME/code/utest/setupstorprovtest.sh STOP") ;
+}
+
+@
+
+
+1.4
+log
+@These are partially converted tests. Many will break because of the changes
+to how readBlock and writeBlock behave -- they will fail if blocks are
+not allocated.
+
+testOrder.cpp controls the order of tests.
+@
+text
+@d75 3
+a77 1
+	CPPUNIT_ASSERT(spi->writeBlock(1, 0, 4, data) == true) ;
+d81 1
+a81 1
+	CPPUNIT_ASSERT(spi->readBlock(1, b) == true) ;
+d88 2
+a89 2
+	CPPUNIT_ASSERT(spi->zeroBlock(1) == true) ;
+	CPPUNIT_ASSERT(spi->readBlock(1, b)) ;
+@
+
+
+1.3
+log
+@Unit tests for syg_storprovider
+@
+text
+@d6 1
+a6 1
+CPPUNIT_TEST_SUITE_REGISTRATION(sygstorproviderUnitTest) ;
+@
+
+
+1.2
+log
+@Checkin non testing code.
+@
+text
+@a14 1
+	return ;
+a47 1
+	CPPUNIT_FAIL("still testing") ;
+a52 1
+	wcout << "testAll" << endl ;
+d73 1
+a73 1
+	// Test writing a block
+a74 1
+	cout << "Calling writeBlock" << endl ;
+d76 1
+a76 1
+	cout << "Past writeBlock" << endl ;
+d78 1
+a78 2
+	Block b ;
+	cout << "Calling readBlock" << endl ;
+d80 1
+a80 1
+	cout << "Past readBlock" << endl ;
+a81 1
+	cout << "Past getNumBytes" << endl ;
+d83 1
+a83 1
+	cout << "data2 = '" << data2 << "'" << endl ;
+d85 8
+a92 1
+	CPPUNIT_FAIL("still testing") ;
+@
+
+
+1.1
+log
+@Add unit tests for syg_storprovider. These will fail.
+@
+text
+@d15 1
+d18 3
+a20 3
+		system("syg_storprovider &") ;
+		Timer::sleep(2000) ;
+		cout << "Setting up socket" << endl ;
+d28 3
+d47 1
+a47 1
+sygstorproviderUnitTest::testGets()
+d49 1
+a49 1
+	cout << endl << endl << endl << "Starting testGets()" << endl << endl << endl ;
+d51 1
+a51 1
+	ClientSocket *cli = socket->acceptSocket();
+d53 1
+a53 1
+	StorProvClntInterface spi((*cli)) ;
+d55 35
+a89 13
+	int blocksize = spi.getBlockSize() ;
+	Timer::sleep(1000) ;
+	cout << "blocksize = " << blocksize << endl ;
+//	CPPUNIT_ASSERT(blocksize == 1024) ;
+
+	int64 numblocks = spi.getNumBlocks() ;
+	Timer::sleep(1000) ;
+	cout << "spi.getNumBlocks() = " << numblocks << endl ;
+//	CPPUNIT_ASSERT(numblocks == 100) ;
+
+//	int64 numfreeblocks = spi.getNumFreeBlocks() ;
+//	cout << "numfreeblocks = " << numfreeblocks << endl ;
+//	CPPUNIT_ASSERT(numfreeblocks == 100) ;
+a93 11
+void 
+sygstorproviderUnitTest::testReadWrite()
+{
+	CPPUNIT_FAIL("still testing") ;
+}
+
+void 
+sygstorproviderUnitTest::testOther()
+{
+	CPPUNIT_FAIL("still testing") ;
+}
+@
+

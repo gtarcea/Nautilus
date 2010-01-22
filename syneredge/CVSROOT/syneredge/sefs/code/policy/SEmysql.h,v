@@ -1,0 +1,46 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@ * @;
+
+
+1.1
+date	2005.05.09.12.57.13;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	908427f5e1527e5;
+kopt	kv;
+filename	@SEmysql.h@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Added files for policy manipulation.
+@
+text
+@
+#ifndef SEmysql_INCLUDED
+#define SEmysql_INCLUDED
+
+/** portable type for MYSQL */
+typedef void* DBmysql;
+
+/** portable type for MYSQL_RES */
+typedef void* DBmysql_res;
+
+/** portable type for MYSQL_ROW */
+typedef void* DBmysql_row;
+
+#ifndef NULL
+#define NULL (0)
+#endif
+
+#endif
+@

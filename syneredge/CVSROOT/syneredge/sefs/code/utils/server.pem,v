@@ -1,0 +1,97 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.05.21.15.16.05;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	df4428f50a13bc6;
+kopt	kv;
+filename	@server.pem@;
+
+
+desc
+@@
+
+
+1.1
+log
+@SSL Stuff + ORB stuff
+@
+text
+@Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 1 (0x1)
+        Signature Algorithm: md5WithRSAEncryption
+        Issuer: C=US, ST=MI, L=Ann Arbor, O=SynerEdge, CN=Ravi Desai/emailAddress=rdesai@@syneredge.com
+        Validity
+            Not Before: May 15 02:32:27 2005 GMT
+            Not After : May 15 02:32:27 2006 GMT
+        Subject: C=US, ST=MI, O=SynerEdge, CN=Ravi Desai/emailAddress=rdesai@@syneredge.com
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+            RSA Public Key: (512 bit)
+                Modulus (512 bit):
+                    00:e0:58:41:a7:8f:7e:a5:7e:2a:e0:d7:87:31:15:
+                    e4:c3:49:ca:fb:1f:8d:2d:cc:95:5d:a6:86:3d:35:
+                    07:aa:92:00:74:a4:fd:29:fe:ea:3d:65:68:d7:63:
+                    78:e9:7f:1a:30:15:ea:a3:fa:8c:0b:7c:26:82:22:
+                    2d:81:5e:3f:6b
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+            CA:FALSE
+            Netscape Comment: 
+            OpenSSL Generated Certificate
+            X509v3 Subject Key Identifier: 
+            0B:E1:19:C9:78:08:F6:43:0D:AE:5A:3D:25:8D:C7:79:3E:82:32:F6
+            X509v3 Authority Key Identifier: 
+            keyid:8F:5D:1F:B5:B0:24:EC:80:20:B8:7E:4B:36:6D:EA:08:CE:DB:87:5A
+            DirName:/C=US/ST=MI/L=Ann Arbor/O=SynerEdge/CN=Ravi Desai/emailAddress=rdesai@@syneredge.com
+            serial:00
+
+    Signature Algorithm: md5WithRSAEncryption
+        3a:9d:cf:78:40:c2:76:ff:69:8e:4c:b3:0d:9b:c6:85:7f:66:
+        5d:f0:72:e3:01:6d:3c:b7:cb:37:d9:bb:9f:9b:bf:b0:9c:b3:
+        e5:38:fa:e1:d3:8f:1f:ce:94:09:25:cc:28:5b:1d:f5:29:ae:
+        c9:97:62:a0:49:77:e0:16:56:95:45:12:18:ff:8c:0c:2a:c0:
+        ca:83:da:6c:d1:69:1a:9f:10:ce:f8:9e:13:c0:14:32:a2:f3:
+        59:68:29:ba:3a:b9:0f:e8:b0:0a:2e:ec:41:45:02:32:67:c4:
+        cf:98:e3:d8:74:9f:e7:1d:47:f3:2a:e1:9a:91:46:50:60:de:
+        07:0b
+-----BEGIN CERTIFICATE-----
+MIIDHjCCAoegAwIBAgIBATANBgkqhkiG9w0BAQQFADB8MQswCQYDVQQGEwJVUzEL
+MAkGA1UECBMCTUkxEjAQBgNVBAcTCUFubiBBcmJvcjESMBAGA1UEChMJU3luZXJF
+ZGdlMRMwEQYDVQQDEwpSYXZpIERlc2FpMSMwIQYJKoZIhvcNAQkBFhRyZGVzYWlA
+c3luZXJlZGdlLmNvbTAeFw0wNTA1MTUwMjMyMjdaFw0wNjA1MTUwMjMyMjdaMGgx
+CzAJBgNVBAYTAlVTMQswCQYDVQQIEwJNSTESMBAGA1UEChMJU3luZXJFZGdlMRMw
+EQYDVQQDEwpSYXZpIERlc2FpMSMwIQYJKoZIhvcNAQkBFhRyZGVzYWlAc3luZXJl
+ZGdlLmNvbTBcMA0GCSqGSIb3DQEBAQUAA0sAMEgCQQDgWEGnj36lfirg14cxFeTD
+Scr7H40tzJVdpoY9NQeqkgB0pP0p/uo9ZWjXY3jpfxowFeqj+owLfCaCIi2BXj9r
+AgMBAAGjggEGMIIBAjAJBgNVHRMEAjAAMCwGCWCGSAGG+EIBDQQfFh1PcGVuU1NM
+IEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQUC+EZyXgI9kMNrlo9JY3H
+eT6CMvYwgacGA1UdIwSBnzCBnIAUj10ftbAk7IAguH5LNm3qCM7bh1qhgYCkfjB8
+MQswCQYDVQQGEwJVUzELMAkGA1UECBMCTUkxEjAQBgNVBAcTCUFubiBBcmJvcjES
+MBAGA1UEChMJU3luZXJFZGdlMRMwEQYDVQQDEwpSYXZpIERlc2FpMSMwIQYJKoZI
+hvcNAQkBFhRyZGVzYWlAc3luZXJlZGdlLmNvbYIBADANBgkqhkiG9w0BAQQFAAOB
+gQA6nc94QMJ2/2mOTLMNm8aFf2Zd8HLjAW08t8s32bufm7+wnLPlOPrh048fzpQJ
+JcwoWx31Ka7Jl2KgSXfgFlaVRRIY/4wMKsDKg9ps0WkanxDO+J4TwBQyovNZaCm6
+OrkP6LAKLuxBRQIyZ8TPmOPYdJ/nHUfzKuGakUZQYN4HCw==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIIBOwIBAAJBAOBYQaePfqV+KuDXhzEV5MNJyvsfjS3MlV2mhj01B6qSAHSk/Sn+
+6j1laNdjeOl/GjAV6qP6jAt8JoIiLYFeP2sCAwEAAQJAX/OfcQkgg6uory2/drEE
+fLoNBMcD3PjJUZqtg3Qw6TRnfPbLdzEmXFCScHrIZOVcXAPbuwVH6/Tq3MOc5pAh
+wQIhAP5WLZKTePLwB8e1jVyyGK0u/5PbrXB+mkLB0h4fgVLRAiEA4c/dWxSEfZTe
+gilVJK0zYPRMiXaDsk7JwKo01A1fZXsCIHx+FFqN4wMPKM/Bd0trRZbnzWRDgDbz
+UXDhzIbAJx4xAiEAygtiJQ+LqI3eNZpj+2gZs6ODI+/t0EoczQ2+LQo2FCcCIQCi
+w7ExoLU208qwlp5SypcOWGbnfKIQ2/4wvuyWhGyZBA==
+-----END RSA PRIVATE KEY-----
+@

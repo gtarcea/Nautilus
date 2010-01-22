@@ -1,0 +1,90 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.06.02.19.38.56;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	97c429f60342e72;
+kopt	kv;
+filename	gen_db;
+
+
+desc
+@@
+
+
+1.1
+log
+@Rework of policy engine.
+@
+text
+@#mysql statement to grant everything:
+#
+#    grant all privileges on *.* to 'irrer'@@'localhost';
+#
+#creating a table
+#
+#    CREATE TABLE pet (name VARCHAR(20), owner VARCHAR(20),
+#        species VARCHAR(20), sex CHAR(1), birth DATE, death DATE);
+
+    CREATE DATABASE sedb;
+
+    USE sedb;
+
+    CREATE TABLE block_file (
+        host          VARCHAR(24) NOT NULL,  # host through which the disk is to be accessed
+        directory     VARCHAR(30) NOT NULL,  # root directory of scavenged area of disk
+        max_bytes     BIGINT      NOT NULL,  # maximum bytes allocated to scavenging
+        bytes         BIGINT      NOT NULL,  # remaining bytes available (unclaimed)
+        room          VARCHAR(12),           # room in which the disk is located
+        building      VARCHAR(12),           # building in which the disk is located
+        PRIMARY KEY (host,directory)
+    ) ENGINE = InnoDB;
+
+    # describe how to select a disk that is appropriate for this virtual disk
+    CREATE TABLE virtual_disk_policy (
+        name          VARCHAR(24)   NOT NULL, # unique user-readable identifier
+        policy        TEXT          NOT NULL, # criteria for selecting disks
+        PRIMARY KEY (name)
+    ) ENGINE = InnoDB;
+
+    # a virtual disk, used as one virtual disk of a sefs
+    CREATE TABLE virtual_disk (
+        name                 VARCHAR(24),          # unique user-readable identifier
+        host                 VARCHAR(24) NOT NULL REFERENCES block_file(host),
+        directory            VARCHAR(30) NOT NULL REFERENCES block_file(directory),
+        bytes                BIGINT (20) NOT NULL, # amount used from this phys disk
+        virtual_disk_policy  VARCHAR(24) NOT NULL REFERENCES virtual_disk_policy(name),
+        block_size           INT(31)     NOT NULL, # block size in bytes
+        PRIMARY KEY (name, host, directory)
+    ) ENGINE = InnoDB;
+
+    # SynerEdge file system as seen by the end user
+    CREATE TABLE file_system (
+        name              VARCHAR(24) NOT NULL,    # unique user-readable identifier
+        virtual_disk      VARCHAR(24) NOT NULL REFERENCES virtual_disk(name),
+        PRIMARY KEY (name, virtual_disk)
+    ) ENGINE = InnoDB;
+
+    SHOW TABLES;
+
+    DESCRIBE block_file;
+    DESCRIBE virtual_disk_policy;
+    DESCRIBE virtual_disk;
+    DESCRIBE file_system;
+
+    LOAD DATA LOCAL INFILE 'block_file.lod'    INTO TABLE block_file;
+    LOAD DATA LOCAL INFILE 'virtual_disk_policy.lod' INTO TABLE virtual_disk_policy;
+
+    SELECT host,directory,max_bytes,bytes,room,building from block_file;
+    SELECT * from virtual_disk_policy;
+
+quit
+@

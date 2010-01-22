@@ -1,0 +1,41 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.05.21.15.16.05;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	df4428f50a13bc6;
+kopt	kv;
+filename	@dhparam4096.pem@;
+
+
+desc
+@@
+
+
+1.1
+log
+@SSL Stuff + ORB stuff
+@
+text
+@-----BEGIN DH PARAMETERS-----
+MIICCAKCAgEA4R8Crwxzdo5yHKzIyoZa0eax4PGA5Y1rLf+KOs1kx+33gY0yAHz2
+WoL1ijkWzSG2MbWLwbBTNc4+bL/tMRwP7KlZfu4BRUXiNyse9eSyWqcbZPMJwIgS
+U8RNkrGg4OApwcZQiWTqlu88YBvVYJAilkPWZ5l6VstxdvXYgjes0s6akbs9x1Ey
+8ktB73G9ZpUYcW5FCkhLAjxb72V1nKb/sdQtXTNs8Pd2GgoQ8OPNTY9SUDHSLbFL
+X3hX0YCctEOvqJ3P9VQus2iYbdvqroyiW/7x7pehv8hrwwY0yxtyLatFAbYtc5Pv
+ZmWS9DQ5R3OaiQg2nt30nSxcYBUE0tpgTTmd0KLCLIPal+QTz1U1y7xI4fo7Ct7D
+k2TZse9DGlIcJ/Cehm1uBXqR1lgGnv0jb14fJ7RJUzMMPZBNMsIfIJsd42rIKPaa
+tNRmI5fB8aN62avg5rE2GwIMAYkLi93hvKA4NUUlTMpTZF8YcSw6LV58cF02Y+Yx
+aUAORo9XpxTDLUnvWi0Toqm03dLv7yuYThDeqsdJisP6zjE0omnGx8DgVOomm9XC
+zUW/tandseIXrZvTr92v1f9FrceljKVsHRM2UySCov4pZ70uPQ1bzu2ThGtLslwL
+XraQB9TNyx4BncXOl7wwrsmYKciiqEwv/sQQ8pGx7XXS18ksRdoTbtMCAQI=
+-----END DH PARAMETERS-----
+@

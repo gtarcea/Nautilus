@@ -1,0 +1,103 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2005.04.13.19.19.20;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	e58425d709a5cc5;
+kopt	kv;
+filename	@synfstester.c@;
+
+1.1
+date	2005.04.08.17.49.29;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.29;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.2
+log
+@File removal didn't take?
+@
+text
+@
+#include "tester.h"
+
+static int
+Setup()
+{
+}
+
+static int
+restart_blockd()
+{
+	system("/filesafe/stopfs") ;
+	system("/filesafe/blockd/synwrblockd") ;
+	/*printf("please start blockd\n") ;
+	sleep(10) ;*/
+}
+
+void run_rw_tests() ;
+void run_fcreate_tests() ;
+
+
+main()
+{
+	if (getuid()) {
+		printf("synfstester unit test must be run as root\n") ;
+		exit(1) ;
+	}
+
+	Setup() ;
+
+	synfs_init("abc", "abc", 0, 0) ;
+
+	restart_blockd() ;
+	run_fcreate_tests() ;
+
+	restart_blockd() ;
+	run_rw_tests() ;
+
+	synfs_shutdown(0) ;
+
+	exit(0) ;
+}
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

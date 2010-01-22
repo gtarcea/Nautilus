@@ -1,0 +1,100 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2005.04.13.18.43.41;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	d8425d6849419c;
+kopt	kv;
+filename	@cblockfile.h@;
+
+1.1
+date	2005.04.08.17.49.30;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.30;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Move files that belong in the storprovider directory to that directory.
+@
+text
+@
+#ifndef __CBLOCKFILE_INCLUDE_
+#define __CBLOCKFILE_INCLUDE_
+
+#include <sys/types.h>
+#include <fstream>
+#include <string>
+using std::string ;
+using std::fstream ;
+
+class BlockFile {
+	public:
+		BlockFile(string filename) ;
+		BlockFile(string filename, off_t startingblocknum, int numfreeblocks) ;
+		~BlockFile() ;
+		off_t getNumBlocks() const ;
+		off_t getStartingBlockNum() const ;
+		off_t getNumFreeBlocks() const ;
+		int writeBlock(int blocknum, int offset, int size, char *data) ;
+		int readBlock(off_t blocknum, int offset, int size, char *data) ;
+		int clearBlock(int blocknum) ;
+
+	private:
+		int numblocks ;
+		off_t startingblocknum ;
+		off_t firstfreeblock ;
+		int numfreeblocks ;
+		string filename ;
+		fstream file ;
+
+		static const int headersize = sizeof(int)+sizeof(off_t)+
+				sizeof(off_t)+sizeof(int) ;
+
+		bool openBlockFile(string filename) ;
+		bool createBlockFile(string filename, off_t startingblocknum, int numfreeblocks) ;
+//		BlockCache cache ;
+} ;
+#endif /* __CBLOCKFILE_INCLUDE_ */
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

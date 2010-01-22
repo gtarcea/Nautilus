@@ -1,0 +1,66 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.04.20.19.06.02;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	6a84266a80775a9;
+kopt	kv;
+filename	@FreeBlockMapTest.hpp@;
+
+1.1
+date	2005.04.19.20.54.36;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	d6842656fd77a30;
+kopt	kv;
+filename	@FreeBlockMapTest.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@More unit tests, plus move over to new naming convention.
+@
+text
+@
+#include <cppunit/extensions/HelperMacros.h>
+class FreeBlockMapTest : public CppUnit::TestFixture
+{
+	CPPUNIT_TEST_SUITE(FreeBlockMapTest) ;
+	CPPUNIT_TEST(testConstructor) ;
+	CPPUNIT_TEST(testAllocateFreeMethods) ;
+	CPPUNIT_TEST(testOtherMethods) ;
+	CPPUNIT_TEST_SUITE_END() ;
+public:
+	void setUp() ;
+	void tearDown() ;
+	void testConstructor() ;
+	void testAllocateFreeMethods() ;
+	void testOtherMethods() ;
+} ;
+@
+
+
+1.1
+log
+@
+New BlockFile interface and corresponding unit tests. These build, not all
+unit tests run. But this has not yet been integrated into the filesystem so
+that still runs.
+@
+text
+@@
+

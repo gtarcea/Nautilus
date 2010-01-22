@@ -1,0 +1,125 @@
+head	1.3;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.3
+date	2005.04.27.21.37.45;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	777;
+commitid	afc427006120ca9;
+kopt	kv;
+filename	@fileblockmap.h@;
+
+1.2
+date	2005.04.20.19.06.03;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	777;
+commitid	6a84266a80775a9;
+kopt	kv;
+filename	@fileblockmap.h@;
+
+1.1
+date	2005.04.08.17.49.30;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	777;
+
+1.1.1.1
+date	2005.04.08.17.49.30;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+
+
+desc
+@@
+
+
+1.3
+log
+@
+Changes to speed up the filesystem.
+@
+text
+@
+#ifndef __FILEBLOCKMAP_INCLUDE_
+#define __FILEBLOCKMAP_INCLUDE_
+
+#include "fileblock.h"
+#include "next.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct FILEBLOCKMAP ;
+typedef struct FILEBLOCKMAP FILEBLOCKMAP ;
+typedef FILEBLOCKMAP *FILEBLOCKMAPP ;
+
+FILEBLOCKMAPP fileblockmap_open(char *name, int create) ;
+int fileblockmap_exists(char *name) ;
+int fileblockmap_close(FILEBLOCKMAPP map, int save) ;
+int fileblockmap_save(FILEBLOCKMAPP map) ;
+int fileblockmap_delete(char *name) ;
+FILEBLOCKP fileblockmap_addblock(FILEBLOCKMAPP map, int blocknum, int bytes) ;
+int fileblockmap_removeblock(FILEBLOCKMAPP map, int blocknum) ;
+int fileblockmap_updateblock(FILEBLOCKMAPP map, int blocknum, int newbytes) ;
+int fileblockmap_getblockcount(FILEBLOCKMAPP map) ;
+FILEBLOCKP fileblockmap_findblock(FILEBLOCKMAPP map, int blocknum) ;
+FILEBLOCKP fileblockmap_getnextblock(FILEBLOCKMAPP, int next) ;
+int fileblockmap_addhost(FILEBLOCKMAPP map, char *host) ;
+int fileblockmap_removehost(FILEBLOCKMAPP map, char *host) ;
+char *fileblockmap_getnexthost(FILEBLOCKMAPP map, int next) ;
+int fileblockmap_findhost(FILEBLOCKMAPP map, char *host) ;
+char *fileblockmap_getname(FILEBLOCKMAPP map) ;
+int fileblockmap_getbytecount(FILEBLOCKMAPP map) ;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __FILEBLOCKMAP_INCLUDE_ */
+
+@
+
+
+1.2
+log
+@More unit tests, plus move over to new naming convention.
+@
+text
+@d21 1
+a21 1
+int fileblockmap_addblock(FILEBLOCKMAPP map, int blocknum, int bytes) ;
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d30 1
+a30 1
+char *fileblockmap_findhost(FILEBLOCKMAPP map, char *host) ;
+@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

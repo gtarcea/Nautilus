@@ -1,0 +1,156 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2005.04.13.18.35.06;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	afc425d663b3ae7;
+kopt	kv;
+filename	@mirrorenvtester.c@;
+
+1.1
+date	2005.04.08.17.49.32;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.32;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Switch over to new makefile system. This required renaming files to conform
+to convention.
+@
+text
+@
+#include "tester.h"
+#include "next.h"
+#include "mirrorenv.h"
+
+static int
+test_open_nonexistent_config_file()
+{
+	MIRRORENVP m ;
+
+	m = mirrorenv_open("/does/not/exist") ;
+	if (m) {
+		printf("mirrorenv_open(/does/not/exist) succeeded and shouldn't have\n") ;
+		return 0 ;
+	}
+
+	return 1 ;
+}
+
+static int
+test_open_print_close_config_file()
+{
+	MIRRORENTRYP mentry ;
+	MIRRORENVP m ;
+	int sawbuford ;
+	int sawspelljammer ;
+	int rc ;
+
+	m = mirrorenv_open("/etc/syneredge") ;
+	if (! m) {
+		printf("mirrorenv_open(/etc/syneredge) failed\n") ;
+		return 0 ;
+	}
+
+	sawbuford = sawspelljammer = 0 ;
+
+	mentry = mirrorenv_getnextmirror(m, LSTART) ;
+	while (1) {
+		if (! mentry) {
+			break ;
+		}
+
+		printf("mentry->directory = '%s'\n", mentry->directory) ;
+		if (strcmp(mentry->host, "spelljammer") == 0) {
+			sawspelljammer = 1 ;
+		}
+
+		if (strcmp(mentry->host, "buford") == 0) {
+			sawbuford = 1 ;
+		}
+
+		mentry = mirrorenv_getnextmirror(m, LNEXT) ;
+	}
+
+	rc = mirrorenv_destroy(m) ;
+	if (! rc) {
+		printf("morrorenv_destroy() failed\n") ;
+		return 0 ;
+	}
+
+	if (sawspelljammer && sawbuford) {
+		return 1 ;
+	}
+
+	return 0 ;
+}
+
+main()
+{
+	int rc ;
+
+	if (getuid()) {
+		printf("Only root can run this unit test\n") ;
+		exit(1) ;
+	}
+
+	system("test -f /etc/syneredge/mirrors.bak || cp /etc/syneredge/mirrors /etc/syneredge/mirrors.bak") ;
+	system("echo spelljammer /testdir1 > /etc/syneredge/mirrors") ;
+	system("echo buford /testdir2 >> /etc/syneredge/mirrors") ;
+
+	P("test_open_nonexistent_config_file()") ;
+	rc = test_open_nonexistent_config_file() ;
+	S(rc, "test_open_nonexistent_config_file()") ;
+
+	P("test_open_print_close_config_file()") ;
+	rc = test_open_print_close_config_file() ;
+	S(rc, "test_open_print_close_config_file()") ;
+
+	system("mv /etc/syneredge/mirrors.bak /etc/syneredge/mirrors") ;
+
+	exit(0) ;
+}
+
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

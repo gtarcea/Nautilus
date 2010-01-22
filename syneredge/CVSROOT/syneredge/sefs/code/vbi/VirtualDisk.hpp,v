@@ -1,0 +1,266 @@
+head	1.7;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.7
+date	2005.06.12.23.18.33;	author aprakash;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	93842acc2986398;
+kopt	kv;
+filename	@VirtualDisk.hpp@;
+
+1.6
+date	2005.06.12.01.39.06;	author gtarcea;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	76442ab91ef00b4;
+kopt	kv;
+filename	@VirtualDisk.hpp@;
+
+1.5
+date	2005.06.10.15.59.03;	author aprakash;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	fbc42a9b89c7706;
+kopt	kv;
+filename	@VirtualDisk.hpp@;
+
+1.4
+date	2005.06.09.16.51.28;	author aprakash;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	ce842a873275038;
+kopt	kv;
+filename	@VirtualDisk.hpp@;
+
+1.3
+date	2005.06.07.02.13.43;	author aprakash;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	6d042a5029c14bd;
+kopt	kv;
+filename	@VirtualDisk.hpp@;
+
+1.2
+date	2005.05.10.16.12.44;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	53c4280dd310af8;
+kopt	kv;
+filename	@VirtualDisk.hpp@;
+
+1.1
+date	2005.04.30.21.13.33;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	fe44273f4e56486;
+kopt	kv;
+filename	@VirtualDisk.hpp@;
+
+
+desc
+@@
+
+
+1.7
+log
+@Some bug fixes.
+
+isOpen wasn't correctly being maintained/used.
+
+Also, modified the constructor so that bflist argument is not passsed by value
+(it is a list).
+@
+text
+@
+#ifndef __VirtualDisk_INCLUDE_
+#define __VirtualDisk_INCLUDE_
+
+#include <string>
+#include <list>
+#include "VirtualBlockFile.hpp"
+#include "BlockCacheStd.hpp"
+
+using namespace std ;
+
+namespace SynerEdge {
+
+	const int cacheSize = 100;       // Size in blocks
+
+
+class VirtualDisk : public iBlockIO, private boost::noncopyable {
+	friend class BlockCacheBase;
+public:
+	// These are the mirrors for this disk
+	typedef std::list<VirtualBlockFile*> VirtualBlockFileList ;
+	typedef std::list<VirtualBlockFile*>::iterator VirtualBlockFileListIterator;
+
+	VirtualDisk(string name, int blocksize, VirtualBlockFileList &vbfilelist) ;
+	~VirtualDisk() ;
+
+	bool open() ;
+	bool close() ;
+	uint64 getNumBlocks() ;
+	uint64 getNumFreeBlocks() ;
+	uint64 getFreeBlock() ;
+	bool releaseBlock(uint64 blocknum) ;
+	bool flushFreeBlockList() ;
+	int getBlockSize() const ;
+	bool writeBlock(uint64 blocknum, int offset, int size, char *data) ;
+	bool writeBlock(Block &block) ;
+	bool readBlock(uint64 blocknum, Block &block) ;
+	bool zeroBlock(uint64 blocknum) ;
+	// bool freeBlock(uint64 blocknum) ;
+	void setMirrorBlocking(bool blockonwrite) ;
+	bool getMirrorBlocking() ;
+	bool repair() ;
+	BlockCacheStd *getCache() {return blockcache;}
+
+	// Should be private. To help with testing, they are made public.
+	bool disk_writeBlock(uint64 blocknum, int offset, int size, char *data) ;
+	bool disk_writeBlock(Block &block) ;
+	bool disk_readBlock(uint64 blocknum, Block &block) ;
+	bool disk_zeroBlock(uint64 blocknum) ;
+	bool disk_releaseBlock(uint64 blocknum) ;
+
+
+private:
+	bool validateAccess(uint64 blocknum);
+	bool useCache;             // use or not use cache. For debugging.
+	string name ;
+	int blocksize ;
+	bool isopen ;
+	bool blockonwrite ;
+	VirtualBlockFileList vbflist ;
+	BlockCacheStd *blockcache;        // Cache. Can be constructed using a factory
+	static const unsigned int cachesize = 10;
+} ;
+
+} ; // namespace SynerEdge
+#endif // __VirtualDisk_INCLUDE_
+@
+
+
+1.6
+log
+@
+Move BlockFileBase.hpp to iBlockIO.hpp
+Cleaned up interfaces to support uint64 rather than int64
+VirtualDisk and VirtualBlockFile now also inherit from iBlockIO, so now
+BlockFileIO can use any of these interfaces.
+@
+text
+@d24 1
+a24 1
+	VirtualDisk(string name, int blocksize, VirtualBlockFileList vbflist) ;
+@
+
+
+1.5
+log
+@NOTES: this is where I am keeping track of "bugs" and TODO work.
+
+Other files: Bug fixes to help pass the tests.
+@
+text
+@d17 1
+a17 1
+class VirtualDisk {
+@
+
+
+1.4
+log
+@*** empty log message ***
+@
+text
+@d54 1
+@
+
+
+1.3
+log
+@This version of block cache uses LRU policy.
+
+Writing back to disk is currently missing. Also, limits on cache size are not currently enforced.
+@
+text
+@d39 1
+a39 1
+	bool freeBlock(uint64 blocknum) ;
+d50 1
+a50 1
+	bool disk_freeBlock(uint64 blocknum) ;
+@
+
+
+1.2
+log
+@First functional version of VirtualDisk class. The mirroring in this
+version is very simple. It always writes to all mirrors, on read it returns
+from the first successful read. The class assumes that the VirtualBlockFiles
+passed into it are all the same size.
+@
+text
+@d8 1
+d14 3
+d18 1
+a18 1
+
+d20 1
+d43 9
+d54 1
+d60 2
+a61 1
+
+@
+
+
+1.1
+log
+@Add interface to multiple blockfiles. Begin to work on a virtual disk interface.
+@
+text
+@d6 2
+a7 2
+#include <map>
+#include "BlockFile.hpp"
+d16 4
+a19 1
+	VirtualDisk(string name, int blocksize) ;
+d21 16
+a36 2
+	bool addDiskBlocks(string blockfile) ;
+	bool removeDiskBlocks(string blockfile) ;
+d40 5
+a44 4
+	bool entryExists(string blockfile) ;
+
+//	typedef std::map<std::string, BlockMapEntry> BlockMap ;
+//	typedef std::map<std::string, BlockMapEntry>::iterator BlockMapIterator;
+a45 5
+//	string name ;
+//	int blocksize ;
+//	uint64 startingblocknum ;
+//	uint64 endingblocknum ;
+//	BlockMap blockMap ;
+@
+

@@ -1,0 +1,47 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.30.21.15.01;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	3384273f54c65d6;
+kopt	kv;
+filename	@utesttemplate.cxx@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Templates to base unit tests off of.
+@
+text
+@#include "Class_Name_Here.hpp"
+using namespace std ;
+using namespace SynerEdge ;
+
+CPPUNIT_TEST_SUITE_REGISTRATION(Class_Name_Here) ;
+
+void
+Class_Name_Here::setUp()
+{
+}
+
+void
+Class_Name_Here::tearDown()
+{
+}
+
+void Class_Name_Here::A_Unit_Test()
+{
+}
+@

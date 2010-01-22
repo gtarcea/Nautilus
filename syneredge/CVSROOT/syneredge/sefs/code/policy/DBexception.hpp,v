@@ -1,0 +1,59 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.05.09.14.40.41;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	7e4427f76627740;
+kopt	kv;
+filename	@DBexception.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Added file.
+@
+text
+@
+#include <string.h>
+
+class DBexception
+{
+    char *text;
+
+    public:
+
+    DBexception(const char *message)
+    {
+        text = new char[strlen(message)+1];
+        strcpy (text, message);
+    }
+
+    // ------------------------------------------------------------------------
+
+    ~DBexception(void)
+    {
+        if (text != NULL) {
+            delete [] text;
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    const char *toString(void)
+    {
+        return text;
+    }
+};
+@

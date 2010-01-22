@@ -1,0 +1,140 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2005.04.13.18.35.07;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	555;
+commitid	afc425d663b3ae7;
+kopt	kv;
+filename	@shmemtester.c@;
+
+1.1
+date	2005.04.08.17.49.32;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	777;
+
+1.1.1.1
+date	2005.04.08.17.49.32;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Switch over to new makefile system. This required renaming files to conform
+to convention.
+@
+text
+@
+#include "shmem.h"
+#include "tester.h"
+
+
+static int
+test_open_get_close()
+{
+	int rc ;
+
+	printf("Calling shmem_open()\n") ;
+	rc = shmem_open() ;
+	if (! rc) {
+		printf("shmem_open() failed\n") ;
+		return 0 ;
+	}
+
+	system("ipcs -a") ;
+
+	printf("Calling shmem_get_memptr()\n") ;
+	printf( "%lu\n", shmem_get_memptr()) ;
+
+	printf("Calling shmem_close(1)\n") ;
+	rc = shmem_close(1) ;
+	if (!rc) {
+		printf("shmem_close(1) failed\n") ;
+		return 0 ;
+	}
+
+	system("ipcs -a") ;
+	return 1 ;
+}
+
+static int
+test_already_open_memory()
+{
+	int rc ;
+
+	rc = shmem_open() ;
+
+	if (-1 == rc) {
+		printf("shmem_open() failed\n") ;
+		return 0 ;
+	}
+
+	rc = shmem_open() ;
+
+	if (-1 == rc) {
+		printf("Open of already open shmem failed\n") ;
+		return 0 ;
+	}
+
+	rc = shmem_close(1) ;
+
+	if (-1 == rc) {
+		printf("close of already open shmem failed\n") ;
+		return 0 ;
+	}
+
+	return 1 ;
+}
+
+main()
+{
+	int rc ;
+
+	P("test_open_get_close()") ;
+	rc = test_open_get_close() ;
+	S(rc, "test_open_get_close()") ;
+
+	P("test_already_open_memory()") ;
+	rc = test_already_open_memory() ;
+	S(rc, "test_already_open_memory()") ;
+
+	exit(0) ;
+}
+
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

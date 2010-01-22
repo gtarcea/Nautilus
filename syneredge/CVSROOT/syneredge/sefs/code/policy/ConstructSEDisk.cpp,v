@@ -1,0 +1,159 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.02.19.38.52;	author irrer;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	97c429f60342e72;
+kopt	kv;
+filename	@ConstructSEDisk.cpp@;
+
+1.1
+date	2005.05.09.12.57.11;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	908427f5e1527e5;
+kopt	kv;
+filename	@ConstructSEDisk.cpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Rework of policy engine.
+@
+text
+@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <vector>
+
+#include <DBinterface.hpp>
+#include <DBexception.hpp>
+#include <PolicyUtil.hpp>
+
+static void usage (char **argv, const char *msg)
+{
+    // show the user the special error
+    fprintf(stderr, "%s\n", msg);
+
+    // determine the name of this executable
+    char *myname = argv[0];
+    while (strchr(myname, '/') != NULL) {
+        myname = strchr(myname, '/');
+    }
+    // print standard usage message
+    fprintf(stderr, "Usage: \n    %s se_disk_name virtual_disk_name virtual_disk_name ...\n", myname);
+
+    // abort with error exit status
+    exit(1);
+}
+
+// ------------------------------------------------------------------------
+
+int main(int argc, char **argv)
+{
+    if (argc < 3) {
+        usage(argv, "Insufficient number of parameters.");
+    }
+
+    // put convenient names on parameters
+    char *seName = argv[1];
+
+    // database to query.
+
+    DBinterface *db = NULL;
+    try {
+        db = new DBinterface();
+    }
+    catch (DBexception *ex) {
+        fprintf(stderr, "Unable to open database: %s\n", ex->toString());
+        exit(1);
+    }
+
+    char query[1000];
+    bool ok = true;
+
+    // ensure that there is not already an sefs of this name
+    sprintf(query, "SELECT name FROM sefs WHERE name = '%s'", seName);
+    if (db->execute(query)) {
+        if (db->nextRow()) {
+            ok = false;
+            fprintf(stderr, "There is alread an sefs named '%s'\n", seName);
+        }
+    } 
+    else {
+        fprintf(stderr, "Could not execute query:\n%s\n", query);
+        ok = false;
+    }
+
+
+    // ensure that all virtual disks exist
+    if (ok) {
+        for (int v = 2; v < argc; v++) {
+            sprintf(query, "SELECT name FROM virt_disk WHERE name = '%s'", argv[v]);
+            if (!((db->execute(query)) && db->nextRow())) {
+                fprintf(stderr, "No such virtual disk: %s\n", argv[v]);
+                ok = false;
+            }
+        }
+    }
+
+    // ensure that no other sefs is using any of these virtual disks
+    if (ok) {
+        for (int v = 2; v < argc; v++) {
+            sprintf(query, "SELECT name FROM sefs WHERE virt_disk = '%s'", argv[v]);
+            if (db->execute(query)) {
+                if (db->nextRow()) {
+                    fprintf(stderr, "Virtual disk %s is already used by sefs %s\n",
+                        argv[v], db->column(0));
+                    ok = false;
+                }
+            }
+            else {
+                fprintf(stderr, "Could not execute query:\n%s\n", query);
+                ok = false;
+                break;
+            }
+        }
+    }
+
+    // update the database with the new sefs
+    if (ok) {
+        for (int v = 2; v < argc; v++) {
+            sprintf(query, "INSERT INTO sefs VALUES ('%s', '%s')",
+                seName, argv[v]);
+            if (!db->execute(query)) {
+                fprintf(stderr,"Could not insert sefs record:\n%s\n", query);
+                ok = false;
+                break;
+            }
+        }
+    }
+
+    delete db;
+    exit(ok ? 0 : 1);
+}
+@
+
+
+1.1
+log
+@Added files for policy manipulation.
+@
+text
+@@
+

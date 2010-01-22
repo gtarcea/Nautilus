@@ -1,0 +1,94 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2005.04.20.19.06.02;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	777;
+commitid	6a84266a80775a9;
+kopt	kv;
+filename	@fileblocklist.h@;
+
+1.1
+date	2005.04.08.17.49.29;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	777;
+
+1.1.1.1
+date	2005.04.08.17.49.29;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+
+
+desc
+@@
+
+
+1.2
+log
+@More unit tests, plus move over to new naming convention.
+@
+text
+@
+#ifndef __FILEBLOCKLIST_INCLUDE_
+#define __FILEBLOCKLIST_INCLUDE_
+
+#include "fileblock.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct FILEBLOCKLIST ;
+typedef struct FILEBLOCKLIST FILEBLOCKLIST ;
+typedef FILEBLOCKLIST *FILEBLOCKLISTP ;
+
+FILEBLOCKLISTP fileblocklist_create(int numblocks) ;
+int fileblocklist_destroy(FILEBLOCKLISTP fblist) ;
+int fileblocklist_addblock(FILEBLOCKLISTP fblist, FILEBLOCKP fblock, int nodups) ;
+int fileblocklist_removeblock(FILEBLOCKLISTP fblist, int blocknum) ;
+FILEBLOCKP fileblocklist_getfileblock(FILEBLOCKLISTP fblist, int blocknum) ;
+FILEBLOCKP fileblocklist_getnextfileblock(FILEBLOCKLISTP fblist, int next) ;
+int fileblocklist_getblocklistcount(FILEBLOCKLISTP fblist) ;
+int fileblocklist_addhost(FILEBLOCKLISTP fblist, char *host) ;
+int fileblocklist_removehost(FILEBLOCKLISTP fblist, char *host) ;
+int fileblocklist_hostexists(FILEBLOCKLISTP fblist, char *host) ;
+int fileblocklist_gethostcount(FILEBLOCKLISTP fblist) ;
+char *fileblocklist_getnexthost(FILEBLOCKLISTP fblist, int next) ;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __FILEBLOCKLIST_INCLUDE_ */
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d24 1
+@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

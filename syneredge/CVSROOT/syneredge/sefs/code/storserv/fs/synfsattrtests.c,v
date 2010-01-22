@@ -1,0 +1,146 @@
+head	1.3;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.3
+date	2005.04.26.14.28.51;	author gtarcea;	state dead;
+branches;
+next	1.2;
+deltatype	text;
+permissions	444;
+commitid	65c426e5014765c;
+kopt	kv;
+filename	@synfsattrtests.c@;
+
+1.2
+date	2005.04.13.18.35.12;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	afc425d663b3ae7;
+kopt	kv;
+filename	@synfsattrtests.c@;
+
+1.1
+date	2005.04.08.17.49.32;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.32;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.3
+log
+@Move all test files to utest directory
+@
+text
+@
+#include "synfs.h"
+#include "tester.h"
+#include "fileblockmap.h"
+#include "fileblock.h"
+#include "next.h"
+#include "errno.h"
+
+static int
+test_getattr_on_nonexisting_file()
+{
+	return 0 ;
+}
+
+test_getattr_on_existing_file()
+{
+	return 0 ;
+}
+
+static int
+run_getattr_tests()
+{
+	int rc ;
+
+	P("test_getattr_on_nonexisting_file()") ;
+	rc = test_getattr_on_nonexisting_file() ;
+	S(rc, "test_getattr_on_nonexisting_file()") ;
+
+	P("test_getattr_on_existing_file()") ;
+	rc = test_getattr_on_existing_file() ;
+	S(rc, "test_getattr_on_existing_file()") ;
+}
+
+static int
+run_statfs_tests()
+{
+	exit(0) ;
+}
+
+static int
+Setup_Attr_Tests()
+{
+	/*
+	system("rm -f /etc/syneredge/fbmap/*") ;
+	system("rm -f /tmp/syneredgeblocks/*") ;
+	system("rm -f /tmp/syneredgeblocks2/*") ;
+	*/
+	return 1 ;
+}
+
+void
+run_attr_tests()
+{
+	Setup_Attr_Tests() ;
+	run_getattr_tests() ;
+	run_statfs_tests() ;
+	/*
+	** When we are ready to implement these.
+	**
+	** run_xattr_tests() ;
+	*/
+}
+@
+
+
+1.2
+log
+@
+Switch over to new makefile system. This required renaming files to conform
+to convention.
+@
+text
+@@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d21 1
+a21 1
+run_gettattr_tests()
+@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

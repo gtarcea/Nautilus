@@ -1,0 +1,81 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.12.01.39.51;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	f3c42ab925401fe;
+kopt	kv;
+filename	@BlockFileBase.hpp@;
+
+1.1
+date	2005.06.01.15.51.29;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	a10429dd95a3216;
+kopt	kv;
+filename	@BlockFileBase.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Rename BlockFileBase.hpp to iBlockIO.hpp, rename class, cleanup interfaces
+@
+text
+@
+#ifndef __BlockFileBase_INCLUDE_
+#define __BlockFileBase_INCLUDE_
+
+#include "SynerEdge.hpp"
+#include <Block.hpp>
+
+namespace SynerEdge {
+
+class BlockFileBase {
+	public:
+		BlockFileBase() {} ;
+		virtual ~BlockFileBase() {} ;
+
+		virtual bool open() = 0 ;
+		virtual void close() = 0 ;
+		virtual int64 getNumBlocks() const = 0 ;
+		virtual int64 getNumFreeBlocks() const = 0 ;
+		virtual int64 getFreeBlock() = 0 ;
+		virtual bool releaseBlock(int64 blocknum) = 0 ;
+		virtual bool flushFreeBlockList() = 0 ;
+		virtual int getBlockSize() const = 0 ;
+		virtual bool writeBlock(int64 blocknum, int offset, int size, char *data) = 0 ;
+		virtual bool writeBlock(Block &block) = 0 ;
+		virtual bool readBlock(int64 blocknum, Block &block) = 0 ;
+		virtual bool zeroBlock(int64 blocknum) = 0 ;
+
+} ;
+
+} ; // namespace SynerEdge
+
+#endif /* __BlockFileBase_INCLUDE_ */
+@
+
+
+1.1
+log
+@Add BlockFileBase class, change BlockFile class to be an extension of
+BlockFileBase. This will allow us to easily create a networked version of
+BlockFile.
+@
+text
+@@
+

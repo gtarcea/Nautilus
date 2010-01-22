@@ -1,0 +1,72 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2005.04.15.16.48.30;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	da4425ff0210532;
+kopt	kv;
+filename	@syg_fsmain.c@;
+
+1.1
+date	2005.04.13.18.35.09;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	afc425d663b3ae7;
+kopt	kv;
+filename	@syg_fsmain.c@;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Begin transition of filesystem to C++. Step 1: convert the main filesystem
+proper over to C++. Eventually we will eliminate all (or atleast most) of
+the C code that the filesystem depends on.
+@
+text
+@
+#include "synfs.h"
+
+
+main(int argc, char **argv)
+{
+	int rc ;
+
+	rc = synfs_init("/etc/syneredge", "/dev/whatever", 1024, 100) ;
+
+	if (! rc) {
+		printf("SynergyFS Initialization failed\n") ;
+		exit(1) ;
+	}
+/*	system("../blockd/synwrblockd") ;*/
+
+	synfs_run(argc, argv) ;
+	synfs_shutdown(0) ;
+	exit(0) ;
+}
+@
+
+
+1.1
+log
+@
+Switch over to new makefile system. This required renaming files to conform
+to convention.
+@
+text
+@@
+

@@ -1,0 +1,68 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.2
+date	2005.04.13.18.46.49;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	b88425d690043f2;
+kopt	kv;
+filename	makefile;
+
+1.1
+date	2005.04.12.23.27.17;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	99c425c59404c86;
+kopt	kv;
+filename	makefile;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Update to build fs
+@
+text
+@all : 
+	cd fs; \
+	$(MAKE) all
+
+clean : 
+	cd fs; \
+	$(MAKE) clean
+
+depends : 
+	cd fs; \
+	$(MAKE) depends
+
+rmdepends :
+	cd fs; \
+	$(MAKE) rmdepends
+@
+
+
+1.1
+log
+@
+Add makefile with blank targets. Keeps build going.
+@
+text
+@d2 2
+d6 2
+d10 2
+d14 2
+@
+

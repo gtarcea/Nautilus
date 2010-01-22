@@ -1,0 +1,153 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.3
+date	2005.04.21.16.50.09;	author gtarcea;	state dead;
+branches;
+next	1.2;
+deltatype	text;
+permissions	444;
+commitid	ed84267d9b75be8;
+kopt	kv;
+filename	@FileBlockMapTest.cpp@;
+
+1.2
+date	2005.04.20.19.06.01;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	6a84266a80775a9;
+kopt	kv;
+filename	@FileBlockMapTest.cpp@;
+
+1.1
+date	2005.04.19.20.54.35;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	d6842656fd77a30;
+kopt	kv;
+filename	@FileBlockMapTest.cpp@;
+
+
+desc
+@@
+
+
+1.3
+log
+@Move to utest directory.
+@
+text
+@#include "FileBlockMapTest.hpp"
+#include "FileBlockMap.hpp"
+#include <iostream>
+using namespace std ;
+using namespace SynerEdge ;
+
+CPPUNIT_TEST_SUITE_REGISTRATION(FileBlockMapTest) ;
+
+void
+FileBlockMapTest::setUp()
+{
+}
+
+void
+FileBlockMapTest::tearDown()
+{
+}
+
+void
+FileBlockMapTest::testConstructor()
+{
+	cout << "FileBlockMapTest::testConstructor()" << endl ;
+	system("rm -f /etc/syneredge/fbmap/passwd") ;
+	FileBlockMap fb("/etc/syneredge/fbmap/passwd") ;
+	FileBlockMap *fbp = new FileBlockMap("/etc/syneredge/fbmap/passwd2") ;
+}
+
+void
+FileBlockMapTest::testBlockMethods()
+{
+	cout << "FileBlockMapTest::testBlockMethods()" << endl ;
+	FileBlockMap fb("/etc/syneredge/fbmap/passwd") ;
+	CPPUNIT_ASSERT(fb.getBlockCount() == 0) ;
+	CPPUNIT_ASSERT(fb.addBlock(100, 100) == true) ;
+	CPPUNIT_ASSERT(fb.getBlockCount() == 1) ;
+	CPPUNIT_ASSERT(fb.removeBlock(101) == false) ;
+	CPPUNIT_ASSERT(fb.getBlockCount() == 1) ;
+	CPPUNIT_ASSERT(fb.removeBlock(100) == true) ;
+	CPPUNIT_ASSERT(fb.getBlockCount() == 0) ;
+	CPPUNIT_ASSERT(fb.updateBlock(100, 4) == false) ;
+	CPPUNIT_ASSERT(fb.getBlockCount() == 0) ;
+	CPPUNIT_ASSERT(fb.addBlock(100, 100) == true) ;
+	CPPUNIT_ASSERT(fb.getByteCount() == 100) ;
+	CPPUNIT_ASSERT(fb.updateBlock(100, 4) == true) ;
+	CPPUNIT_ASSERT(fb.getBlockCount() == 1) ;
+	CPPUNIT_ASSERT(fb.getByteCount() == 4) ;
+	CPPUNIT_ASSERT(fb.getBlockNumAt(1) == 100) ;
+	CPPUNIT_ASSERT(fb.getBlockNumAt(2) == 0) ;
+}
+
+void
+FileBlockMapTest::testHostMethods()
+{
+	cout << "FileBlockMapTest::testHostMethods()" << endl ;
+
+	FileBlockMap fb("/etc/syneredge/fbmap/passwd") ;
+
+	CPPUNIT_ASSERT(fb.hostExists("nosuchhost") == false) ;
+	CPPUNIT_ASSERT(fb.addHost("spelljammer") == true) ;
+	CPPUNIT_ASSERT(fb.hostExists("spelljammer") == true) ;
+	CPPUNIT_ASSERT(fb.hostExists("nosuchhost") == false) ;
+	CPPUNIT_ASSERT(fb.removeHost("spelljammer") == true) ;
+	CPPUNIT_ASSERT(fb.hostExists("spelljammer") == false) ;
+	CPPUNIT_ASSERT(fb.removeHost("nosuchhost") == false) ;
+}
+
+void
+FileBlockMapTest::testOtherMethods()
+{
+	cout << "FileBlockMapTest::testOtherMethods()" << endl ;
+
+	CPPUNIT_ASSERT(FileBlockMap::exists("/tmp/nosuchfile") == false) ;
+	CPPUNIT_ASSERT(FileBlockMap::exists("/etc/passwd") == true) ;
+}
+@
+
+
+1.2
+log
+@More unit tests, plus move over to new naming convention.
+@
+text
+@@
+
+
+1.1
+log
+@
+New BlockFile interface and corresponding unit tests. These build, not all
+unit tests run. But this has not yet been integrated into the filesystem so
+that still runs.
+@
+text
+@d32 17
+a48 1
+	CPPUNIT_FAIL("not implemented") ;
+d55 10
+a64 3
+	// Test small write
+	//CPPUNIT_ASSERT(bfio->open("bfiotest.file", 0) == true) ;
+	CPPUNIT_FAIL("not implemented") ;
+d71 3
+a73 1
+	CPPUNIT_FAIL("not implemented") ;
+@
+

@@ -1,0 +1,223 @@
+head	1.6;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.6
+date	2005.06.14.22.55.43;	author rdesai;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	d8042af605f6ece;
+kopt	kv;
+filename	@XdrStream.hpp@;
+
+1.5
+date	2005.06.12.12.00.17;	author rdesai;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	ab042ac23b15cb0;
+kopt	kv;
+filename	@XdrStream.hpp@;
+
+1.4
+date	2005.06.07.04.08.15;	author rdesai;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	88842a51d9f6cf2;
+kopt	kv;
+filename	@XdrStream.hpp@;
+
+1.3
+date	2005.05.24.17.45.50;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	e044293683b18cd;
+kopt	kv;
+filename	@XdrStream.hpp@;
+
+1.2
+date	2005.05.21.15.16.04;	author rdesai;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	df4428f50a13bc6;
+kopt	kv;
+filename	@XdrStream.hpp@;
+
+1.1
+date	2005.05.06.10.21.32;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	9d4427b45114640;
+kopt	kv;
+filename	@XdrStream.hpp@;
+
+
+desc
+@@
+
+
+1.6
+log
+@oops - apparently a check-in did not go thru
+@
+text
+@#ifndef SynerEdge_XdrStream_h__
+#define SynerEdge_XdrStream_h__
+
+#include <sstream>
+#include <stdint.h>
+#include "SocketBase.hpp"
+
+namespace SynerEdge
+{
+
+class XdrStreamException : public SynerEdgeException
+{
+public:
+	XdrStreamException(const std::wstring &msg)
+	: SynerEdgeException(msg)
+	{}
+	virtual ~XdrStreamException() {}
+};
+
+class XdrStream
+{
+public:
+	XdrStream();
+	XdrStream(const XdrStream &copy);
+	XdrStream(const std::string &instr);
+	virtual ~XdrStream();
+
+	XdrStream &operator=(const XdrStream &equal);
+
+	XdrStream &operator>>(int32_t &val);
+	XdrStream &operator>>(uint32_t &val);
+	XdrStream &operator>>(int64_t &val);
+	XdrStream &operator>>(uint64_t &val);
+	XdrStream &operator>>(std::string &val);
+	XdrStream &operator>>(float &val);
+	XdrStream &operator>>(double &val);
+	XdrStream &operator>>(bool &val);
+	XdrStream &operator>>(XdrStream &val);
+	XdrStream &operator>>(std::wstring &val);
+
+	XdrStream &operator<<(int32_t val);
+	XdrStream &operator<<(uint32_t val);
+	XdrStream &operator<<(int64_t val);
+	XdrStream &operator<<(uint64_t val);
+	XdrStream &operator<<(const std::string &val);
+	XdrStream &operator<<(float val);
+	XdrStream &operator<<(double val);
+	XdrStream &operator<<(bool val);
+	XdrStream &operator<<(const XdrStream &val);
+	XdrStream &operator<<(const std::wstring &val);
+	XdrStream &operator<<(const wchar_t *val);
+	XdrStream &operator<<(const char *val);
+
+	void addBufferWithoutCounting(const std::string &val);
+
+	std::string getAndClearBuffer();
+	void reportSize();
+	size_t getBufferSize() const { return internalBuffer.str().size(); }
+
+	static int64_t ntohll(int64_t val);
+	static uint64_t ntohll(uint64_t val);
+	static int64_t htonll(int64_t val);
+	static uint64_t htonll(uint64_t val);
+
+	static size_t roundToBoundary(size_t insize);
+
+private:
+	std::streamsize readPosition;
+	std::streamsize writePosition;
+	std::stringstream internalBuffer;
+
+	static const size_t BoundarySize;
+	
+};
+
+ClientSocket &operator<<(ClientSocket &soc, XdrStream &xdrStream);
+ClientSocket &operator>>(ClientSocket &soc, XdrStream &xdrStream);
+
+}
+
+#endif
+
+@
+
+
+1.5
+log
+@Cleanup of XDR server code.  Getting closer to parking this.
+@
+text
+@d58 1
+d65 2
+a70 2
+
+	static size_t roundToBoundary(size_t insize);
+@
+
+
+1.4
+log
+@Fixes for client orb stuff.
+@
+text
+@d24 1
+d28 2
+d51 2
+@
+
+
+1.3
+log
+@Fixed bugs to get Orb working
+@
+text
+@d49 2
+d52 1
+a52 1
+	void setBuffer(std::string what, int size);
+d61 1
+@
+
+
+1.2
+log
+@SSL Stuff + ORB stuff
+@
+text
+@d50 1
+@
+
+
+1.1
+log
+@Socket code, XDR and timers.
+@
+text
+@d28 1
+d30 1
+d35 2
+d39 1
+d41 1
+d46 2
+d52 1
+d54 1
+@
+

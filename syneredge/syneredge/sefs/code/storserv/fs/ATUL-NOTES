@@ -1,0 +1,72 @@
+Code map (Atul notes)
+
+
+(Glenn: should int64 be unsigned int64?)
+
+BlockFileIO
+----------- 
+    uses BlockFile.
+
+    provides standard file system functions:
+    open(string filename, int flags): 
+    release();
+    read(int64 offset, char *buf, int length); 
+    write(int64 offset, char *buf, int length);
+    int64 getSize();
+    truncate(int64 at): both truncates and extends!
+       truncateFile(int64 at): called by truncate. MUST not be called
+	                       directly. No error checking.
+             calls freeAllBlocksAfter(int64 offset).
+            (should be a private function).
+       extendFile(int64 at): called by truncate. MUST not be called
+                    directly. No error checking.
+    isAccessible(int flags): not yet implemented. Returns true.
+    blockSize(): returns block size for that file?
+
+ 
+FileBlockMap: gives a mapping from filename to its blocks.
+------------
+
+	This file is a wrapper around fileblockmap.c.
+	uses FILEBLOCKMAPP (inside fileblockmap.c): FILEBLOCKMAP pointer
+	Limitation: It assumes a flat file space?
+   
+	FileBlockMap(string filename) ;
+	~FileBlockMap() ;
+
+	static bool exists(string filename) ;
+	bool deleteMap() ;
+	bool addBlock(int blocknum, int bytes) ;
+	bool removeBlock(int blocknum) ;
+	bool updateBlock(int blocknum, int bytes) ;
+	int getBlockByteCount(int blocknum) ;
+	bool blockExists(int blocknum) ;
+	int getBlockCount() ;
+	bool addHost(string host) ;
+	bool removeHost(string host) ;
+	bool hostExists(string host) ;
+	int getByteCount() ;
+	int getBlockNumAt(int index) ;
+
+fileblockmap.c
+--------------
+           create_fbmap(char *name): allocates a FILEBLOCKMAPP (fbmap).
+			What is fblist? Why is it 10 blocks initially?
+
+	  Where exactly are FILEBLOCK and FILEBLOCKMAP structures defined?
+	  They are defined in the .c file itself to hide the definition.
+
+
+fileblocklist.c:
+--------------
+
+	Looks like some params (e.g., b, fbblocknum, numblocks) 
+	blocknum should be unsigned ints.
+	10 and 5 should be declared as global consts.
+
+	Does it allow lists beyond 10 and 5?
+	
+
+        
+
+

@@ -1,0 +1,19 @@
+1. I want to make unit tests classes be able to call private functions of the 
+   class they are testing. How to make them a friend?
+	E.g., BlockCacheStd.hpp
+
+	FIXED -- Atul.
+
+2. There is an issue that the virtual disk class does not know if a block is free. It is possible
+	to cause RELEASE on a block that was not previously allocated successfully since the release
+	operation first goes to the cache. Cache does not always know if a block was allocated, since
+	allocation information is kept at the VirtualBlockFile and BlockFile level, and not propagated
+	up.
+
+	It may be possible to query the lower-levels for the block status first before freeing it up.
+	
+	TO INVESTIGATE LATER.
+
+3. Change int to unsigned int (uint)
+4. Change int64 to uint64.
+5. Check for wraparound with integers where addition is done.

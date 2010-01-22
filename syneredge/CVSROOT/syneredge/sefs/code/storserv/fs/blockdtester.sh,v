@@ -1,0 +1,94 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@# @;
+
+
+1.2
+date	2005.04.26.14.28.52;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	555;
+commitid	65c426e5014765c;
+kopt	kv;
+filename	@blockdtester.sh@;
+
+1.1
+date	2005.04.08.17.49.32;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	777;
+
+1.1.1.1
+date	2005.04.08.17.49.32;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+
+
+desc
+@@
+
+
+1.2
+log
+@Move all test files to utest directory
+@
+text
+@#!/bin/sh
+PATH=$PATH:/filesafe:/filesafe/blockd
+export PATH
+
+stopfs
+synwrblockdtester
+stopfs
+
+if [ $? -ne 0 ] ; then
+	echo "synwrblockdtester failed"
+	exit 1
+fi
+
+DIFFS=`diff /tmp/syneredgeblocks /filesafe/blockd/testblocks`
+
+for i in `ls /filesafe/blockd/testblocks | grep -v CVS`
+do
+	DIFFS=`diff /tmp/syneredgeblocks/$i /filesafe/blockd/testblocks/$i`
+
+	if [ $? != 0 ] ; then
+		echo "blockdtester.sh FAILED $i"
+		exit 1
+	fi
+
+	if [ "$DIFFS" != "" ] ; then
+		echo "blockdtester.sh FAILED $i"
+		exit 1
+	fi
+done
+
+echo "blockdtester.sh SUCCEEDED"
+exit 0
+
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

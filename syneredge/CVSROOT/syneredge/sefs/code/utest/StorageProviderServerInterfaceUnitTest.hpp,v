@@ -1,0 +1,72 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.05.31.18.34.50;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	40c429cae306125;
+kopt	kv;
+filename	@StorageProviderServerInterfaceUnitTest.hpp@;
+
+1.1
+date	2005.05.25.16.13.17;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	4184294a40d2023;
+kopt	kv;
+filename	@StorageProviderServerInterfaceUnitTest.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Rename StorageProviderServerInterfaceUnitTest to StorProvSvrInterfaceUnitTest
+@
+text
+@
+#include <cppunit/extensions/HelperMacros.h>
+#include "BlockFile.hpp"
+
+using namespace SynerEdge ;
+
+class StorageProviderServerInterfaceUnitTest : public CppUnit::TestFixture
+{
+	CPPUNIT_TEST_SUITE(StorageProviderServerInterfaceUnitTest) ;
+	CPPUNIT_TEST(testConstructor) ;
+	CPPUNIT_TEST(testGets) ;
+	CPPUNIT_TEST(testReadWrite) ;
+	CPPUNIT_TEST(testOther) ;
+	CPPUNIT_TEST_SUITE_END() ;
+public:
+	void setUp() ;
+	void tearDown() ;
+	void testConstructor() ;
+	void testGets() ;
+	void testReadWrite() ;
+	void testOther() ;
+
+private:
+	BlockFile *bf ;
+} ;
+@
+
+
+1.1
+log
+@Unit Tests for StorageProviderServerInterface
+@
+text
+@@
+

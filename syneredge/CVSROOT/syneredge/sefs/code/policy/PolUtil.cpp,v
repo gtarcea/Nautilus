@@ -1,0 +1,140 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.06.06.16.53.20;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	ad442a47f5c6821;
+kopt	kv;
+filename	@PolUtil.cpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Added transaction handling.
+Added better error checking for parameters.
+Improved error messages.
+@
+text
+@
+#include <string.h>
+#include "PolUtil.hpp"
+
+/**
+ * Check to see that the given field value is not too large
+ * or too small.
+ *
+ * @@param fieldValue Value of field.
+ *
+ * @@param errMsg If there is an error, put the message here.
+ *
+ * @@param size Maximum size of field + 1.
+ *
+ * @@param fieldName Name of field.
+ *
+ * @@return True if ok, false if error.
+ */
+
+bool CheckFieldSize(const char *fieldValue,
+    string *errMsg, size_t size, const char *fieldName)
+{
+    if (strlen(fieldValue) >= size) {
+        char msg[200 + strlen(fieldValue) + strlen(fieldName)];
+        sprintf(msg,
+            "Field value '%s' is %d characters and is too long.  The %s field is only allowed to be a maximum of %d characters long.",
+            fieldValue, strlen(fieldValue), fieldName, size-1);
+
+        *errMsg = msg;
+        return false;
+    }
+
+    if (strlen(fieldValue) < 1) {
+        char msg[200 + strlen(fieldName)];
+        sprintf(msg, "The %s field can not be of zero length.", fieldName);
+        *errMsg = msg;
+        return false;
+    }
+    return true;
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Check to see if the given value is a valid 32 bit integer.
+ *
+ * @@param fieldValue Value of field.
+ *
+ * @@param errMsg If there is an error, put the message here.
+ *
+ * @@param fieldName Name of field.
+ *
+ * @@return True if ok, false if error.
+ */
+
+bool CheckInt32Field(const char *fieldValue, string *errMsg, const char *fieldName)
+{
+    int32 value;
+    char c;
+    bool ok = sscanf(fieldValue, "%d%c", &value, &c) == 1;
+
+    if (ok) {
+        char text[200];
+        sprintf(text, "%d", value);
+        ok = strcmp(text, fieldValue) == 0;
+    }
+
+    if (!ok) {
+        char msg[200+strlen(fieldValue)];
+        sprintf(msg, "Value '%s' is not a valid integer for %s.", fieldValue, fieldName); 
+        (*errMsg) = msg;
+        return false;
+    }
+    return true;
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Check to see if the given value is a valid 64 bit integer.
+ *
+ * @@param fieldValue Value of field.
+ *
+ * @@param errMsg If there is an error, put the message here.
+ *
+ * @@param fieldName Name of field.
+ *
+ * @@return True if ok, false if error.
+ */
+
+bool CheckInt64Field(const char *fieldValue, string *errMsg, const char *fieldName)
+{
+    int64 value;
+    char c;
+    bool ok = sscanf(fieldValue, "%Ld%c", &value, &c) == 1;
+
+    if (ok) {
+        char text[200];
+        sprintf(text, "%Ld", value);
+        ok = strcmp(text, fieldValue) == 0;
+    }
+
+    if (!ok) {
+        char msg[200+strlen(fieldValue)];
+        sprintf(msg, "Value '%s' is not a valid long long for %s.", fieldValue, fieldName); 
+        (*errMsg) = msg;
+        return false;
+    }
+    return true;
+}
+@

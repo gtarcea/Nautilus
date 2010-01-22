@@ -1,0 +1,96 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.2
+date	2005.06.13.19.19.43;	author aprakash;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	fd442addc477b74;
+kopt	kv;
+filename	NOTES;
+
+1.1
+date	2005.06.09.16.49.02;	author aprakash;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	f2442a8723e4d3f;
+kopt	kv;
+filename	NOTES;
+
+
+desc
+@@
+
+
+1.2
+log
+@*** empty log message ***
+@
+text
+@1. when writing a block to disk using operator<<, size > 0.
+
+2. All blocks in a blockfile must be of the same size.
+
+3. When reading a block using >>, the size > 0.
+
+4. Possible optimization: Dealing with small writes. Currently, a small
+   write would translate to the writing of a whole 1024 byte block.
+
+5. numBytes: indicates valid bytes in a block -- such as last block
+   in a file.
+  Design alternative: not maintain numBytes. Maintain partial block
+     information in BlockFile.
+
+6. To BlockFile, open: Should check existence of the freeblockmap file and that it readable/writeable.
+
+7. Check all the bounds > vs. >=. Add Unit Tests for that.
+
+8. in iBlockIO.hpp, should getNumBlocks and getNumFreeBlocks() be const
+	functions, like getFileName()?
+
+  
+
+@
+
+
+1.1
+log
+@Changes:
+
+Block.*: isfree is useless in this version.
+           Some bug fixes with bound checking.
+           zeroBlock modified to avoid a read.
+	   Some functionality to change block sizes dynamically removed.
+
+BlockFile.*: delete freeBlock functionality. releaseBlock is the correct
+              way to remove a block.
+	    Main change: readBlock, writeBlock would fail if a block
+			is free.
+             Some bug fixes.
+             Avoid use of isFree in a block.
+
+FreeBlockMap.*: added a function to check if a blocknum is free. Used
+	    by BlockFile
+
+NOTES: code review notes.
+@
+text
+@d2 1
+d4 1
+d6 1
+d9 1
+d14 3
+a16 2
+6. To BlockFile, open: Should check existence of the freeblockmap file and that it
+   readable/writeable.
+d18 3
+@
+

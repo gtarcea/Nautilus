@@ -1,0 +1,350 @@
+head	1.8;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.8
+date	2005.06.09.16.49.02;	author aprakash;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	666;
+commitid	f2442a8723e4d3f;
+kopt	kv;
+filename	@Block.hpp@;
+
+1.7
+date	2005.04.27.21.38.39;	author gtarcea;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	ecc4270064e0d6d;
+kopt	kv;
+filename	@Block.hpp@;
+
+1.6
+date	2005.04.22.20.35.19;	author gtarcea;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	e5442695ff65649;
+kopt	kv;
+filename	@Block.hpp@;
+
+1.5
+date	2005.04.21.16.48.36;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	2fc4267d9355a40;
+kopt	kv;
+filename	@Block.hpp@;
+
+1.4
+date	2005.04.19.20.55.54;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	498426570457b97;
+kopt	kv;
+filename	@Block.hpp@;
+
+1.3
+date	2005.04.15.15.24.28;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	894425fdc084391;
+kopt	kv;
+filename	@Block.hpp@;
+
+1.2
+date	2005.04.14.21.04.21;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	728425edab37b3a;
+kopt	kv;
+filename	@Block.hpp@;
+
+1.1
+date	2005.04.12.23.22.15;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	da0425c57f4484a;
+kopt	kv;
+filename	@Block.hpp@;
+
+
+desc
+@@
+
+
+1.8
+log
+@Changes:
+
+Block.*: isfree is useless in this version.
+           Some bug fixes with bound checking.
+           zeroBlock modified to avoid a read.
+	   Some functionality to change block sizes dynamically removed.
+
+BlockFile.*: delete freeBlock functionality. releaseBlock is the correct
+              way to remove a block.
+	    Main change: readBlock, writeBlock would fail if a block
+			is free.
+             Some bug fixes.
+             Avoid use of isFree in a block.
+
+FreeBlockMap.*: added a function to check if a blocknum is free. Used
+	    by BlockFile
+
+NOTES: code review notes.
+@
+text
+@
+#ifndef __BLOCK_INCLUDE_
+#define __BLOCK_INCLUDE_
+
+#include "SynerEdge.hpp"
+#include <iostream>
+using std::ostream ;
+using std::istream ;
+
+namespace SynerEdge {
+
+class Block {
+
+     public:
+	     Block(int64 bnum, int size) ;
+		Block(int size) ;
+		Block(int size, char *data) ;
+		explicit Block() ;
+		~Block() ;
+
+		friend ostream & operator << (ostream &, const Block &) ;
+		friend istream & operator >> (istream &, Block &) ;
+
+		int setBytes(int offset, char *data, int length) ;
+
+		// No copy if length == size
+		// int setBytesPointer(char *data, int length) ;
+ 
+		bool setNumBytes(int length) ;
+		bool zeroBytes(int offset, int length) ;
+		int getNumBytes() ;
+
+		bool setSize(int newsize) ;
+		int getSize(void) ;
+
+		bool setBlockNum(int64 blocknum) ;
+		int64 getBlockNum() ;
+
+		static int getObjectSize(int size) ;
+		static int getHeaderSize() ;
+		char *getBytes() ;
+		char *getBytes(int offset) ;
+
+	     void setIsFree(bool freeblock) {
+			    std::cout << "Block::setIsFree: This is DEPRICATED. Do not use. value set is fake." << std::endl;
+			    isfree = freeblock?1:0;
+		    };
+	    bool isFree() {
+		    std::cout << "Block::isFree: This is DEPRICATED. Do not use. Return value is fake." << std::endl;
+		    return isfree?true:false;
+		};
+
+		static bool validBlockSize(int numbytes) ;
+
+	private:
+		static const int headersize = 
+		sizeof(int64)+sizeof(int)+sizeof(char)*8+sizeof(int)+sizeof(short);
+	     int64 blocknum ;
+	     int isfree ;
+		char reserved[8] ;
+	     int numbytes ; // These are the number of valid bytes. 
+	                    // size indicates how big the bytes array is.
+		short size ;
+		char *bytes ;
+
+		// Not part of header, just internal state
+		bool allocatedbytes ;
+} ;
+
+} ; /* namespace SynerEdge */
+
+#endif /* __BLOCK_INCLUDE_*/
+@
+
+
+1.7
+log
+@Changes to speed up filesystem.
+@
+text
+@d14 2
+a15 2
+	public:
+		Block(int64 bnum, int size) ;
+d27 2
+a28 2
+		int setBytesPointer(char *data, int length) ;
+
+d44 8
+a51 2
+		void setIsFree(bool freeblock) ;
+		bool isFree() ;
+d57 3
+a59 3
+			sizeof(int64)+sizeof(int)+sizeof(char)*8+sizeof(int)+sizeof(short);
+		int64 blocknum ;
+		int isfree ;
+d61 2
+a62 1
+		int numbytes ;
+@
+
+
+1.6
+log
+@Added zeroBytes() call
+@
+text
+@d15 3
+a17 2
+		Block(int64 bnum, int numBytes) ;
+		Block(int numBytes) ;
+d25 4
+d58 3
+@
+
+
+1.5
+log
+@Move Unit Tests to utest directory. Move FreeBlockMap to storprovider. Fix up
+BlockFile to call FreeBlockMap to get freeblocks.
+@
+text
+@d25 1
+@
+
+
+1.4
+log
+@
+Added debug output to BlockFile.cpp and added functionality to Block.cpp
+@
+text
+@d5 1
+a5 1
+#include <sys/types.h>
+d15 1
+a15 1
+		Block(off_t bnum, int numBytes) ;
+d30 2
+a31 2
+		bool setBlockNum(off_t blocknum) ;
+		off_t getBlockNum() ;
+d45 2
+a46 2
+			sizeof(off_t)+sizeof(int)+sizeof(char)*8+sizeof(int)+sizeof(short);
+		off_t blocknum ;
+@
+
+
+1.3
+log
+@Finished unit testing Block and BlockFile interfaces. The BlockFile interface is
+currently very simple, and is missing a persistent sense of freeblocks. This
+needs to be fixed up.
+
+Currently neither interface does any thread syncroniziation. For BlockFile we should
+probably consider keeping numfreeblocks as a static member shared across all classes
+and syncing on it. Might need to put in block level locking as well. This way multiple
+BlockFile's can be instantiated pointing to the same disk file, and thread access
+to it.
+@
+text
+@d36 1
+@
+
+
+1.2
+log
+@
+Write interfaces and unit tests for new block interface. The next step will
+be to port the filesystem over to the new interface.
+@
+text
+@d37 3
+d44 1
+a44 1
+			sizeof(off_t)+sizeof(char)*8+sizeof(int)+sizeof(short);
+d46 1
+@
+
+
+1.1
+log
+@
+Buildable (but not functional) syg_storprovider. The move from fs to the
+storprovider directory has started. Right now there are duplicated files
+that will be cleaned up. This doesn't affect the build.
+@
+text
+@d2 2
+a3 2
+#ifndef __CBLOCK_INCLUDE_
+#define __CBLOCK_INCLUDE_
+d10 2
+d15 3
+a17 1
+		Block(off_t blocknum) ;
+d24 2
+a25 4
+		int setBytes(int chunk, int offset, char *data, int length) ;
+
+		int setSize(int chunk, int length) ;
+		int getSize(int chunk) ;
+d27 1
+a27 1
+		int setSize(int length) ;
+d30 2
+a31 2
+		void setPrevBlock(off_t prevblock) ;
+		off_t getPrevBlock() const ;
+d33 3
+a35 2
+		void setNextBlock(off_t nextblock) ;
+		off_t getNextBlock() ;
+d37 1
+a37 5
+		int getFreeChunk() ;
+		int freeChunk(int chunk) ;
+
+		int setBlockNum(off_t blocknum) ;
+		off_t getBlockNum() ;
+d40 2
+a42 2
+		off_t nextblock ;
+		off_t prevblock ;
+d44 1
+d46 1
+a46 2
+		char freechunks ;
+		char bytes[4096] ;
+d49 3
+a51 1
+#endif /* __CBLOCK_INCLUDE_*/
+@
+

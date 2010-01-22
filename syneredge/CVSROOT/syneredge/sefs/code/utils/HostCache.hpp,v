@@ -1,0 +1,76 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.19.10.14.56;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	e144264d9e31081;
+kopt	kv;
+filename	@HostCache.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Cleaned up Protocols to return the type of the socket (dgram or stream)
+Added HostCache algorithm - right now cache is only cleared in response to
+SIGHUP.
+@
+text
+@#ifndef SynerEdge_HostCache_h__
+#define SynerEdge_HostCache_h__
+
+#include "Net.hpp"
+#include "Observer.hpp"
+
+#include "boost/utility.hpp"
+#include <string>
+#include <map>
+
+namespace SynerEdge
+{
+
+class HostCache : public boost::noncopyable
+{
+public:
+	~HostCache();
+
+	static HostCache *instance();
+	Host getHost(const std::wstring &dnsname, bool isIP6);
+
+	void clearCache(Observable *obs, const int &sig);
+
+private:
+	typedef std::map<std::wstring, Host> Cache;
+	typedef std::map<std::wstring, Host>::iterator CacheIterator;
+
+	Cache cache;
+	boost::mutex mtx;
+
+	// singleton semantics
+	HostCache();
+	static HostCache *_instance;
+	static boost::once_flag _sentry;
+	static void createInstance();
+
+	// non-copyable semantics
+	HostCache(const HostCache &);
+	HostCache &operator=(const HostCache &);
+};
+
+
+}
+
+#endif
+
+@

@@ -1,0 +1,106 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.09.16.51.27;	author aprakash;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	ce842a873275038;
+kopt	kv;
+filename	@BlockCacheBase.hpp@;
+
+1.1
+date	2005.06.07.02.13.42;	author aprakash;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	6d042a5029c14bd;
+kopt	kv;
+filename	@BlockCacheBase.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@*** empty log message ***
+@
+text
+@#ifndef __BlockCacheBase_INCLUDE_
+#define __BlockCacheBase_INCLUDE_
+
+
+#include "SynerEdge.hpp"
+#include "Block.hpp"
+
+typedef unsigned long long uint64;
+
+
+using namespace std;
+
+namespace SynerEdge {
+	class VirtualDisk;
+
+	class BlockCacheBase {
+	public:
+		BlockCacheBase(VirtualDisk *disk, unsigned int numBlocks, 
+					unsigned int blockSize): 
+			numBlocks(numBlocks), blockSize(blockSize), disk(disk)  
+		{
+		}
+	
+  
+		virtual bool writeBlock(uint64 blockID, unsigned int offset, 
+						    unsigned int size, char *data) = 0;
+		virtual bool writeBlock(Block &block) = 0;
+		virtual bool readBlock(uint64 blockID, Block &block) = 0;
+		virtual bool zeroBlock(uint64 blocknum) = 0;
+		virtual bool releaseBlock(uint64 blocknum) = 0;
+		virtual void processDirtyBlocks() = 0;
+
+	protected: // These are fronts for operations on the virtual disk
+		virtual bool disk_writeBlock(uint64 blockID, unsigned int offset, 
+							    unsigned int size, char *data);
+		virtual bool disk_writeBlock(Block &block);
+		virtual bool disk_readBlock(uint64 blocknum, Block &block);
+		virtual bool disk_zeroBlock(uint64 blocknum);
+		virtual bool disk_releaseBlock(uint64 blocknum);
+
+		unsigned int numBlocks;
+		unsigned int blockSize;
+		VirtualDisk *disk;
+	};
+
+}; // namespace SynerEdge
+#endif //__BlockCacheBase_INCLUDE_
+@
+
+
+1.1
+log
+@This version of block cache uses LRU policy.
+
+Writing back to disk is currently missing. Also, limits on cache size are not currently enforced.
+@
+text
+@d6 1
+a14 2
+	class Block;
+    
+d30 2
+a31 1
+		virtual bool freeBlock(uint64 blocknum) = 0;
+d39 1
+a39 1
+		virtual bool disk_freeBlock(uint64 blocknum);
+@
+

@@ -1,0 +1,363 @@
+head	1.5;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.5
+date	2005.06.02.20.54.34;	author irrer;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	777;
+commitid	ef8429f71ff688d;
+kopt	kv;
+filename	populate;
+
+1.4
+date	2005.06.02.19.38.57;	author irrer;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	777;
+commitid	97c429f60342e72;
+kopt	kv;
+filename	populate;
+
+1.3
+date	2005.05.09.15.53.14;	author irrer;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	777;
+commitid	8a8427f86af2c7b;
+kopt	kv;
+filename	populate;
+
+1.2
+date	2005.05.09.12.57.13;	author irrer;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	777;
+commitid	908427f5e1527e5;
+kopt	kv;
+filename	populate;
+
+1.1
+date	2005.04.11.16.16.53;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+commitid	e38425aa29033f4;
+kopt	kv;
+filename	populate;
+
+
+desc
+@@
+
+
+1.5
+log
+@Changed message to user.
+@
+text
+@#!/bin/bash
+
+# ------------------------------------------------------------------------
+
+# remove the temporary files used for populating the database
+rm_lod()
+{
+    rm -f block_file.lod virtual_disk_policy.lod
+}
+
+# ------------------------------------------------------------------------
+
+col()
+{
+    if [ $# == 0 ] ; then
+	echo
+    else
+	echo -n $1'	'
+    fi
+}
+
+# ------------------------------------------------------------------------
+
+rm_lod
+
+# ------------------------------------------------------------------------
+
+num_building=3;    # there are up to this many buildings
+num_room=3;        # there are up to this many rooms
+
+for (( b=0; b <= $num_building; b++ )) ; do
+    for (( r=0; r <= $num_room; r++ )) ; do
+	(
+	    col r${r}_b${b}
+	    echo "( room = 'room_$r' ) AND ( building = 'building_$b' )"
+	) >> virtual_disk_policy.lod
+    done
+done
+
+# ------------------------------------------------------------------------
+
+# pick a random room
+rand_room()
+{
+    echo room_`expr $RANDOM % $num_room`
+}
+
+# ------------------------------------------------------------------------
+
+# pick a random building
+rand_building()
+{
+    echo building_`expr $RANDOM % $num_building`
+}
+
+# ------------------------------------------------------------------------
+
+# pick a random number of bytes
+rand_bytes()
+{
+    #echo '(('$RANDOM' % 100000) + 100000) * 1000000 ' | bc
+    echo 1000000
+}
+
+# ------------------------------------------------------------------------
+
+
+num_disk=100;   # there are this many disks
+host_base=100
+dir_base=100
+dir_num=20
+host=0
+dir=0
+for (( d=0; d < $num_disk; d++ )) ; do
+    col host_`expr $host_base + $host`    # host
+    col dir_`expr $dir_base + $dir`       # directory
+    bytes=`rand_bytes`
+    col $bytes                            # max_bytes
+    col $bytes                            # bytes
+    col `rand_room`                       # room
+    echo `rand_building`                  # building
+
+    # increment directory, and host if necessary
+    dir=`expr $dir + 1`
+    if [ $dir -ge $dir_num ] ; then
+        dir=0
+	host=`expr $host + 1`
+    fi
+    dir=`expr $dir + 1`
+
+done > block_file.lod
+
+# delete the old database.  Do this in a separate command
+# (from gen_db) in case the database does not exist, which
+# would cause an error and the script would abort.
+echo 'DROP DATABASE sedb;' | mysql >/dev/null 2>&1
+
+mysql < gen_db > populate.log
+status=$?
+
+# clean up temporary files
+rm_lod
+
+# generate the header file.  If the new one is the same as
+# the old one, then do not touch the old one, because copying
+# it would change the time stamp and cause files to recompile
+# when they did not have to.
+
+gen_header > SEDB.h_tmp
+diff --ignore-matching-lines='^// Generated:' SEDB.h_tmp SEDB.h >/dev/null 2>&1
+if [ $? != 0 ] ; then
+    rm SEDB.h
+    mv SEDB.h_tmp SEDB.h
+    echo Generated new header file SEDB.h
+fi
+rm -f SEDB.h_tmp
+
+echo Done.  See log file populate.log for details.
+exit $status
+
+@
+
+
+1.4
+log
+@Rework of policy engine.
+@
+text
+@a68 1
+echo Populating block_file with $num_disk members ...
+d118 1
+@
+
+
+1.3
+log
+@Made utility to generate typedefs based on database tables and fields.
+
+Updated files to use and test SEDB.h.
+
+Changed varchar(5000) field to text (in make_db) because
+mysql was converting it anyway.
+@
+text
+@d3 1
+a3 1
+START=$SECONDS
+d5 1
+d8 1
+a8 1
+    rm -f building.lod room.lod location.lod host.lod physical_disk.lod virt_disk_policy.lod
+d11 2
+d22 2
+d26 4
+a29 16
+base_host=100;
+num_host=50;
+for (( h=$base_host; h < $num_host + $base_host; h++ )) ; do
+    col host_$h
+    col workstation
+    col OpSys
+    col User
+    col Owner
+    echo Admin
+done > host.lod
+
+echo Generate host elapsed: `expr $SECONDS - $START` ; START=$SECONDS
+
+num_building=3;
+num_room=3;
+num_location=3;
+a31 1
+    echo building_$b >> building.lod
+a33 5
+	    col room_$r
+	    echo building_$b
+	) >> room.lod
+
+	(
+d36 1
+a36 9
+	) >> virt_disk_policy.lod
+
+        for (( l=0; l <= $num_room; l++ )) ; do
+	    (
+		col location_$r
+		col room_$r
+		echo building_$b
+	    ) >> location.lod
+        done
+d40 1
+a40 6
+echo Generate building+room+location+virt_disk_policy elapsed: `expr $SECONDS - $START` ; START=$SECONDS
+
+rand_location()
+{
+    echo location_`expr $RANDOM % $num_location`
+}
+d42 1
+d48 3
+d56 4
+a59 1
+rand_host()
+d61 2
+a62 1
+    echo host_`expr $RANDOM % $num_host + $base_host`
+d65 26
+a90 4
+rand_kbyte()
+{
+    echo '(('$RANDOM' % 100) + 100) * 1000 ' | bc
+}
+d92 1
+a92 20
+base_disk=1000;
+num_disk=500;
+for (( d=$base_disk; d < $num_disk + $base_disk; d++ )) ; do
+    col pd_$d                  # name            
+    col `rand_host`            # host          
+    col extra                  # directory     
+    kbyte=`rand_kbyte`
+    col $kbyte                 # kilobytes     
+    col $kbyte                 # kilo_unused   
+    col hda3                   # hardware      
+    col `rand_location`        # location      
+    col `rand_room`            # room          
+    col `rand_building`        # building      
+    col User                   # user          
+    col Owner                  # owner         
+    col Admin                  # admin         
+    col Model                  # model         
+    col 5.0                    # speed         
+    echo 20.0                  # value         
+done > physical_disk.lod
+d94 4
+a97 1
+echo Generate physical_disk elapsed: `expr $SECONDS - $START` ; START=$SECONDS
+d99 2
+a100 1
+nice mysql < make_db > populate.log
+d102 1
+d105 13
+a117 3
+echo makd_db elapsed: `expr $SECONDS - $START` ; START=$SECONDS
+
+exit $?
+d119 1
+a119 1
+# select id,kilobytes from physical_disk where location = 'location_0' AND building = 'building_1';
+@
+
+
+1.2
+log
+@Added files for policy manipulation.
+@
+text
+@d5 5
+d19 1
+a19 2
+
+rm -f building.lod room.lod location.lod host.lod physical_disk.lod
+d32 1
+d61 2
+d109 1
+a109 1
+echo Generate elapsed: `expr $SECONDS - $START` ; START=$SECONDS
+d112 2
+@
+
+
+1.1
+log
+@The populate script makes files used to populate the
+database, and then invokes mysql with commands from make_db
+that makes the database.  This requirs that mysql be
+installed, and has only been tested on a Linux system.
+@
+text
+@d3 2
+d40 6
+d82 1
+a82 1
+num_disk=200;
+d84 1
+a84 1
+    col pd_$d                  # id            
+d87 3
+a89 2
+    col `rand_kbyte`           # kilobytes     
+    col 0                      # kilo_unused   
+d102 5
+a106 1
+mysql < make_db
+@
+

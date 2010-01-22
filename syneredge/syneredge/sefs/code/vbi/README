@@ -1,0 +1,5 @@
+VirtualDisk: Consists of multiple VirtualBlockFiles (these are mirrored).
+
+VirtualBlockFile: Consists of multiple BlockFiles (these are pooled).
+
+

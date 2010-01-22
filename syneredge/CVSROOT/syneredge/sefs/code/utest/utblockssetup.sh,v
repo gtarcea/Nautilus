@@ -1,0 +1,35 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.04.26.14.34.31;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+commitid	dc4426e51507a64;
+kopt	kv;
+filename	@utblockssetup.sh@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Moved unit tests out of storserv/fs to utest directory
+@
+text
+@#!/bin/sh
+
+rm -f /etc/syneredge/nextblocknum
+test -f /etc/syneredge/mirrors.bak || cp /etc/syneredge/mirrors /etc/syneredge/mirrors.bak
+echo spelljammer /tmp/syneredgeblocks > /etc/syneredge/mirrors
+echo buford /tmp/syneredgeblocks2 >> /etc/syneredge/mirrors
+
+@

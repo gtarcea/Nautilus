@@ -1,0 +1,1006 @@
+head	1.12;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.12
+date	2005.06.12.01.39.05;	author gtarcea;	state Exp;
+branches;
+next	1.11;
+deltatype	text;
+permissions	666;
+commitid	76442ab91ef00b4;
+kopt	kv;
+filename	@BlockFileIO.cpp@;
+
+1.11
+date	2005.06.09.21.36.42;	author aprakash;	state Exp;
+branches;
+next	1.10;
+deltatype	text;
+permissions	666;
+commitid	b5442a8b65d2bb4;
+kopt	kv;
+filename	@BlockFileIO.cpp@;
+
+1.10
+date	2005.06.01.15.52.53;	author gtarcea;	state Exp;
+branches;
+next	1.9;
+deltatype	text;
+permissions	666;
+commitid	a0c429dd99732de;
+kopt	kv;
+filename	@BlockFileIO.cpp@;
+
+1.9
+date	2005.04.28.21.09.27;	author gtarcea;	state Exp;
+branches;
+next	1.8;
+deltatype	text;
+permissions	666;
+commitid	f20427150e544fe;
+kopt	kv;
+filename	@BlockFileIO.cpp@;
+
+1.8
+date	2005.04.27.21.37.44;	author gtarcea;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	666;
+commitid	afc427006120ca9;
+kopt	kv;
+filename	@BlockFileIO.cpp@;
+
+1.7
+date	2005.04.26.22.56.12;	author gtarcea;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	eb4426ec6fe7aaf;
+kopt	kv;
+filename	@BlockFileIO.cpp@;
+
+1.6
+date	2005.04.26.15.23.18;	author gtarcea;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	a10426e5cd01ff2;
+kopt	kv;
+filename	@BlockFileIO.cpp@;
+
+1.5
+date	2005.04.25.23.01.32;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	530426d76af3071;
+kopt	kv;
+filename	@BlockFileIO.cpp@;
+
+1.4
+date	2005.04.22.20.45.16;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	d0c426962545e04;
+kopt	kv;
+filename	@BlockFileIO.cpp@;
+
+1.3
+date	2005.04.22.20.36.29;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	3b842696031570a;
+kopt	kv;
+filename	@BlockFileIO.cpp@;
+
+1.2
+date	2005.04.22.18.44.51;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	288426945fa016f;
+kopt	kv;
+filename	@BlockFileIO.cpp@;
+
+1.1
+date	2005.04.19.20.54.34;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	d6842656fd77a30;
+kopt	kv;
+filename	@BlockFileIO.cpp@;
+
+
+desc
+@@
+
+
+1.12
+log
+@
+Move BlockFileBase.hpp to iBlockIO.hpp
+Cleaned up interfaces to support uint64 rather than int64
+VirtualDisk and VirtualBlockFile now also inherit from iBlockIO, so now
+BlockFileIO can use any of these interfaces.
+@
+text
+@
+#include "BlockFileIO.hpp"
+#include "seerror.hpp"
+#include "PT.hpp"
+//#include <iostream>
+
+using namespace std ;
+
+namespace SynerEdge {
+
+BlockFileIO::BlockFileIO(iBlockIO &blockfile) : bf(blockfile), fileisopen(false), map(NULL)
+{
+	if (! bf.open()) {
+		throw seerror("No such blockfile") ;
+	}
+}
+
+BlockFileIO::~BlockFileIO()
+{
+	//delete bf ;
+	bf.flushFreeBlockList() ;
+	delete map ;
+}
+
+bool
+BlockFileIO::open(string filename, int flags)
+{
+	PT("BlockFileIO::open()") ;
+	map = new FileBlockMap(filename) ;
+	fileisopen = true ;
+	PT("Leaving BlockFileIO::open()") ;
+	return true ;
+}
+
+bool
+BlockFileIO::flush()
+{
+	bf.flushFreeBlockList() ;
+
+	if (! fileisopen) {
+		return false ;
+	}
+
+	map->save() ;
+
+	return true ;
+}
+
+bool
+BlockFileIO::release()
+{
+	bf.flushFreeBlockList() ;
+
+	if (! fileisopen) {
+		return false ;
+	}
+
+	if (map) {
+		delete map ;
+	}
+
+	map = NULL ;
+	fileisopen = false ;
+	return true ;
+}
+
+int
+BlockFileIO::blocksin(int what, int by)
+{
+	int dividebyblocks ;
+	int modin ;
+	int blocks ;
+	/*
+	** We want to start from 1, what is based on 0-by-1 so add one to
+	** what to get the correct calculation.
+	*/
+	what++ ;
+	dividebyblocks = what/by ;
+	if (! dividebyblocks) {
+		//printf("    blocksin = 1\n") ;
+		return 1 ;
+	} else {
+		blocks = ++dividebyblocks ;
+		modin = what%by ;
+		if (!modin) {
+			blocks-- ;
+		}
+	}
+	//printf("    blocksin = %d\n", blocks) ;
+	return blocks ;
+}
+
+int
+BlockFileIO::getBlockNumAtOffset(int64 offset)
+{
+	PT("BlockFileIO::getBlockNumAtOffset") ;
+	int what = offset ;
+	int by = bf.getBlockSize() ;
+	int bindex ;
+	int rc ;
+
+	// Convert offset into blockcount. We'll start
+	// at 1 as the first block and work from there.
+
+	bindex = blocksin(what, by) ;
+
+	rc = map->getBlockNumAt(bindex) ;
+
+	PT("Leaving BlockFileIO::getBlockNumAtOffset") ;
+
+	return rc ;
+}
+
+int
+BlockFileIO::read(int64 offset, char *buf, int length)
+{
+	int totalBytesToRead = length ;
+	int64 startingat = offset ;
+	char *data ;
+	int amountToCopy ;
+	int amountRead = 0 ;
+	int blocknum ;
+	int offsetInBlockToStartFrom ;
+
+	if (! fileisopen) {
+		return -1 ;
+	}
+
+	int blocksize = bf.getBlockSize() ;
+	Block b(blocksize) ;
+
+	// We may have been asked to read more than exists,
+	// if that is the case then adjust totalBytesToRead
+	// appropriately.
+	int filebytes = map->getByteCount() ;
+
+	//cout <<
+	//	"blocksize = " << blocksize << endl <<
+	//	"filebytes = " << filebytes << endl <<
+	//	"totalBytesToRead = " << totalBytesToRead << endl <<
+	//	"offset = " << offset << endl ;
+	if (filebytes < totalBytesToRead+offset) {
+		// Ok, given the offset and length request, we've been
+		// asked to read too much. So, now we need to figure
+		// out how much we can read, and check for the special case
+		// where the request makes no sense.
+		//
+		totalBytesToRead = filebytes - offset ;
+		if (totalBytesToRead <= 0) {
+	//		cout << "totalBytesToRead <= 0 " << totalBytesToRead << endl ;
+			return 0 ;
+		}
+	}
+
+	//
+	// Loop through reading blocks of data to fulfill the request.
+	//
+	data = buf ;
+	while(1) {
+		// Get blocknum to read from
+		blocknum = getBlockNumAtOffset(startingat) ;
+		if (blocknum == 0) {
+			// No more blocks to read
+			break ;
+		}
+		// Figure out offset in block to write to (zero based)
+		offsetInBlockToStartFrom = startingat % blocksize ;
+		// Figure out how many bytes we are writing
+		amountToCopy = blocksize - offsetInBlockToStartFrom ;
+		// Check if amountToCopy is greater than amount to read,
+		// if so, then adjust accordingly.
+		if (amountToCopy > totalBytesToRead) {
+			amountToCopy = totalBytesToRead ;
+		}
+		// If a request was sent to read more than in block (length or offset in)
+		// then we'll have a negative value in amountToCopy. There is nothing
+		// to do in that case except make sure we exit the loop by
+		// setting totalBytesToRead to 0, and amountToCopy to 0.
+	//	cout << "amountToCopy = " << amountToCopy << endl ;
+	//	cout << "blocknum = " << blocknum << endl ;
+		if (amountToCopy > 0) {
+			// Read block
+			bool result = bf.readBlock(blocknum, b) ;
+	//		cout << "Result of readBlock = " << result << endl ;
+			// Copy bytes starting at offset in block
+			memcpy(data, b.getBytes(offsetInBlockToStartFrom), amountToCopy) ;
+			// Move data pointer
+			data+= amountToCopy ;
+		} else {
+			amountToCopy = 0 ;
+			totalBytesToRead = 0 ;
+		}
+		// We now have less data to read
+		totalBytesToRead -= amountToCopy ;
+
+		amountRead += amountToCopy ;
+		// Are we done?
+		if (totalBytesToRead <= 0) {
+			break ;
+		}
+		// Adjust for next set of calculations
+		startingat = startingat+amountToCopy ;
+	}
+	return amountRead ;
+}
+
+bool
+BlockFileIO::updateBlockInfo(int64 blocknum, int offsetinblock, 
+		int amountwritten)
+{
+	PT("BlockFileIO::updateBlockInfo") ;
+
+	//cout << "updating block " << blocknum << " at offsetinblock " <<
+	//	offsetinblock << " with amountwritten " << amountwritten << endl ;
+	if (! map->blockExists(blocknum)) {
+		// Block wasn't in the list in the past,
+		// update map.
+		map->addBlock(blocknum, amountwritten) ;
+	} else {
+		int blockbytes = map->getBlockByteCount(blocknum) ;
+		
+		if (amountwritten > blockbytes) {
+			// We wrote more than was in block before.
+			map->updateBlock(blocknum, amountwritten) ;
+		} else if ((amountwritten+offsetinblock) > blockbytes) {
+			// The offset in the block, plus the amount written
+			// extended what was originally there.
+			map->updateBlock(blocknum, amountwritten+offsetinblock) ;
+		} /* else nothing to update */
+	}
+
+	PT("Leaving BlockFileIO::updateBlockInfo") ;
+}
+
+
+int
+BlockFileIO::write(int64 offset, const char *buf, int length)
+{
+	int totalBytesToWrite = length ;
+	int64 startingat = offset ;
+	char *data ;
+	int amountToWrite ;
+	int amountWritten = 0 ;
+	int blocknum ;
+	int offsetInBlockToStartFrom ;
+	PT("BlockFileIO::write()") ;
+
+	if (! fileisopen) {
+		return -1 ;
+	}
+
+	// Make sure request is sane before we try and do it. The length
+	// must be a positive number, and offset must be in the range of
+	// 0 to filelength -1.
+	if (length <= 0) {
+		return 0 ;
+	}
+
+	int filebytes = map->getByteCount() ;
+	if ((offset < 0) || (offset > filebytes)) {
+		return 0 ;
+	}
+
+	int blocksize = bf.getBlockSize() ;
+
+	data = const_cast<char *>(buf) ;
+	while(1) {
+		// Get blocknum to write to
+		//cout << endl << endl << "starting at = " << startingat << endl << endl ;
+		blocknum = getBlockNumAtOffset(startingat) ;
+		if (blocknum == 0) {
+			// Need to allocate a new block
+			blocknum = bf.getFreeBlock() ;
+			if (blocknum == 0) {
+				// No more free blocks
+				break ;
+			}
+		}
+
+		// Figure out offseting block to write to
+		offsetInBlockToStartFrom = startingat % blocksize ;
+		// Figure out how many bytes we are writing
+		amountToWrite = blocksize - offsetInBlockToStartFrom ;
+		// Check to see if there is that much left to write,
+		// otherwise adjust accordingly.
+		if (amountToWrite > totalBytesToWrite) {
+			amountToWrite = totalBytesToWrite ;
+		}
+		// Write data (make sure to set the offset in data correctly
+		//cout << "writing to blocknum " << blocknum << endl ;
+		if (bf.writeBlock(blocknum, offsetInBlockToStartFrom,
+			amountToWrite, data+amountWritten) == false) {
+			// write failed.
+			return amountWritten;
+		};
+		// Update block information
+		updateBlockInfo(blocknum, offsetInBlockToStartFrom,
+				amountToWrite) ;
+		// We now have less data to write
+		totalBytesToWrite -= amountToWrite ;
+
+		amountWritten += amountToWrite ;
+		// Are we done?
+		if (totalBytesToWrite <= 0) {
+			break ;
+		}
+		// Adjust for next set of calculations
+		startingat = startingat+amountToWrite ;
+	}
+
+	//map->save() ;
+
+	PT("Leaving BlockFileIO::write()") ;
+	return amountWritten ;
+}
+		
+int64 
+BlockFileIO::getSize()
+{
+	if (! fileisopen) {
+		return -1 ;
+	}
+
+	return map->getByteCount() ;
+}
+
+int64
+BlockFileIO::getLastBlock(int blocksize, int filebytes)
+{
+	int bin = blocksin(filebytes, blocksize) ;
+
+	return map->getBlockNumAt(bin) ;
+}
+
+bool
+BlockFileIO::extendFile(int64 at, int64 filebytes)
+{
+	//cout << "In extendFile at = " << at << " filebytes = " << filebytes << endl ;
+	int blocksize = bf.getBlockSize() ;
+	int64 totalAmountToExtend = at - filebytes ;
+	int64 blocknum ;
+	int64 amountToExtendBy ;
+	Block b(blocksize) ; // We are guaranteed data is all zeros.
+	bool newblock = false ;
+
+	// Figure out how much to extend current last block by
+	
+	blocknum = getLastBlock(blocksize, filebytes) ;
+	//cout << "After getLastBlock() blocknum = " << blocknum << endl ;
+	if (blocknum == 0) {
+		blocknum = bf.getFreeBlock() ;
+		map->addBlock(blocknum, 0) ;
+		newblock = true ;
+	}
+	int blockbytes = map->getBlockByteCount(blocknum) ;
+	int amountleftinblock = blocksize - blockbytes ;
+
+	if (amountleftinblock < 0) {
+		amountToExtendBy = blockbytes - at%blocksize ;
+	} else {
+		amountToExtendBy = amountleftinblock ;
+	}
+
+	if (amountToExtendBy > totalAmountToExtend) {
+		amountToExtendBy = totalAmountToExtend ;
+	}
+	//cout << endl << endl <<
+	//	"amountToExtendBy = " << amountToExtendBy << endl <<
+	//	"totalAmountToExtend = " << totalAmountToExtend << endl <<
+	//	"amountleftinblock = " << amountleftinblock << endl <<
+	//	"blockbytes = " << blockbytes << endl <<
+	//	"filebytes = " << filebytes << endl <<
+	//	"blocknum = " << blocknum << endl <<
+	//	"at = " << at << endl << endl ;
+	map->updateBlock(blocknum, amountToExtendBy+blockbytes) ;
+
+	if (newblock) {
+	//	cout << "newblock" << endl ;
+		b.setBlockNum(blocknum) ;
+		b.setNumBytes(amountToExtendBy) ;
+	} else {
+		// Existing block, read in to update.
+	//	cout << "existing block" << endl ;
+		bf.readBlock(blocknum, b) ;
+		b.setNumBytes(amountToExtendBy+blockbytes) ;
+		b.zeroBytes(blockbytes, amountToExtendBy) ;
+	}
+	//cout << "Writing to block " << blocknum << endl ;
+	bf.writeBlock(b) ;
+	totalAmountToExtend -= amountToExtendBy ;
+
+	// Are we done extending?
+
+	if (totalAmountToExtend) {
+		// We still have work to do
+		
+		while (1) {
+			amountToExtendBy = blocksize ;
+			if (amountToExtendBy > totalAmountToExtend) {
+				amountToExtendBy = totalAmountToExtend ;
+			}
+			// Get new block
+			blocknum = bf.getFreeBlock() ;
+			if (blocknum == 0) {
+				// No more free blocks
+				// What should we do?
+				break ;
+			}
+			// Set blocknum and size, then write
+			b.setBlockNum(blocknum) ;
+			b.setNumBytes(amountToExtendBy) ;
+	//		cout << "bf.writeBlock() blocknum = " << blocknum << endl ;
+			bf.writeBlock(b) ;
+			// Update file meta data
+			updateBlockInfo(blocknum, 0, amountToExtendBy) ;
+
+			// Book keeping, and check if we are done
+			totalAmountToExtend -= amountToExtendBy ;
+			if (totalAmountToExtend <= 0) {
+				break ;
+			}
+		}
+	}
+
+	map->save() ;
+	return true ;
+}
+
+bool
+BlockFileIO::freeAllBlocksAfter(int64 offset)
+{
+	// The offset will give us the last block that is
+	// to be a part of the file. All we needed to do
+	// is continue adding blocksize to this until we
+	// have no more blocks that are a part of the file
+	// and we are done.
+	int blocksize = bf.getBlockSize() ;
+	int64 nextoffset = offset+blocksize ;
+
+	while (1) {
+		int blocknum = getBlockNumAtOffset(nextoffset) ;
+		if (blocknum == 0) {
+			// We are done!
+			break ;
+		}
+		map->removeBlock(blocknum) ;
+		bf.releaseBlock(blocknum) ;
+		nextoffset += blocksize ;
+	}
+
+	return true ;
+}
+
+bool
+BlockFileIO::truncateFile(int64 at)
+{
+	int blocksize = bf.getBlockSize() ;
+	int64 blocknum = getBlockNumAtOffset(at) ;
+	int bytesinblocktoleave = at%blocksize ;
+	Block b(blocksize) ;
+
+	map->updateBlock(blocknum, bytesinblocktoleave) ;
+	// Read in block and to zero.
+	bf.readBlock(blocknum, b) ;
+	b.zeroBytes(bytesinblocktoleave, blocksize-bytesinblocktoleave) ;
+	b.setNumBytes(bytesinblocktoleave) ;
+	bf.writeBlock(b) ;
+	freeAllBlocksAfter(at) ;
+	map->save() ;
+	return true ;
+}
+
+bool
+BlockFileIO::truncate(int64 at)
+{
+	if (! fileisopen) {
+	//	cout << "file is not open" << endl ;
+		return false ;
+	}
+
+	// Check if truncate makes sense
+	if ( at < 0) {
+	//	cout << " at < 0 " << at << endl ;
+		return false ;
+	}
+
+	// Are we extending or truncating the file?
+	int filebytes = map->getByteCount() ;
+	if (at > filebytes) {
+	//	cout << "extendFile at/filebytes " << at << "/" << filebytes << endl ;
+		return extendFile(at, filebytes) ;
+	} else {
+	//	cout << "truncateFile at " << at << endl ;
+		return truncateFile(at) ;
+	}
+}
+
+bool
+BlockFileIO::isAccessible(string filename, int flags)
+{
+	// No flags to check at the moment.
+	return true ;
+}
+
+int
+BlockFileIO::blockSize()
+{
+	return bf.getBlockSize() ;
+}
+
+int64
+BlockFileIO::getBlockFileNumFreeBlocks()
+{
+	return bf.getNumFreeBlocks() ;
+}
+
+int64
+BlockFileIO::getBlockFileNumBlocks()
+{
+	return bf.getNumBlocks() ;
+}
+
+} // namespace SynerEdge
+@
+
+
+1.11
+log
+@Fixed bound check on offset.
+@
+text
+@d11 1
+a11 1
+BlockFileIO::BlockFileIO(BlockFileBase &blockfile) : bf(blockfile), fileisopen(false), map(NULL)
+@
+
+
+1.10
+log
+@Change BlockFileIO to take a &BlockFileBase as the blockfile to write to.
+This allows the class to be instantiated with different types of blockfiles,
+including a networked blockfile.
+
+Change sygfs.cpp to support the new BlockFileIO class.
+@
+text
+@d260 1
+a260 1
+	if ((offset < 0) || (offset-1 > filebytes)) {
+d291 5
+a295 2
+		bf.writeBlock(blocknum, offsetInBlockToStartFrom,
+			amountToWrite, data+amountWritten) ;
+@
+
+
+1.9
+log
+@Add flush(). Change release() to always write the freeblocklistmap even if
+no file is currently open.
+@
+text
+@d11 1
+a11 1
+BlockFileIO::BlockFileIO(string filename) : fileisopen(false), map(NULL)
+d13 1
+a13 2
+	bf = new BlockFile(filename) ;
+	if (! bf->open()) {
+d20 2
+a21 1
+	delete bf ;
+d38 1
+a38 1
+	bf->flushFreeBlockList() ;
+d52 1
+a52 1
+	bf->flushFreeBlockList() ;
+d98 1
+a98 1
+	int by = bf->getBlockSize() ;
+d129 1
+a129 1
+	int blocksize = bf->getBlockSize() ;
+d183 1
+a183 1
+			bool result = bf->readBlock(blocknum, b) ;
+d264 1
+a264 1
+	int blocksize = bf->getBlockSize() ;
+d273 1
+a273 1
+			blocknum = bf->getFreeBlock() ;
+d291 1
+a291 1
+		bf->writeBlock(blocknum, offsetInBlockToStartFrom,
+d335 2
+a336 1
+	int blocksize = bf->getBlockSize() ;
+d346 1
+d348 1
+a348 1
+		blocknum = bf->getFreeBlock() ;
+d375 1
+d380 2
+a381 1
+		bf->readBlock(blocknum, b) ;
+d385 2
+a386 1
+	bf->writeBlock(b) ;
+d400 1
+a400 1
+			blocknum = bf->getFreeBlock() ;
+d409 2
+a410 2
+	//		cout << "bf->writeBlock() blocknum = " << blocknum << endl ;
+			bf->writeBlock(b) ;
+d434 1
+a434 1
+	int blocksize = bf->getBlockSize() ;
+d444 1
+a444 1
+		bf->releaseBlock(blocknum) ;
+d454 1
+a454 1
+	int blocksize = bf->getBlockSize() ;
+d461 1
+a461 1
+	bf->readBlock(blocknum, b) ;
+d464 1
+a464 1
+	bf->writeBlock(b) ;
+d505 1
+a505 1
+	return bf->getBlockSize() ;
+d511 1
+a511 1
+	return bf->getNumFreeBlocks() ;
+d517 1
+a517 1
+	return bf->getNumBlocks() ;
+@
+
+
+1.8
+log
+@
+Changes to speed up the filesystem.
+@
+text
+@d36 1
+a36 1
+BlockFileIO::release()
+d38 2
+d44 8
+d54 4
+d247 1
+@
+
+
+1.7
+log
+@Updates to find performance issues.
+@
+text
+@d293 1
+a293 1
+	map->save() ;
+@
+
+
+1.6
+log
+@Add methods to get block file free blocks, and total blocks.
+@
+text
+@d4 1
+d28 1
+d31 1
+d82 1
+d86 1
+d93 5
+a97 1
+	return map->getBlockNumAt(bindex) ;
+d197 1
+d217 2
+d232 1
+a232 1
+
+d295 1
+@
+
+
+1.5
+log
+@Integrate BlockFileIO with filesystem, debugged against all filesystem tests.
+@
+text
+@d475 12
+@
+
+
+1.4
+log
+@Added release() functionality.
+@
+text
+@d39 2
+d113 6
+d127 1
+d156 2
+d160 2
+a161 1
+			bf->readBlock(blocknum, b) ;
+d211 1
+a211 1
+BlockFileIO::write(int64 offset, char *buf, int length)
+d239 1
+a239 1
+	data = buf ;
+d280 3
+a298 1
+	int bindex ;
+d301 1
+a301 1
+	return getBlockNumAtOffset(bin) ;
+d312 1
+d317 5
+d340 1
+d343 10
+a352 3
+	bf->readBlock(blocknum, b) ;
+	b.setNumBytes(amountToExtendBy+blockbytes) ;
+	b.zeroBytes(blockbytes, amountToExtendBy) ;
+d376 1
+d388 2
+d433 1
+d441 1
+d447 1
+d454 1
+d457 1
+d463 1
+a463 1
+BlockFileIO::isAccessible(int flags)
+@
+
+
+1.3
+log
+@truncate() working. You can truncate and extend a file with the call.
+@
+text
+@d35 4
+d42 1
+@
+
+
+1.2
+log
+@Fix build problems, implement functionality <bleh comment!>
+@
+text
+@d289 1
+a289 1
+	int64 amountToExtend = at - filebytes ;
+d299 1
+d305 15
+a319 2
+	b.setBlockNum(blocknum) ;
+	b.setNumBytes(amountToExtendBy) ;
+d321 1
+a321 1
+	map->updateBlock(blocknum, amountToExtendBy) ;
+d325 1
+a325 5
+	if (amountleftinblock >= 0) {
+		// if amountleftinblock is positive it means that the extension
+		// was only in the last block.
+		return true ;
+	} else {
+d330 2
+a331 2
+			if (amountToExtendBy > amountToExtend) {
+				amountToExtendBy = amountToExtend ;
+d348 2
+a349 2
+			amountToExtend -= amountToExtendBy ;
+			if (amountToExtend <= 0) {
+d358 1
+a358 1
+BlockFileIO::freeAllBlocksAfter(int64 blocknum)
+d360 20
+d388 1
+d391 6
+a396 1
+	freeAllBlocksAfter(blocknum) ;
+@
+
+
+1.1
+log
+@
+New BlockFile interface and corresponding unit tests. These build, not all
+unit tests run. But this has not yet been integrated into the filesystem so
+that still runs.
+@
+text
+@d3 1
+d13 3
+d28 1
+d35 6
+d49 5
+a53 1
+
+d70 1
+a70 1
+BlockFileIO::getBlockNumAtOffset(off_t offset)
+d85 1
+a85 1
+BlockFileIO::read(off_t offset, char *buf, int length)
+d88 1
+a88 1
+	off_t startingat = offset ;
+d102 19
+d125 1
+a125 1
+		if (blocknum == -1) {
+d133 5
+d143 2
+d167 3
+a169 2
+off_t
+BlockFileIO::allocateNewBlock()
+d171 19
+a189 1
+	return 4 ;
+d192 1
+d194 1
+a194 1
+BlockFileIO::write(off_t offset, char *buf, int length)
+d197 1
+a197 1
+	off_t startingat = offset ;
+d208 12
+d225 1
+d227 7
+a233 3
+		if (blocknum == -1) {
+			// No more blocks to read
+			blocknum = allocateNewBlock() ;
+d240 5
+d246 1
+d249 3
+d266 1
+a266 1
+off_t 
+d269 14
+d286 1
+a286 1
+BlockFileIO::truncate(off_t at)
+d288 95
+d388 2
+d395 1
+@
+

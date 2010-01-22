@@ -1,0 +1,121 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.12.01.39.04;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	76442ab91ef00b4;
+kopt	kv;
+filename	@NetworkBlockFile.hpp@;
+
+1.1
+date	2005.06.01.18.53.16;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	85c429e040c3d83;
+kopt	kv;
+filename	@NetworkBlockFile.hpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Move BlockFileBase.hpp to iBlockIO.hpp
+Cleaned up interfaces to support uint64 rather than int64
+VirtualDisk and VirtualBlockFile now also inherit from iBlockIO, so now
+BlockFileIO can use any of these interfaces.
+@
+text
+@
+#ifndef __NetworkBlockFile_INCLUDE_
+#define __NetworkBlockFile_INCLUDE_
+
+#include "SynerEdge.hpp"
+#include <Block.hpp>
+#include "iBlockIO.hpp"
+#include "SocketBase.hpp"
+#include "StorProvClntInterface.hpp"
+#include "boost/utility.hpp"
+#include "boost/thread.hpp"
+#include "boost/thread/once.hpp"
+#include "boost/thread/mutex.hpp"
+
+namespace SynerEdge {
+
+class NetworkBlockFile : public iBlockIO, private boost::noncopyable {
+	public:
+		NetworkBlockFile(ClientSocket &sock) ;
+		virtual ~NetworkBlockFile() ;
+
+		virtual bool open() ;
+		virtual bool close() ;
+		virtual uint64 getNumBlocks() ;
+		virtual uint64 getNumFreeBlocks() ;
+		virtual uint64 getFreeBlock() ;
+		virtual bool releaseBlock(uint64 blocknum) ;
+		virtual bool flushFreeBlockList() ;
+		virtual int getBlockSize() const ;
+		virtual bool writeBlock(uint64 blocknum, int offset, int size, char *data) ;
+		virtual bool writeBlock(Block &block) ;
+		virtual bool readBlock(uint64 blocknum, Block &block) ;
+		virtual bool zeroBlock(uint64 blocknum) ;
+
+	private:
+		boost::mutex _mtx ;
+		uint64 numfreeblocks ;
+		uint64 numblocks ;
+		uint64 startingblocknum ;
+		int blocksize ;
+		StorProvClntInterface *sp ;
+
+} ; // class NetworkBlockFile
+
+} ; // namespace SynerEdge
+
+#endif /* __NetworkBlockFile_INCLUDE_ */
+@
+
+
+1.1
+log
+@Add interfaces to use BlockFiles on other hosts.
+@
+text
+@d7 1
+d17 1
+a17 1
+class NetworkBlockFile : public BlockFileBase, private boost::noncopyable {
+d23 5
+a27 5
+		virtual void close() ;
+		virtual int64 getNumBlocks() const ;
+		virtual int64 getNumFreeBlocks() const ;
+		virtual int64 getFreeBlock() ;
+		virtual bool releaseBlock(int64 blocknum) ;
+d30 1
+a30 1
+		virtual bool writeBlock(int64 blocknum, int offset, int size, char *data) ;
+d32 2
+a33 2
+		virtual bool readBlock(int64 blocknum, Block &block) ;
+		virtual bool zeroBlock(int64 blocknum) ;
+d37 3
+a39 3
+		int64 numfreeblocks ;
+		int64 numblocks ;
+		int64 startingblocknum ;
+@
+

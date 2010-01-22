@@ -1,0 +1,56 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.05.10.16.08.11;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	2d04280dc5a0839;
+kopt	kv;
+filename	@VirtualDiskUnitTest.hpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Add unit tests for VirtualDisk class
+@
+text
+@
+#include <cppunit/extensions/HelperMacros.h>
+#include "VirtualDisk.hpp"
+
+class VirtualDiskUnitTest : public CppUnit::TestFixture
+{
+	CPPUNIT_TEST_SUITE(VirtualDiskUnitTest) ;
+	CPPUNIT_TEST(testConstructor) ;
+	CPPUNIT_TEST(testCreateFile) ;
+	CPPUNIT_TEST(testOpenFile) ;
+	CPPUNIT_TEST(testReadWriteBlocks) ;
+	CPPUNIT_TEST(testZeroAndFreeBlocks) ;
+	CPPUNIT_TEST(testFreeBlockListMethods) ;
+	CPPUNIT_TEST_SUITE_END() ;
+public:
+	void setUp() ;
+	void tearDown() ;
+	void testConstructor() ;
+	void testCreateFile() ;
+	void testOpenFile() ;
+	void testReadWriteBlocks() ;
+	void testZeroAndFreeBlocks() ;
+	void testFreeBlockListMethods() ;
+
+private:
+	SynerEdge::VirtualDisk *vd ;
+	bool diskcreated ;
+} ;
+@

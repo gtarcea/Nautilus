@@ -1,0 +1,82 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2005.04.26.14.22.09;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	2e0426e4e87714c;
+kopt	kv;
+filename	@cblockfiletest.h@;
+
+1.1
+date	2005.04.08.17.49.32;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.32;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.2
+log
+@Remove extraneous files
+@
+text
+@
+#include <cppunit/extensions/HelperMacros.h>
+class BlockFileTest : public CppUnit::TestFixture
+{
+	CPPUNIT_TEST_SUITE(BlockFileTest) ;
+	CPPUNIT_TEST(testConstructor) ;
+	CPPUNIT_TEST(testCreateFile) ;
+	CPPUNIT_TEST(testOpenFile) ;
+	CPPUNIT_TEST(testReadWriteBlocks) ;
+	CPPUNIT_TEST(testFollowBlockChain) ;
+	CPPUNIT_TEST_SUITE_END() ;
+public:
+	void setUp() ;
+	void tearDown() ;
+	void testConstructor() ;
+	void testCreateFile() ;
+	void testOpenFile() ;
+	void testReadWriteBlocks() ;
+	void testFollowBlockChain() ;
+
+} ;
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

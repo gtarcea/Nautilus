@@ -1,0 +1,270 @@
+head	1.5;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.5
+date	2005.06.12.01.39.06;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	76442ab91ef00b4;
+kopt	kv;
+filename	@VirtualBlockFile.hpp@;
+
+1.4
+date	2005.06.11.23.40.36;	author aprakash;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	64842ab75972425;
+kopt	kv;
+filename	@VirtualBlockFile.hpp@;
+
+1.3
+date	2005.06.09.16.51.28;	author aprakash;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	ce842a873275038;
+kopt	kv;
+filename	@VirtualBlockFile.hpp@;
+
+1.2
+date	2005.05.01.21.56.15;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	df042755072537a;
+kopt	kv;
+filename	@VirtualBlockFile.hpp@;
+
+1.1
+date	2005.04.30.21.13.32;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	fe44273f4e56486;
+kopt	kv;
+filename	@VirtualBlockFile.hpp@;
+
+
+desc
+@@
+
+
+1.5
+log
+@
+Move BlockFileBase.hpp to iBlockIO.hpp
+Cleaned up interfaces to support uint64 rather than int64
+VirtualDisk and VirtualBlockFile now also inherit from iBlockIO, so now
+BlockFileIO can use any of these interfaces.
+@
+text
+@
+#ifndef __VirtualBlockFile_INCLUDE_
+#define __VirtualBlockFile_INCLUDE_
+
+#include <string>
+#include <list>
+#include <map>
+#include "boost/utility.hpp"
+#include "iBlockIO.hpp"
+
+using namespace std ;
+
+namespace SynerEdge {
+
+class BlockMapEntry {
+public:
+	BlockMapEntry(iBlockIO *bf) : blockfile(bf) {} ;
+	BlockMapEntry() {}
+	iBlockIO *getBlockFile() { return blockfile ; }
+private:
+	iBlockIO *blockfile ;
+
+} ;
+
+class VirtualBlockFile : public iBlockIO, private boost::noncopyable {
+
+public:
+	typedef std::list<iBlockIO *> BlockFileList ;
+	typedef std::list<iBlockIO *>::iterator BlockFileListIterator;
+
+	VirtualBlockFile(string name, BlockFileList &bflist, int blocksize) ;
+	~VirtualBlockFile() ;
+	bool open() ;
+	bool close() ;
+	uint64 getNumBlocks() ;
+	uint64 getNumFreeBlocks() ;
+	uint64 getFreeBlock() ;	  // allocates and returns a free block. Block no longer freek
+	bool releaseBlock(uint64 blocknum) ; // marks the block free.
+	bool flushFreeBlockList() ;
+	int getBlockSize() const ;
+	bool writeBlock(uint64 blocknum, int offset, int size, char *data) ;
+	bool writeBlock(Block &block) ;
+	bool readBlock(uint64 blocknum, Block &block) ;
+	bool zeroBlock(uint64 blocknum) ;
+private:
+	bool entryExists(string blockfile) ;
+	iBlockIO *findBlockForBlocknum(uint64 blocknum, uint64 *index);
+
+
+	// Map is simply a list of iBlockIOs that make up
+	// the VirtualBlockFile. 
+
+	typedef std::list<iBlockIO *> BlockMap ;
+	typedef std::list<iBlockIO *>::iterator BlockMapIterator;
+	typedef std::map<uint64, iBlockIO *> BlockRangeList;
+	typedef std::map<uint64, iBlockIO *>::iterator BlockRangeListIterator;
+
+
+	BlockRangeList blockrange;
+	BlockRangeListIterator blockrangeIterator;
+
+	string name ;
+	int blocksize ;
+	bool isopen ;
+	uint64 startingblocknum ;
+	uint64 endingblocknum ;
+	uint64 numblocks;
+	BlockMap blockMap ;
+} ;
+
+} ; // namespace SynerEdge
+#endif // __VirtualBlockFile_INCLUDE_
+@
+
+
+1.4
+log
+@Significant changes made to VirtualBlockFile.
+
+Summary:
+
+-- VirtualBlockFile can now be built out of any type of BlockFileBases
+   (e.g., BlockFile, NetworkBlockFile, FaultyBlockFile, ...).
+
+-- The class now requires that each Blockfile start at blocknum 1. It
+   manages the mapping from higher level block numbers to blocknum's
+   within a BlockFile.
+
+-- Some additional error checking for unlikely situations.
+
+-- The above changes required the constructor for a VirtualBlockFile
+   to change. The BlockFileList argument is now a list of (BlockFileBase *).
+@
+text
+@d8 2
+a9 1
+#include "BlockFileBase.hpp"
+d17 1
+a17 1
+	BlockMapEntry(BlockFileBase *bf) : blockfile(bf) {} ;
+d19 1
+a19 1
+	BlockFileBase *getBlockFile() { return blockfile ; }
+d21 1
+a21 1
+	BlockFileBase *blockfile ;
+d25 1
+a25 1
+class VirtualBlockFile {
+d28 2
+a29 2
+	typedef std::list<BlockFileBase *> BlockFileList ;
+	typedef std::list<BlockFileBase *>::iterator BlockFileListIterator;
+d47 1
+a47 1
+	BlockFileBase *findBlockForBlocknum(uint64 blocknum, uint64 *index);
+d50 1
+a50 1
+	// Map is simply a list of BlockFileBases that make up
+d53 4
+a56 4
+	typedef std::list<BlockFileBase *> BlockMap ;
+	typedef std::list<BlockFileBase *>::iterator BlockMapIterator;
+	typedef std::map<uint64, BlockFileBase *> BlockRangeList;
+	typedef std::map<uint64, BlockFileBase *>::iterator BlockRangeListIterator;
+@
+
+
+1.3
+log
+@*** empty log message ***
+@
+text
+@d8 1
+a8 1
+#include "BlockFile.hpp"
+d16 1
+a16 1
+	BlockMapEntry(BlockFile *bf) : blockfile(bf) {} ;
+d18 1
+a18 1
+	BlockFile *getBlockFile() { return blockfile ; }
+d20 1
+a20 1
+	BlockFile *blockfile ;
+d27 2
+a28 2
+	typedef std::list<std::string> BlockFileList ;
+	typedef std::list<std::string>::iterator BlockFileListIterator;
+d30 1
+a30 1
+	VirtualBlockFile(string name, BlockFileList bflist, int blocksize) ;
+d46 1
+a46 1
+	BlockFile *findBlockFileForBlocknum(uint64 blocknum) ;
+d49 11
+a59 2
+	typedef std::map<std::string, BlockMapEntry> BlockMap ;
+	typedef std::map<std::string, BlockMapEntry>::iterator BlockMapIterator;
+d66 1
+@
+
+
+1.2
+log
+@
+Debugged versions of VirtualBlockFile
+@
+text
+@d36 2
+a37 2
+	uint64 getFreeBlock() ;
+	bool releaseBlock(uint64 blocknum) ;
+a43 2
+	bool freeBlock(uint64 blocknum) ;
+
+@
+
+
+1.1
+log
+@Add interface to multiple blockfiles. Begin to work on a virtual disk interface.
+@
+text
+@d14 10
+d30 1
+a30 1
+	VirtualBlockFile(string name, BlockFileList &bflist, int blocksize) ;
+a34 1
+	uint64 getStartingBlockNum() const ;
+d51 2
+a52 2
+	typedef std::map<std::string, BlockFile*> BlockMap ;
+	typedef std::map<std::string, BlockFile*>::iterator BlockMapIterator;
+d63 1
+a63 1
+#endif // __VirtualDisk_INCLUDE_
+@
+

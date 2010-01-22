@@ -1,0 +1,80 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.05.11.13.38.40;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	be442820ac663cf;
+kopt	kv;
+filename	MYSQL_INSTALLATION;
+
+
+desc
+@@
+
+
+1.1
+log
+@Added instructions for download and install of MySQL on Linux.
+@
+text
+@
+    Installing MySQL 5.0 on Linux
+
+MySQL 5.0.x can be installed on Linux by going to the mysql
+website and from there go to their "Products" area.  From
+there go to "Downloads" and choose the appropriate platform.
+Download both the Server and Client RPMs.  Then, as root,
+execute the following commands:
+
+    rpm --install MySQL-server-5.0.2-0.i386.rpm
+    rpm --install MySQL-client-5.0.2-0.i386.rpm
+
+Note that the sub-version may vary. (5.0.2, 5.0.4, etc.)
+
+
+
+To build the sefs policy engine, the include files and MySQL
+libraries are also needed. To get them, go to the download
+web page.  On the download web page, download:
+
+    Linux (x86, glibc-2.2, static, gcc)    Standard   5.0.4-beta
+
+Unpack the tarball.  Within this is a script
+"bin/mysql_config" that generates the proper compilation and
+link options for your system.  To compile a source file, add
+the bin directory to your path and do as in these examples:
+
+    gcc -c foo.c -o foo.o `mysql_config --cflags`    # use gcc for C
+    g++ -c foo.cpp -o foo.o `mysql_config --cflags`  # use g++ for C++
+
+example of linking:
+
+    g++ -o foo foo.o `mysql_config --libs`
+
+
+
+The mysql main website is:
+
+    http://www.mysql.com/
+
+
+The download web page is at:
+
+    http://dev.mysql.com/downloads/mysql/5.0.html
+
+
+Approximate sizes of downloads (in bytes)
+
+     5511510 MySQL-client-5.0.2-0.i386.rpm
+    15175776 MySQL-server-5.0.2-0.i386.rpm
+    35181826 mysql-standard-5.0.4-beta-pc-linux-gnu-i686.tar.gz
+
+@

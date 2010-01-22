@@ -1,0 +1,91 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.10.02.17.34;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	b7042588c486338;
+kopt	kv;
+filename	@cfgwin.cs@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Important files in the config client directory.  Makefile stuff needs
+to be generalized and moved into make (for compiling mono-based cs files).
+
+I'm not sure what other cfgwin.* files are needed.  It seems like I only
+reference cfgwin.cs and cfgwin.glade, but there is a lot of other stuff
+being generated, and it's hard to tell what is important and what isn't.
+@
+text
+@using System;
+using Glade;
+using Gtk;
+
+namespace Config
+{
+
+class ConfigWin
+{
+[Widget]Gtk.Entry traceDirectory;
+[Widget]Gtk.TextView traceSubsystems;
+[Widget]Gtk.Combo traceLevel;
+[Widget]Gtk.Button btnCancel;
+[Widget]Gtk.Button btnSave;
+[Widget]Gtk.Window cfgWindow;
+
+ public ConfigWin()
+ {
+	Glade.XML gui = new Glade.XML("./cfgwin.glade", "cfgWindow", "");
+
+	gui.Autoconnect(this);
+	cfgWindow.DeleteEvent += new DeleteEventHandler(Quit);
+	cfgWindow.ShowAll();
+ }
+
+void on_btnCancel_clicked(object sender, EventArgs e)
+{
+	Application.Quit();
+}
+
+void on_btnSave_clicked(object sender, EventArgs e)
+{
+	Console.WriteLine("trace directory: " + traceDirectory.Text);
+	Console.WriteLine("trace level: " + traceLevel.Entry.Text);
+	Console.WriteLine("trace subsystems: " + traceSubsystems.Buffer.Text);	
+}
+
+void Quit(object sender, DeleteEventArgs e)
+{
+	Application.Quit();
+}
+
+}
+
+class Configuration
+{
+	public static void Main(string[] args)
+	{
+		Application.Init();
+
+		new ConfigWin();
+
+		Application.Run();
+	}
+}
+
+}
+
+@

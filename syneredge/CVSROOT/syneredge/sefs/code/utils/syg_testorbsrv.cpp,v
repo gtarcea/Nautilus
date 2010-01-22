@@ -1,0 +1,84 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.12.12.00.17;	author rdesai;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	ab042ac23b15cb0;
+kopt	kv;
+filename	@syg_testorbsrv.cpp@;
+
+1.1
+date	2005.06.07.04.08.43;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	69c42a51dc16d61;
+kopt	kv;
+filename	@syg_testorbsrv.cpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Cleanup of XDR server code.  Getting closer to parking this.
+@
+text
+@#include "OrbBase.hpp"
+#include <iostream>
+
+#include "MyTestServerInterface.hpp"
+
+using namespace SynerEdge;
+
+int main(int argc, char ** argv)
+{
+	{
+	Protocol tcp(L"tcp");
+	Service serv(L"sygsrv", tcp);
+	ServerOrb sorb(serv, false, 10);
+
+	MyTest_0_1_ServerInterface mytest;
+
+	sorb += mytest;
+
+	std::wcout << L"Before start" << std::endl;
+	sorb.start(10);
+	sorb.setTimeout(12000);
+	
+	std::wcout << L"Before join" << std::endl;
+
+	sorb.join();
+
+	std::wcout << L"after join" << std::endl;
+	}
+
+	std::wcout << L"Before return" << std::endl;
+	return 0;
+}
+@
+
+
+1.1
+log
+@added server test
+@
+text
+@d4 2
+d15 4
+d21 1
+a21 1
+	sorb.setTimeout(2000);
+@
+

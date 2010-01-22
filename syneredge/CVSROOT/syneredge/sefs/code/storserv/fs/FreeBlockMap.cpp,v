@@ -1,0 +1,197 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.3
+date	2005.06.09.17.29.49;	author gtarcea;	state dead;
+branches;
+next	1.2;
+deltatype	text;
+permissions	444;
+commitid	46c42a87c746e97;
+kopt	kv;
+filename	@FreeBlockMap.cpp@;
+
+1.2
+date	2005.04.20.19.06.01;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	6a84266a80775a9;
+kopt	kv;
+filename	@FreeBlockMap.cpp@;
+
+1.1
+date	2005.04.19.20.54.36;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	d6842656fd77a30;
+kopt	kv;
+filename	@FreeBlockMap.cpp@;
+
+
+desc
+@@
+
+
+1.3
+log
+@Files moved to a different directory.
+@
+text
+@
+#include "FreeBlockMap.hpp"
+#include "seerror.hpp"
+#include <iostream>
+
+using namespace std ;
+
+/*
+** Blocks are kept in a bitmap. If a bit is set to 0 then it is allocated,
+** a 1 indicates this is free. This may seem counter-intuitive, but it is
+** done this way because the bitset class has a function to find first
+** set bit, but not the first free bit. So we reverse the meaning of having
+** a bit set to free. The init() virtual function must observe this behavior
+** when setting up a bit array.
+*/
+
+namespace SynerEdge {
+
+FreeBlockMap::FreeBlockMap(int64 numblocks, int64 startingblocknum)
+		: startingblocknum(startingblocknum)
+{
+	if (numblocks < 1) {
+		throw seerror("numblocks must be greater than 0") ;
+	}
+
+	if (startingblocknum < 1) {
+		throw seerror("startingblocknum must be greater than 0") ;
+	}
+
+	blockmap = new boost::dynamic_bitset<>(numblocks) ;
+
+	blockmap->set() ;
+}
+
+FreeBlockMap::FreeBlockMap() : startingblocknum(1)
+{
+	blockmap = new boost::dynamic_bitset<>(100) ;
+	blockmap->set() ;
+}
+
+int64 
+FreeBlockMap::allocateBlock()
+{
+	int64 bitnum ;
+
+	bitnum = blockmap->find_first() ;
+
+	if (bitnum == blockmap->npos) {
+		return 0 ;
+	}
+
+	blockmap->set(bitnum, false) ;
+
+	return bitnum + startingblocknum ;
+}
+
+bool
+FreeBlockMap::freeBlock(int64 blocknum)
+{
+	int64 index = blocknum - startingblocknum ;
+
+	if ((index < 0 ) || (index >= blockmap->npos)) {
+		return false ;
+	}
+
+	(*blockmap)[index] = true ;
+	return true ;
+}
+
+int64
+FreeBlockMap::getFreeBlockCount()
+{
+	return blockmap->count() ;
+}
+
+istream &operator>>(istream &input, FreeBlockMap &bmap)
+{
+	input >> bmap.startingblocknum ;
+	input >> (*bmap.blockmap) ;
+	return input ;
+}
+
+ostream &operator<<(ostream &output, const FreeBlockMap &bmap)
+{
+	output << bmap.startingblocknum << endl ;
+	output << (*bmap.blockmap) ;
+	return output ;
+}
+
+} // namespace SynerEdge
+@
+
+
+1.2
+log
+@More unit tests, plus move over to new naming convention.
+@
+text
+@@
+
+
+1.1
+log
+@
+New BlockFile interface and corresponding unit tests. These build, not all
+unit tests run. But this has not yet been integrated into the filesystem so
+that still runs.
+@
+text
+@d4 3
+d19 1
+a19 1
+FreeBlockMap::FreeBlockMap(off_t numblocks, off_t startingblocknum) 
+d22 2
+a23 2
+	if (startingblocknum < 1) {
+		throw seerror("Starting blocknum must be greater than 1") ;
+d26 2
+a27 2
+	if (numblocks < 1) {
+		throw seerror("numblocks must be atleast 1") ;
+d31 2
+d35 1
+a35 2
+bool
+FreeBlockMap::init()
+d37 2
+a38 1
+	blockmap->set() ; // Mark all blocks as free
+d41 1
+a41 1
+off_t 
+d44 1
+a44 1
+	off_t bitnum ;
+d47 1
+d51 1
+d53 1
+d58 1
+a58 1
+FreeBlockMap::freeBlock(off_t blocknum)
+d60 1
+a60 1
+	off_t index = blocknum - startingblocknum ;
+d70 1
+a70 1
+off_t
+d73 15
+@
+

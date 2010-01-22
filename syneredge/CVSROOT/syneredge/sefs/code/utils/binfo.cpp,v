@@ -1,0 +1,49 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.1
+date	2005.04.09.22.20.59;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	648425855332f58;
+kopt	kv;
+filename	@binfo.cpp@;
+
+
+desc
+@@
+
+
+1.1
+log
+@utils directory initial checkin
+@
+text
+@/**
+ *  File: binfo.cpp
+ *  This is a generated file based on the build.
+ *  Do not modify this directly, instead modify
+ *  the makefile that generated it.
+*/
+
+#include "binfo.hpp"
+
+static char *product_header[] = {
+	BUILD_PRODUCT,
+	BUILD_VERSION,
+	BUILD_DATE,
+	BUILD_OPTIM,
+	BUILD_BITS,
+	BUILD_OS,
+	0
+};
+
+char **get_product_header() { return product_header; }
+
+@

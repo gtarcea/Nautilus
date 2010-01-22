@@ -1,0 +1,549 @@
+head	1.4;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.4
+date	2005.04.27.21.37.44;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	777;
+commitid	afc427006120ca9;
+kopt	kv;
+filename	@fileblockmap.c@;
+
+1.3
+date	2005.04.20.19.06.03;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	777;
+commitid	6a84266a80775a9;
+kopt	kv;
+filename	@fileblockmap.c@;
+
+1.2
+date	2005.04.19.20.54.36;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	777;
+commitid	d6842656fd77a30;
+kopt	kv;
+filename	@fileblockmap.c@;
+
+1.1
+date	2005.04.08.17.49.31;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	777;
+
+1.1.1.1
+date	2005.04.08.17.49.31;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+
+
+desc
+@@
+
+
+1.4
+log
+@
+Changes to speed up the filesystem.
+@
+text
+@
+#include "fileblock.h"
+#include "fileblocklist.h"
+#include "fileblockmap.h"
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdio.h>
+
+/*
+**
+** Current limitation: (A BIG ONE!!!!)
+** No directories are supported. The filespace must be flat.
+**
+** Where to locate the fbmap directory should be removed from
+** this file.
+**
+*/
+
+struct FILEBLOCKMAP {
+	char *name ;
+	FILEBLOCKLISTP fblist ;
+} ;
+
+static FILEBLOCKMAPP
+create_fbmap(char *name)
+{
+	FILEBLOCKMAPP fbmap ;
+
+	fbmap = malloc(sizeof(FILEBLOCKMAP)) ;
+	if (! fbmap) {
+		return NULL ;
+	}
+
+	fbmap->name = strdup(name) ;
+
+	fbmap->fblist = fileblocklist_create(10) ;
+
+	if (! fbmap->fblist) {
+		free(fbmap->name) ;
+		free(fbmap) ;
+		return NULL ;
+	}
+
+	return fbmap ;
+}
+
+static int
+read_blockmap_from_file(FILEBLOCKMAPP fbmap)
+{
+	FILE *fp ;
+	char s[1024] ;
+	FILEBLOCKP fb ;
+	char *nl ;
+	char *space ;
+	int rc ;
+	int blocknum ;
+	int bytesused ;
+
+	fp = fopen(fbmap->name, "r") ;
+
+	if (!fp) {
+		return 0 ;
+	}
+
+	/*
+	** Simple format: 
+	**   if the line is an integer its a block,
+	**   if not then its a host.
+	*/
+	while ( fgets(s, 1024,fp) != NULL ) {
+		if (isdigit(s[0])) {
+			/*
+			** Add a block. We don't deal with sizes yet.
+			** Format of line:
+			** blocknum bytesused
+			** So, we find the space, zero it, breaking
+			** line into two, and then convert each value
+			** into an int.
+			*/
+			space = strchr(s, ' ') ;
+			*space = 0 ;
+			space++ ;
+			blocknum = atoi(s) ;
+			bytesused = atoi(space) ;
+			fb = fileblock_create(blocknum, bytesused) ;
+			rc = fileblocklist_addblock(fbmap->fblist, fb, 0) ;
+		} else {
+			/*
+			** Add a host.
+			*/
+			nl = strchr(s, '\n') ;
+			if (nl) {
+				*nl = 0 ;
+			}
+			rc = fileblocklist_addhost(fbmap->fblist, s) ;
+		}
+	}
+
+	fclose(fp) ;
+
+	return 1 ;
+}
+
+static FILEBLOCKMAPP
+create_existing(char *name)
+{
+	FILEBLOCKMAPP fbmap ;
+	int rc ;
+
+	fbmap = create_fbmap(name) ;
+
+	if (! fbmap) {
+		return NULL ;
+	}
+
+	rc = read_blockmap_from_file(fbmap) ;
+
+	if (! rc) {
+		fileblockmap_close(fbmap, 0) ;
+		return NULL ;
+	}
+
+	return fbmap ;
+}
+
+static FILEBLOCKMAPP
+create_new(char *name)
+{
+	return create_fbmap(name) ;
+}
+
+FILEBLOCKMAPP 
+fileblockmap_open(char *name, int create)
+{
+	int exists ;
+
+	exists = fileblockmap_exists(name) ;
+
+	if (exists && create) {
+		return NULL ;
+	} else if (exists) {
+		return create_existing(name) ;
+	} else if (create) {
+		/*
+		** Doesn't exist
+		*/
+		return create_new(name) ;
+	} else if (! exists) {
+		/*
+		** Not creating, doesn't exist
+		*/
+		return NULL ;
+	}
+
+	return NULL ;
+}
+
+int
+fileblockmap_exists(char *name)
+{
+	int rc ;
+
+	rc = access( name, F_OK) ;
+
+	if (0 == rc) {
+		return 1 ;
+	}
+
+	return 0 ;
+}
+
+char *
+fileblockmap_getname(FILEBLOCKMAPP map)
+{
+	if (! map) {
+		return NULL ;
+	}
+
+	return map->name ;
+}
+
+static int
+write_fbmap(FILEBLOCKMAPP map)
+{
+	FILE *fp ;
+	FILEBLOCKP fb ;
+	int blocknum ;
+	int bytesused ;
+	char *host ;
+
+	fp = fopen(map->name, "w") ;
+
+	if (! fp) {
+		return 0 ;
+	}
+
+	fb = fileblocklist_getnextfileblock(map->fblist, LSTART) ;
+	while (1) {
+		if (! fb) {
+			break ;
+		}
+		blocknum = fileblock_getblocknum(fb) ;
+		bytesused = fileblock_getbytesused(fb) ;
+		fprintf(fp, "%d %d\n", blocknum, bytesused) ;
+		fb = fileblocklist_getnextfileblock(map->fblist, LNEXT) ;
+	}
+
+	host = fileblocklist_getnexthost(map->fblist, LSTART) ;
+	while (1) {
+		if (! host) {
+			break ;
+		}
+		fprintf(fp, "%s\n", host) ;
+		host = fileblocklist_getnexthost(map->fblist, LNEXT) ;
+	}
+
+	fclose(fp) ;
+
+	return 1 ;
+}
+
+int 
+fileblockmap_close(FILEBLOCKMAPP map, int save)
+{
+	int rc ;
+
+	if (save) {
+		rc = write_fbmap(map) ;
+		if (! rc) {
+			return 0 ;
+		}
+	}
+
+	fileblocklist_destroy(map->fblist) ;
+	free(map) ;
+
+	return 1 ;
+}
+
+int
+fileblockmap_save(FILEBLOCKMAPP map)
+{
+	int rc ;
+
+	rc = write_fbmap(map) ;
+	if (! rc) {
+		return 0 ;
+	}
+
+	return 1 ;
+}
+
+FILEBLOCKP 
+fileblockmap_addblock(FILEBLOCKMAPP map, int blocknum, int bytes)
+{
+	int rc ;
+	FILEBLOCKP fblock ;
+
+	if (! map) {
+		return NULL ;
+	}
+
+	fblock = fileblock_create(blocknum, bytes) ;
+
+	if (! fblock) {
+		return NULL ;
+	}
+
+	rc = fileblocklist_addblock(map->fblist, fblock, 0) ;
+
+	if (! rc) {
+		fileblock_destroy(fblock) ;
+		return NULL ;
+	}
+
+	return fblock ;
+}
+
+int 
+fileblockmap_removeblock(FILEBLOCKMAPP map, int blocknum)
+{
+	int rc ;
+
+	if (! map) {
+		return 0 ;
+	}
+
+	rc = fileblocklist_removeblock(map->fblist, blocknum) ;
+
+	return rc ;
+}
+
+int
+fileblockmap_updateblock(FILEBLOCKMAPP map, int blocknum, int newbytes)
+{
+	int rc ;
+	FILEBLOCKP fblock ;
+
+	/*
+	** For now just delete the old block and add the new one.
+	** Need to update fileblocklist to add update functionality.
+	*/
+
+	rc = fileblocklist_removeblock(map->fblist, blocknum) ;
+
+	if (! rc) {
+		return 0 ;
+	}
+
+	fblock = fileblock_create(blocknum, newbytes) ;
+
+	if (! fblock) {
+		return 0 ;
+	}
+
+	rc = fileblocklist_addblock(map->fblist, fblock, 0) ;
+
+	return rc ;
+}
+
+FILEBLOCKP
+fileblockmap_findblock(FILEBLOCKMAPP map, int blocknum)
+{
+	if (! map) {
+		return NULL ;
+	}
+
+	return fileblocklist_getfileblock(map->fblist, blocknum) ;
+}
+
+FILEBLOCKP
+fileblockmap_getnextblock(FILEBLOCKMAPP map, int next)
+{
+	return fileblocklist_getnextfileblock(map->fblist, next) ;
+}
+
+int 
+fileblockmap_delete(char *name)
+{
+	/*
+	** On a delete the following has to occur:
+	** 1. Delete each block associated with the map.
+	** 2. Delete the map.
+	** We only do #2 right now.
+	*/
+	int rc ;
+
+	rc = unlink(name) ;
+	if (rc < 0) {
+		return 0 ;
+	}
+
+	return 1 ;
+}
+
+int
+fileblockmap_addhost(FILEBLOCKMAPP map, char *host)
+{
+	int rc ;
+
+	if (! map) {
+		return 0 ;
+	}
+
+	rc = fileblocklist_addhost(map->fblist, host) ;
+
+	return rc ;
+}
+
+int
+fileblockmap_removehost(FILEBLOCKMAPP map, char *host)
+{
+	int rc ;
+
+	if (! map) {
+		return 0 ;
+	}
+
+	rc = fileblocklist_removehost(map->fblist, host) ;
+
+	return rc ;
+}
+
+char *
+fileblockmap_getnexthost(FILEBLOCKMAPP map, int next)
+{
+	return fileblocklist_getnexthost(map->fblist, next) ;
+}
+
+int
+fileblockmap_findhost(FILEBLOCKMAPP map, char *host)
+{
+	return fileblocklist_hostexists(map->fblist, host) ;
+}
+
+int
+fileblockmap_getblockcount(FILEBLOCKMAPP map)
+{
+	return fileblocklist_getblocklistcount(map->fblist) ;
+}
+
+int
+fileblockmap_getbytecount(FILEBLOCKMAPP map)
+{
+	FILEBLOCKP fblock ;
+	int bytecount = 0 ;
+
+	if (! map) {
+		return -1 ;
+	}
+
+	fblock = fileblocklist_getnextfileblock(map->fblist, LSTART) ;
+	while (1) {
+		if (! fblock) {
+			break ;
+		}
+		bytecount += fileblock_getbytesused(fblock) ;
+		fblock = fileblocklist_getnextfileblock(map->fblist, LNEXT) ;
+	}
+
+	return bytecount ;
+}
+@
+
+
+1.3
+log
+@More unit tests, plus move over to new naming convention.
+@
+text
+@d254 1
+a254 1
+int 
+d261 1
+a261 1
+		return 0 ;
+d267 1
+a267 1
+		return 0 ;
+d270 1
+a270 1
+	rc = fileblocklist_addblock(map->fblist, fblock, 1) ;
+d274 1
+d277 1
+a277 1
+	return rc ;
+@
+
+
+1.2
+log
+@
+New BlockFile interface and corresponding unit tests. These build, not all
+unit tests run. But this has not yet been integrated into the filesystem so
+that still runs.
+@
+text
+@a191 1
+	printf("opening map->name '%s'\n", map->name) ;
+d390 1
+a390 1
+char *
+d393 1
+a393 1
+	return NULL ;
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d192 1
+@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

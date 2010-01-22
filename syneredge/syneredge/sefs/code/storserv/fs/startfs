@@ -1,0 +1,20 @@
+#!/bin/sh
+
+FSPID=`ps -ef | grep 'synfs ' | grep -v grep | awk '{print $2}'`
+BLOCKDPID=`ps -ef | grep 'synwrblockd$' | grep -v grep | awk '{print $2}'`
+
+if [ "$FSPID" = "" ] ; then
+	echo "Starting SynerEdge FileSafe FS Service"
+	fs/synfs /tmp/mypc
+else
+	echo "SynerEdge FileSafe FS already running"
+fi
+
+if [ "$BLOCKDPID" = "" ] ; then
+	echo "Starting SynerEdge FileSafe Block Device Service"
+	blockd/synwrblockd
+else
+	echo "Restarting FileSafe Block Device Service"
+	kill $BLOCKDPID
+	blockd/synwrblockd
+fi

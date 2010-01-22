@@ -1,0 +1,112 @@
+head	1.2;
+access;
+symbols
+	sefs10:1.1.1.1
+	syneredge:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2005.04.13.18.43.40;	author gtarcea;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	d8425d6849419c;
+kopt	kv;
+filename	@cblock.h@;
+
+1.1
+date	2005.04.08.17.49.30;	author gtarcea;	state Exp;
+branches
+	1.1.1.1;
+next	;
+deltatype	text;
+permissions	666;
+
+1.1.1.1
+date	2005.04.08.17.49.30;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+
+
+desc
+@@
+
+
+1.2
+log
+@
+Move files that belong in the storprovider directory to that directory.
+@
+text
+@
+#ifndef __CBLOCK_INCLUDE_
+#define __CBLOCK_INCLUDE_
+
+#include <sys/types.h>
+#include <iostream>
+using std::ostream ;
+using std::istream ;
+
+class Block {
+
+	public:
+		Block(off_t blocknum) ;
+		~Block() ;
+
+		friend ostream & operator << (ostream &, const Block &) ;
+		friend istream & operator >> (istream &, Block &) ;
+
+		int setBytes(int offset, char *data, int length) ;
+		int setBytes(int chunk, int offset, char *data, int length) ;
+
+		int setSize(int chunk, int length) ;
+		int getSize(int chunk) ;
+
+		int setSize(int length) ;
+		int getSize(void) ;
+
+		void setPrevBlock(off_t prevblock) ;
+		off_t getPrevBlock() const ;
+
+		void setNextBlock(off_t nextblock) ;
+		off_t getNextBlock() ;
+
+		int getFreeChunk() ;
+		int freeChunk(int chunk) ;
+
+		int setBlockNum(off_t blocknum) ;
+		off_t getBlockNum() ;
+
+	private:
+		off_t blocknum ;
+		off_t nextblock ;
+		off_t prevblock ;
+		char reserved[8] ;
+		short size ;
+		char freechunks ;
+		char bytes[4096] ;
+} ;
+
+#endif /* __CBLOCK_INCLUDE_*/
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@Setup CVS
+@
+text
+@@

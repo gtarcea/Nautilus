@@ -1,0 +1,113 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@ * @;
+
+
+1.3
+date	2005.04.26.14.28.49;	author gtarcea;	state dead;
+branches;
+next	1.2;
+deltatype	text;
+permissions	444;
+commitid	65c426e5014765c;
+kopt	kv;
+filename	@syg_fstester.c@;
+
+1.2
+date	2005.04.25.23.07.23;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	d2c426d781b3516;
+kopt	kv;
+filename	@syg_fstester.c@;
+
+1.1
+date	2005.04.13.18.35.09;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	afc425d663b3ae7;
+kopt	kv;
+filename	@syg_fstester.c@;
+
+
+desc
+@@
+
+
+1.3
+log
+@Move all test files to utest directory
+@
+text
+@
+#include "tester.h"
+
+static int
+Setup()
+{
+}
+
+static int
+restart_blockd()
+{
+	system("/filesafe/stopfs") ;
+	system("/filesafe/blockd/synwrblockd") ;
+	/*printf("please start blockd\n") ;
+	sleep(10) ;*/
+}
+
+void run_rw_tests() ;
+void run_fcreate_tests() ;
+
+
+main()
+{
+	if (getuid()) {
+		printf("synfstester unit test must be run as root\n") ;
+		exit(1) ;
+	}
+
+	Setup() ;
+
+	system("rm -f /tmp/syneredgeblocks1*") ;
+	synfs_init("abc", "abc", 0, 0) ;
+
+	run_fcreate_tests() ;
+
+	run_rw_tests() ;
+
+	synfs_shutdown(0) ;
+
+	exit(0) ;
+}
+@
+
+
+1.2
+log
+@Port to new tests. No blockd (removed), cleanup blockfile.
+@
+text
+@@
+
+
+1.1
+log
+@
+Switch over to new makefile system. This required renaming files to conform
+to convention.
+@
+text
+@d31 1
+a33 1
+	restart_blockd() ;
+a35 1
+	restart_blockd() ;
+@
+

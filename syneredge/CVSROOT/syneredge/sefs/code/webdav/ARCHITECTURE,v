@@ -1,0 +1,73 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.05.20.15.17.08;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	948428dff656e82;
+kopt	kv;
+filename	ARCHITECTURE;
+
+
+desc
+@@
+
+
+1.1
+log
+@Add Python WebDAV server
+@
+text
+@This document describes the architecture of the python davserver.
+
+The main programm is stored in davserver.py. It exports a class davserver
+which is subclasses from AuthServer which again is subclassed from 
+BufferingHTTPServer.
+
+The BufferingHTTPServer class is extending the BaseHTTPServer class by
+storing all output in a buffer and sending it at once when the request
+is finished. Otherwise client like cadaver might break.
+
+The AuthServer class implements Basic Authentication in order to make somewhat
+more secure connections.
+
+For processing requests the davserver class needs connection to the actual data
+to server. In contrast to a normal web server this data must not simply be 
+stored on a filesystem but can also live in databases and the like.
+Thus the davserver class needs an interface to this data which is implemented 
+via an interface class (in our example stored in data.py). This class will 
+be instanciated by the davserver class and be used when needed (e.g. retrieving properties, creating new resources, obtaining existing resources etc.).
+
+When it comes to parsing XML (like in the PROPFIND and PROPPATCH methods) 
+the davserver class uses for each method another extra class stored e.g. in 
+propfind.py .
+This class is parsing the XML body and creating an XML response while obtaining 
+data from the interface class. Thus all the XML parsing is factored out into 
+the specific method classes.
+
+In order to create your own davserver for your own purposes you have to do the
+following:
+
+- subclass davserver class and write your own get_userinfo() method for 
+  identifying users.
+
+- create your own interface class for interfacing with your actual data. 
+  You might use the existing class as skeleton and explanation of which 
+  methods are needed.
+
+That should be basically all you need to do.
+
+
+===
+* check class names above for correctness.
+* describe the methods which need to be implemented.
+
+
+@

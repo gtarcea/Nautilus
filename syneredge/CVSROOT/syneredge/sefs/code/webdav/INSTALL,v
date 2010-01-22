@@ -1,0 +1,40 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.05.20.15.17.09;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	948428dff656e82;
+kopt	kv;
+filename	INSTALL;
+
+
+desc
+@@
+
+
+1.1
+log
+@Add Python WebDAV server
+@
+text
+@How to install python DAVserver
+-------------------------------
+
+1. Get root 
+
+2. Move the DAV directory into site-packages/ directory inside
+   your python installation (e.g. /usr/lib/python/site-packages/)
+
+finished.
+
+(or put it otherwise in your PYTHON_PATH)
+
+@

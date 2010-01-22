@@ -1,0 +1,274 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.2
+date	2005.06.02.20.34.21;	author irrer;	state dead;
+branches;
+next	1.1;
+deltatype	text;
+permissions	444;
+commitid	b08429f6d3658ec;
+kopt	kv;
+filename	@BlockFile.cpp@;
+
+1.1
+date	2005.06.02.19.38.51;	author irrer;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	97c429f60342e72;
+kopt	kv;
+filename	@BlockFile.cpp@;
+
+
+desc
+@@
+
+
+1.2
+log
+@Renaming files to Pol* to avoid naming conflicts.
+@
+text
+@
+#include <BlockFile.hpp>
+
+// ------------------------------------------------------------------------
+
+BlockFile::BlockFile(void)
+{
+    db = NULL;
+    errorMessage = "";
+    selected = false;
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Clean up.
+ */
+BlockFile::~BlockFile(void)
+{
+    if (db != NULL) {
+        delete db;
+        db = NULL;
+    }
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Initialize local variables.
+ *
+ * @@return True on success.
+ */
+bool BlockFile::initialize(void)
+{
+    errorMessage = "";
+    if (db == NULL) {
+        try {
+            db = new DBinterface();
+        }
+        catch (DBexception *ex) {
+            errorMessage = "Unable to open database: ";
+            errorMessage += ex->toString();
+            return false;
+        }
+    }
+    return true;
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Insert a new block file.
+ *
+ * @@param fields List of fields for block file, in order. 
+ *        Terminated with NULL pointer.
+ *
+ * @@return Return true on success, false on failure.
+ */
+bool BlockFile::Insert(const char **fields)
+{
+    if (!initialize()) {
+        return false;
+    }
+    selected = false;
+
+    sizeof(SEDB_block_file);   // make sure we have the table name right
+
+    // build up the insert string
+    string query = "INSERT INTO block_file VALUES (";
+    for (int f = 0; fields[f] != NULL; f++) {
+        query = query + "\'";
+        query = query + fields[f];
+        query = query + "\'";
+        if ((f+1) < BLOCK_FILE_NUM_FIELD) {
+            query = query + ", ";
+        }
+    }
+    query = query + " )";
+
+    // execute query (insert)
+    if (!db->execute(query.c_str())) {
+        errorMessage = "Unable to insert: ";
+        errorMessage += db->error();
+        return false;
+    }
+    return true;
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Delete the given policy.  Before doing so, make sure that
+ * no virtual disks depend on it.  Also, fail if it does not exist.
+ *
+ * @@parameter host Name of host where block file is located.
+ *
+ * @@parameter directory Name of directory where block file is located.
+ *
+ * @@return Return true on success, false on failure.
+ */
+
+bool BlockFile::Delete(const char *host, const char *directory)
+{
+    if (!initialize()) {
+        return false;
+    }
+
+    // (over)allocate enough space for all queries.
+    char query[200 + sizeof(SEDB_block_file) + sizeof(SEDB_virtual_disk)];
+
+    // make sure that the proper database names are being used.
+    // (if incorrect, then it fails at compile time)
+    sizeof(SEDB_virtual_disk__name);
+    sizeof(SEDB_block_file__host);
+    sizeof(SEDB_block_file__directory);
+
+    char selection[200 + sizeof(SEDB_block_file)];
+    sprintf(selection, "( host = '%s' ) AND ( directory = '%s' )",
+        host, directory);
+
+    // Determine if this block_file is being used.  If
+    // so, then do not allow it to be deleted.
+    sprintf(query, "SELECT name FROM virtual_disk WHERE %s", selection);
+    selected = false;
+    if (db->execute(query)) {
+        if (db->getNumRows() > 0) {
+            errorMessage = "Can not delete block file ";
+            errorMessage += host;
+            errorMessage += ", ";
+            errorMessage += directory;
+            errorMessage += " because it is in use by virtual_disk ";
+            errorMessage += db->get(0,0);
+            return false;
+        }
+        sprintf(query, "SELECT * FROM block_file WHERE %s", selection);
+        if (db->execute(query)) {
+            if (db->getNumRows() == 0) {
+                errorMessage = "No such virtual_disk_policy : ";
+                errorMessage += host;
+                errorMessage += ", ";
+                errorMessage += directory;
+                return false;
+            }
+            else {
+                sprintf(query, "DELETE FROM block_file WHERE %s", selection);
+                if (db->execute(query)) {
+                    return true;
+                }
+            }
+        }
+    }
+    errorMessage = "Unable to delete block file ";
+    errorMessage += host;
+    errorMessage += ", ";
+    errorMessage += directory;
+    errorMessage += " : ";
+    errorMessage += db->error();
+    return false;
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Perform a select on the database, fetching all columns of all rows.
+ *
+ * @@return True on success.
+ */
+
+bool BlockFile::Select(void)
+{
+    if (!initialize()) {
+        return false;
+    }
+    sizeof(SEDB_block_file);            // assert that we have the right table name
+    sizeof(SEDB_block_file__host);      // assert that we have the right field name
+    sizeof(SEDB_block_file__directory); // assert that we have the right field name
+
+    if (db->execute("SELECT * FROM block_file ORDER BY host, directory")) {
+        selected = true;
+        return true;
+    }
+    else {
+        errorMessage = "Unable to perform select on table block_file: ";
+        errorMessage += db->error();
+    }
+    return false;
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Get selected item from table.
+ *
+ * @@param row Zero relative row in table.
+ *
+ * @@param wol Zero relative column in table.
+ *
+ * @@return Value at given row and column, or NULL if it does not exist.
+ */
+const char *BlockFile::get(int row, int col)
+{
+    if (!initialize()) {
+        return false;
+    }
+
+    // if a select was not performed, then do so.
+    if (!selected) {
+        if (!Select()) {
+            return false;
+        }
+    }
+
+    return db->get(row, col);
+}
+
+// ------------------------------------------------------------------------
+
+/**
+ * Get the most recent error.  If no error, return and empty string.
+ *
+ * @@return Error message, or empty string if none.
+ */
+const char *BlockFile::Error(void)
+{
+    return errorMessage.c_str();
+}
+
+@
+
+
+1.1
+log
+@Rework of policy engine.
+@
+text
+@@
+

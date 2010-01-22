@@ -1,0 +1,38 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.04.26.14.34.20;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+commitid	dc4426e51507a64;
+kopt	kv;
+filename	alltests;
+
+
+desc
+@@
+
+
+1.1
+log
+@Moved unit tests out of storserv/fs to utest directory
+@
+text
+@syg_shmemtester
+semtester.sh
+syg_arraylisttester
+syg_fileblockmapdbtester
+syg_fileblocktester
+syg_fileblocklisttester
+syg_fileblockmaptester
+syg_hostfslisttester
+syg_fstester
+syg_daemontester
+@

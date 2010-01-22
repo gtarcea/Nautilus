@@ -1,0 +1,12 @@
+How to install python DAVserver
+-------------------------------
+
+1. Get root 
+
+2. Move the DAV directory into site-packages/ directory inside
+   your python installation (e.g. /usr/lib/python/site-packages/)
+
+finished.
+
+(or put it otherwise in your PYTHON_PATH)
+

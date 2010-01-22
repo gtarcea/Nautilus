@@ -1,0 +1,975 @@
+head	1.9;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.9
+date	2005.06.15.03.20.15;	author rdesai;	state Exp;
+branches;
+next	1.8;
+deltatype	text;
+permissions	666;
+commitid	3fc42af9e61394c;
+kopt	kv;
+filename	@SocketBase.cpp@;
+
+1.8
+date	2005.06.13.20.53.20;	author gtarcea;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	666;
+commitid	e6042adf22442da;
+kopt	kv;
+filename	@SocketBase.cpp@;
+
+1.7
+date	2005.06.12.21.25.09;	author rdesai;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	ad842aca81f0d25;
+kopt	kv;
+filename	@SocketBase.cpp@;
+
+1.6
+date	2005.06.07.04.08.15;	author rdesai;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	88842a51d9f6cf2;
+kopt	kv;
+filename	@SocketBase.cpp@;
+
+1.5
+date	2005.06.06.19.27.58;	author gtarcea;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	32442a4a3815e29;
+kopt	kv;
+filename	@SocketBase.cpp@;
+
+1.4
+date	2005.06.06.16.45.34;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	73842a47d956253;
+kopt	kv;
+filename	@SocketBase.cpp@;
+
+1.3
+date	2005.06.02.20.28.35;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	834429f6bdd5486;
+kopt	kv;
+filename	@SocketBase.cpp@;
+
+1.2
+date	2005.05.24.17.45.50;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	e044293683b18cd;
+kopt	kv;
+filename	@SocketBase.cpp@;
+
+1.1
+date	2005.05.06.10.21.31;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	9d4427b45114640;
+kopt	kv;
+filename	@SocketBase.cpp@;
+
+
+desc
+@@
+
+
+1.9
+log
+@Fix of some deadlock problems.
+@
+text
+@#include "SocketBase.hpp"
+#include "StringConversion.hpp"
+
+#include <sstream>
+
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/poll.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <signal.h>
+#include <unistd.h>
+#include <string.h>
+#include <strings.h>
+#include <errno.h>
+
+//#define DO_PT
+
+#include "PT.hpp"
+
+using namespace std ;
+
+namespace SynerEdge
+{
+
+struct SocketBase::InnerData
+{
+	InnerData(const Protocol &proto, bool isIP6_)
+	: protocol(proto), handle(-1), isIP6(isIP6_), stopRequested(false),
+	  isAllocated(false)
+	{}
+
+	InnerData(socket_handle handle_, const Protocol &proto, bool isIP6_)
+	: protocol(proto), handle(handle_), isIP6(isIP6_), stopRequested(false),
+	  isAllocated(true)
+	{}
+
+	~InnerData() {}
+
+	InnerData(const InnerData &copy)
+	: protocol(copy.protocol), handle(copy.handle), isIP6(copy.isIP6),
+	  stopRequested(copy.stopRequested), isAllocated(copy.isAllocated)
+	{}
+
+	InnerData &operator=(const InnerData &equal)
+	{
+		if (this == &equal) return *this;
+		protocol = equal.protocol;
+		handle = equal.handle;
+		isIP6 = equal.isIP6;
+		stopRequested = equal.stopRequested;
+		isAllocated = equal.isAllocated;
+		return *this;
+	}
+
+	Protocol protocol;
+	socket_handle handle;
+	bool isIP6;	
+	bool stopRequested;
+	bool isAllocated;
+};
+
+SocketBase::SocketBase(const Protocol &proto, bool isIP6)
+: innerData(*(new InnerData(proto, isIP6))), socketClosing(this),
+  bufferSize(0)
+{}
+
+SocketBase::SocketBase(socket_handle handle, const Protocol &proto, bool isIP6)
+: innerData(*(new InnerData(handle, proto, isIP6))), socketClosing(this),
+  bufferSize(0)
+{}
+
+SocketBase::~SocketBase()
+{
+	closeSocket();
+	delete &innerData;
+}
+
+void SocketBase::allocateSocket()
+{
+	if (innerData.isIP6)
+	{
+		innerData.handle = socket(PF_INET6, 
+			innerData.protocol.getType(), 
+			innerData.protocol.getNumber());
+		if (innerData.handle == -1)
+		{
+			throw NetException(StringConversion::syserr());
+		}
+		innerData.isAllocated = true;
+	}
+	else
+	{
+		innerData.handle = socket(PF_INET, 
+			innerData.protocol.getType(), 
+			innerData.protocol.getNumber());
+		if (innerData.handle == -1)
+		{
+			throw NetException(StringConversion::syserr());
+		}
+		innerData.isAllocated = true;
+	}
+
+	applyBufferSize();
+}
+
+void SocketBase::onSocketClosing(const BaseEventArgs &e)
+{
+	socketClosing(e);
+}
+
+void SocketBase::closeSocket()
+{
+	if (! isClosed())
+	{
+		BaseEventArgs e;
+		onSocketClosing(e);
+
+		::close(innerData.handle);
+		innerData.isAllocated = false;
+	}
+}
+
+bool SocketBase::isClosed() const
+{
+	return ! innerData.isAllocated;
+}
+
+bool SocketBase::isStopRequested() const
+{
+	return innerData.stopRequested;
+}
+
+void SocketBase::requestStop()
+{
+	innerData.stopRequested = true;
+}
+
+void SocketBase::reallocate()
+{
+	closeSocket();
+	allocateSocket();
+}
+
+const Protocol &SocketBase::getProtocol() const
+{
+	return innerData.protocol;
+}
+
+bool SocketBase::isIP6() const
+{
+	return innerData.isIP6;
+}
+
+void SocketBase::applyBufferSize()
+{
+	if (bufferSize > 0)
+	{
+		int val = static_cast<int>(bufferSize);
+
+		if (setsockopt(innerData.handle, SOL_SOCKET, SO_SNDBUF,
+	               	reinterpret_cast<char *>(&val), sizeof(val)) < 0)
+		{
+			throw SocketException(StringConversion::socketerr());	
+		}
+
+		if (setsockopt(innerData.handle, SOL_SOCKET, SO_RCVBUF,
+	               	reinterpret_cast<char *>(&val), sizeof(val)) < 0)
+		{
+			throw SocketException(StringConversion::socketerr());	
+		}
+	}
+}
+
+void SocketBase::setBufferSize(unsigned int bufferSize_)
+{
+	bufferSize = bufferSize_;
+
+	if (innerData.handle != -1)
+	{
+		applyBufferSize();
+	}
+}
+
+ServerSocket::ServerSocket(const Service &serv, bool isBroadcast, bool isIP6)
+: SocketBase(serv.getProtocol(), isIP6), service(serv), noDelay(false),
+  address(serv, isBroadcast, isIP6)
+{}
+
+ServerSocket::~ServerSocket()
+{}
+
+const Service &ServerSocket::getService() const
+{
+	return service;
+}
+
+const SocketAddress &ServerSocket::getSocketAddress() const
+{
+	return address;
+}
+
+void ServerSocket::applyReuse()
+{
+	int val = (reuseAddress) ? 1 : 0;
+
+	if (setsockopt(innerData.handle, SOL_SOCKET, SO_REUSEADDR,
+	               reinterpret_cast<char *>(&val), sizeof(val)) < 0)
+	{
+		throw SocketException(StringConversion::socketerr());
+	}
+}
+
+void ServerSocket::setNoDelay(bool nodelay)
+{
+	noDelay = nodelay ;
+	if (noDelay) {
+		if (innerData.handle != -1) {
+			applyNoDelay() ;
+		}
+	}
+}
+
+void ServerSocket::applyNoDelay()
+{
+	int val = 1 ;
+
+	int rc = setsockopt(innerData.handle, IPPROTO_TCP, 1,
+		reinterpret_cast<char *>(&val), sizeof(val)) ;
+
+	if (rc < 0) {
+		cout << "setNoDelay() failed" << endl ;
+		throw SocketException(StringConversion::socketerr());
+	}
+}
+		
+void ServerSocket::setReuseAddress(bool reuseIt)
+{
+	reuseAddress = reuseIt;
+	if (innerData.handle != -1)
+	{
+		applyReuse();
+	}
+}
+
+void ServerSocket::bindSocket()
+{
+	allocateSocket();
+
+	applyReuse();
+
+	if (noDelay) {
+		applyNoDelay() ;
+	}
+
+	const struct sockaddr *sa = address.getSockAddr();
+	socklen_t sl = address.getSockAddrSize();
+
+	if (! innerData.isIP6)
+	{
+		IPAddress ip(((sockaddr_in *) sa)->sin_addr);
+	}
+	else
+	{
+		IPAddress ip6(((sockaddr_in6 *) sa)->sin6_addr);
+	}
+
+
+	if (bind(innerData.handle, sa, sl) < 0)
+	{
+		throw SocketException(StringConversion::socketerr());
+	}
+}
+
+void ServerSocket::reallocate()
+{
+	SocketBase::reallocate();
+	bindSocket();
+}
+
+TCPServerSocket::TCPServerSocket(const Service &serv, bool isIP6, int queuelen_)
+: ServerSocket(serv, false, isIP6), queuelen(queuelen_)
+{}
+
+TCPServerSocket::~TCPServerSocket()
+{}
+
+void TCPServerSocket::reallocate()
+{
+	ServerSocket::reallocate();
+	listenSocket();
+}
+
+void TCPServerSocket::listenSocket()
+{
+	bindSocket();
+	if (listen(innerData.handle, queuelen) < 0)
+	{
+		throw SocketException(StringConversion::socketerr());
+	}
+}
+
+ClientSocket *TCPServerSocket::acceptSocket()
+{
+	socket_handle ssock = -1;
+	int maxaddrsize = SocketAddress::getSockAddrV4Size();
+	if (SocketAddress::getSockAddrV6Size() > maxaddrsize)
+		maxaddrsize = SocketAddress::getSockAddrV6Size();
+
+	char buf[maxaddrsize];
+	socklen_t alen = sizeof(buf);
+
+	ClientSocket *result = 0;
+	bool cont = true;
+	while (cont)
+	{
+		ssock = accept(innerData.handle, 
+		               reinterpret_cast<sockaddr *>(buf),
+	                       &alen);
+
+		if (ssock < 0)
+		{
+			int myerrno = errno ;
+			if (isStopRequested()) break;
+			if (myerrno == EINTR) continue;
+			throw SocketException(StringConversion::socketerr());
+		}
+		else
+		{
+			SocketAddress addr(Protocol(L"tcp"), 
+		                   reinterpret_cast<sockaddr *>(buf), alen);
+
+			result = new ClientSocket(ssock, addr);
+			cont = false;
+		}
+	}
+
+	return result;
+}
+
+ClientSocket::ClientSocket(const SocketAddress &socketAddress)
+: SocketBase(socketAddress.getProtocol(), socketAddress.isIP6()),
+  _sockaddr(socketAddress), readPosition(0), writePosition(0), timeout(-1)
+{}
+
+ClientSocket::ClientSocket(socket_handle handle, const SocketAddress &socketAddress)
+: SocketBase(handle, socketAddress.getProtocol(), socketAddress.isIP6()),
+  _sockaddr(socketAddress), readPosition(0), writePosition(0), timeout(-1)
+{}
+
+ClientSocket::~ClientSocket()
+{
+}
+
+void ClientSocket::reallocate()
+{
+	SocketBase::reallocate();
+	connectSocket();	
+}
+
+const SocketAddress &ClientSocket::getSocketAddress() const
+{
+	return _sockaddr;
+}
+
+void ClientSocket::setTimeout(int millis)
+{
+	timeout = millis;
+}
+
+int ClientSocket::getTimeout() const
+{
+	return timeout;
+}
+
+void ClientSocket::connectSocket()
+{
+	if (innerData.handle < 0)
+	{
+		allocateSocket();
+
+		bool cont = true;
+		while (cont)
+		{
+			const struct sockaddr *sa = _sockaddr.getSockAddr();
+			socklen_t st = _sockaddr.getSockAddrSize();
+
+			if (connect(innerData.handle, sa, st) != 0)
+			{
+				innerData.handle = -1 ;
+				if (isStopRequested()) break;
+				if (errno == EINTR) continue;
+				throw SocketException(L"Unable to connect to socket");
+			}
+			else
+			{
+				cont = false;
+			}
+		}
+	}
+	else
+	{
+		throw SocketException(L"Error - socket is already connected!");
+	}
+}
+
+bool ClientSocket::sendSocket(std::string msg)
+{
+	if (isClosed())
+	{
+		throw SocketException(L"Socket is closed");
+	}
+
+	bool result = true;
+	ssize_t numsent = 0;
+	const char *bufstart = msg.c_str();
+	size_t msglen = msg.size();
+
+	while (msglen > 0)
+	{
+		if (! pollSocket(PollWrite))
+		{
+			result = false;
+			throw SocketTimeout();
+			break;
+		}
+
+		if ((numsent = send(innerData.handle, bufstart, msglen, 0)) < 0)
+		{
+			if (errno == EINTR) continue;
+			if (isStopRequested()) 
+			{
+				std::wcout << "stop was requested" << std::endl;
+				result = false;
+				break;
+			}
+			throw SocketException(StringConversion::socketerr());
+		}
+		else
+		{
+			bufstart += numsent;
+			msglen -= numsent;
+		}
+	}
+
+	return result;
+}
+
+bool ClientSocket::recvSocketInternal(size_t numchars)
+{
+	bool result = true;
+	if (isClosed())
+	{
+		throw SocketException(L"Socket is closed");
+	}
+
+	ssize_t numrecv = 0;
+	ssize_t msglen = numchars;
+	char buf[8192];
+
+	while (msglen > 0)
+	{
+		if (! pollSocket(PollRead))
+		{
+			result = false;
+			throw SocketTimeout();
+			break;
+		}
+		numrecv = recv(innerData.handle, buf, sizeof(buf), 0);
+		if (numrecv < 0)
+		{
+			if (errno == EINTR) continue;
+			if (isStopRequested()) 
+			{
+				result = false;
+				break;
+			}
+			throw SocketException(StringConversion::socketerr());
+		}
+		else if (numrecv == 0)
+		{
+			result = false;
+			closeSocket();	
+			break;
+		}
+		else 
+		{
+			msglen -= numrecv;
+			internalBuffer.seekp(writePosition, std::ios::beg);
+			internalBuffer.write(buf, numrecv);
+			writePosition += numrecv;
+		}
+	}
+
+	return result;
+	
+}
+
+std::string ClientSocket::recvSocket(size_t innumchars)
+{
+	size_t charsRemaining = innumchars;
+	std::stringstream result;
+
+	while (charsRemaining > 0)
+	{
+	size_t numchars = charsRemaining;
+	if (numchars > 32768)
+	{
+		numchars = 32768;
+	}
+
+	internalBuffer.seekg(readPosition, std::ios::beg);
+	char buf[numchars];
+	std::streamsize len = internalBuffer.readsome(buf, numchars);
+	readPosition += len;
+
+	bool gotAllCharsExpected = true;
+	if (len < numchars)
+	{
+		internalBuffer.clear();
+		internalBuffer.str("");
+		readPosition = 0;
+		writePosition = 0;
+		internalBuffer.seekg(0, std::ios::beg);
+		internalBuffer.seekp(0, std::ios::beg);
+
+		gotAllCharsExpected = recvSocketInternal(numchars - len);
+		if (! gotAllCharsExpected)
+		{
+			throw SocketTimeout();
+		}
+
+		internalBuffer.seekg(readPosition, std::ios::beg);
+		std::streamsize pluslen = 
+			internalBuffer.readsome(&buf[len], numchars-len);
+		readPosition += pluslen;
+		len += pluslen;
+	}
+
+	charsRemaining -= len;
+	result << std::string(buf, len);
+
+	if (! gotAllCharsExpected) break;
+	}
+
+	return result.str();
+}
+
+bool ClientSocket::pollSocket(enum PollEnum pollType)
+{
+	bool result = true; //hope for the best...
+	struct pollfd ufds[1];
+	unsigned int nfds = 1;
+	short revents_canread = POLLIN;
+	short revents_canwrite = POLLOUT;
+
+	ufds[0].fd = innerData.handle;
+	ufds[0].revents = 0;
+	switch (pollType)
+	{
+	case PollRead :
+		ufds[0].events = POLLIN;
+		break;
+	case PollWrite : 
+		ufds[0].events = POLLOUT;
+		break;
+	}
+
+	while (1)
+	{
+	PT("Calling poll()") ;
+	int res = poll(ufds, nfds, timeout);
+	PT("Past poll()") ;
+	if (res < 0)
+	{
+		if (errno == EINTR) continue;
+		else throw SocketException(StringConversion::socketerr());
+	} 
+	else if (res == 0)
+	{
+		result = false;
+	} 
+	else
+	{
+		if (res != 1)
+		{
+			throw SocketException(L"Unexpected result from poll");
+		}
+		else
+		{
+			if ((pollType == PollRead) && 
+			    ((ufds[0].revents & revents_canread) == 0))
+			{
+				std::wstringstream errs;
+				errs << L"Problem with socket poll: ";
+				if (ufds[0].revents | POLLERR)
+				{
+					errs << L" POLLERR";
+				}
+				if (ufds[0].revents | POLLHUP)
+				{
+					errs << L" POLLHUP";
+				}
+				if (ufds[0].revents | POLLNVAL)
+				{
+					errs << L" POLLNVAL";
+				}
+				throw SocketException(errs.str());
+			}
+
+			if ((pollType == PollWrite) &&
+			    ((ufds[0].revents & revents_canwrite) == 0))
+			{
+				std::wstringstream errs;
+				errs << L"Problem with socket poll: ";
+				if (ufds[0].revents | POLLERR)
+				{
+					errs << L" POLLERR";
+				}
+				if (ufds[0].revents | POLLHUP)
+				{
+					errs << L" POLLHUP";
+				}
+				if (ufds[0].revents | POLLNVAL)
+				{
+					errs << L" POLLNVAL";
+				}
+				throw SocketException(errs.str());
+			}
+			
+		}
+	}
+	break;
+	}
+
+	return result;
+}
+
+};
+@
+
+
+1.8
+log
+@Add support to set TCP_NODELAY flag. Hmmm... should probably use the #define
+for it rather than 1....
+@
+text
+@a392 1
+//				std::cout << "connect != 0" << std::endl ;
+a405 1
+//		std::cout << "innerData.handle = " << innerData.handle << std::endl ;
+a425 1
+			// socket timed out
+d427 1
+a430 1
+		//std::cout << "Sending msglen= " << msglen << std::endl ;
+d436 1
+a436 1
+				// stop requested also returns false
+d469 1
+d531 5
+a535 6
+		// doesn't really matter if readSocketInternal
+		// times out or not, you do the same thing -
+		// return as much of the requested string as you
+		// can.  It is up to the caller to test the
+		// resultant string len vs. the requested len to
+		// determine if a socket timeout occurred.
+d557 2
+a558 2
+	short revents_canread = POLLIN | POLLRDNORM;
+	short revents_canwrite = POLLOUT | POLLWRNORM;
+d565 1
+a565 2
+	//	cout << "PollRead" << endl ;
+		ufds[0].events = POLLIN | POLLRDNORM;
+d568 1
+a568 2
+	//	cout << "PollWrite" << endl ;
+		ufds[0].events = POLLOUT | POLLWRNORM;
+d572 2
+a573 1
+	//cout << "timeout = " << timeout << endl ;
+d579 2
+a580 1
+		throw SocketException(StringConversion::socketerr());
+d598 1
+a598 1
+				errs << "Problem with socket poll: ";
+d601 1
+a601 1
+					errs << " POLLERR";
+d605 1
+a605 1
+					errs << " POLLHUP";
+d609 1
+a609 1
+					errs << " POLLNVAL";
+d618 1
+a618 1
+				errs << "Problem with socket poll: ";
+d621 1
+a621 1
+					errs << " POLLERR";
+d625 1
+a625 1
+					errs << " POLLHUP";
+d629 1
+a629 1
+					errs << " POLLNVAL";
+d635 2
+@
+
+
+1.7
+log
+@Not completely fixed, but better at least!
+@
+text
+@d20 6
+d189 1
+a189 1
+: SocketBase(serv.getProtocol(), isIP6), service(serv), 
+d217 23
+d255 4
+d568 1
+d572 1
+d577 2
+d580 1
+@
+
+
+1.6
+log
+@Fixes for client orb stuff.
+@
+text
+@d322 2
+a323 1
+{}
+a486 1
+	//std::wcout << "len from internalBuffer.readsome() = " << len << std::endl ;
+@
+
+
+1.5
+log
+@Save errno value in myerrno. More importantly, the alen variable did not contain the
+length of the structure being passed in. Since it was being initialized off the stack
+it could (and did) contain a junk value.
+@
+text
+@d281 1
+a281 1
+	socklen_t alen = maxaddrsize ;
+d313 1
+a313 1
+  _sockaddr(socketAddress), readPosition(0), timeout(-1)
+d318 1
+a318 1
+  _sockaddr(socketAddress), readPosition(0), timeout(-1)
+a458 1
+			//std::wcout << L"numrecv = " << numrecv << std::endl ;
+d460 1
+a460 2
+			//std::wcout << L"msglen: " << msglen << std::endl;
+			internalBuffer.seekp(0, std::ios::end);
+d462 1
+d470 1
+a470 1
+std::string ClientSocket::recvSocket(size_t numchars)
+d472 11
+a482 1
+	//std::wcout << "recvSocket numchars = " << numchars << std::endl ;
+d488 2
+d492 2
+a493 2
+//		internalBuffer.clear();
+		internalBuffer.str("") ;
+d495 3
+d499 1
+a499 3
+		//std::wcout << L"needed to pull from socket!" << std::endl;
+
+		recvSocketInternal(numchars - len);
+a509 3
+
+		//std::wcout << L"got pluslen=" << pluslen << L" addl bytes!"
+		//	   << std::endl;
+d513 5
+a517 2
+	//std::wcout << L"read len=" << len << L" bytes from innerBuffer"
+	//	   << std::endl;
+d519 1
+a519 1
+	return std::string(buf, len);
+@
+
+
+1.4
+log
+@Replace internalBuffer.clear(), with internalBuffer.str("") to clear the buffer.
+@
+text
+@d281 1
+a281 1
+	socklen_t alen;
+d293 1
+d295 1
+a295 1
+			if (errno == EINTR) continue;
+@
+
+
+1.3
+log
+@
+Fix connectSocket() to allow for retries on failure.
+@
+text
+@d480 2
+a481 1
+		internalBuffer.clear();
+@
+
+
+1.2
+log
+@Fixed bugs to get Orb working
+@
+text
+@d358 2
+d362 1
+a362 1
+				throw SocketException(L"bad");
+d372 1
+@
+
+
+1.1
+log
+@Socket code, XDR and timers.
+@
+text
+@d395 1
+d455 1
+d457 1
+a457 1
+			std::wcout << L"msglen: " << msglen << std::endl;
+d469 1
+d473 1
+d480 1
+a480 1
+		std::wcout << L"needed to pull from socket!" << std::endl;
+d494 2
+a495 2
+		std::wcout << L"got pluslen=" << pluslen << L" addl bytes!"
+			   << std::endl;
+d499 2
+a500 2
+	std::wcout << L"read len=" << len << L" bytes from innerBuffer"
+		   << std::endl;
+@
+

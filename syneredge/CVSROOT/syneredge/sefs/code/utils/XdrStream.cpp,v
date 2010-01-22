@@ -1,0 +1,728 @@
+head	1.10;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.10
+date	2005.06.13.03.08.21;	author rdesai;	state Exp;
+branches;
+next	1.9;
+deltatype	text;
+permissions	666;
+commitid	d1842acf870136d;
+kopt	kv;
+filename	@XdrStream.cpp@;
+
+1.9
+date	2005.06.13.00.50.44;	author gtarcea;	state Exp;
+branches;
+next	1.8;
+deltatype	text;
+permissions	666;
+commitid	49042acd84f2a82;
+kopt	kv;
+filename	@XdrStream.cpp@;
+
+1.8
+date	2005.06.12.23.56.00;	author rdesai;	state Exp;
+branches;
+next	1.7;
+deltatype	text;
+permissions	666;
+commitid	a042accb76008d;
+kopt	kv;
+filename	@XdrStream.cpp@;
+
+1.7
+date	2005.06.12.21.25.09;	author rdesai;	state Exp;
+branches;
+next	1.6;
+deltatype	text;
+permissions	666;
+commitid	ad842aca81f0d25;
+kopt	kv;
+filename	@XdrStream.cpp@;
+
+1.6
+date	2005.06.12.12.00.17;	author rdesai;	state Exp;
+branches;
+next	1.5;
+deltatype	text;
+permissions	666;
+commitid	ab042ac23b15cb0;
+kopt	kv;
+filename	@XdrStream.cpp@;
+
+1.5
+date	2005.06.07.04.08.15;	author rdesai;	state Exp;
+branches;
+next	1.4;
+deltatype	text;
+permissions	666;
+commitid	88842a51d9f6cf2;
+kopt	kv;
+filename	@XdrStream.cpp@;
+
+1.4
+date	2005.06.02.21.04.42;	author gtarcea;	state Exp;
+branches;
+next	1.3;
+deltatype	text;
+permissions	666;
+commitid	c60429f7459703a;
+kopt	kv;
+filename	@XdrStream.cpp@;
+
+1.3
+date	2005.05.24.17.45.50;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	e044293683b18cd;
+kopt	kv;
+filename	@XdrStream.cpp@;
+
+1.2
+date	2005.05.21.15.16.04;	author rdesai;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	df4428f50a13bc6;
+kopt	kv;
+filename	@XdrStream.cpp@;
+
+1.1
+date	2005.05.06.10.21.32;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	9d4427b45114640;
+kopt	kv;
+filename	@XdrStream.cpp@;
+
+
+desc
+@@
+
+
+1.10
+log
+@More cleanup of Orb routines.  Fixed a bug in return results, also refactored
+the ORB stuff.
+@
+text
+@#include "StringConversion.hpp"
+#include "XdrStream.hpp"
+#include <netinet/in.h>
+#include <byteswap.h>
+
+namespace SynerEdge
+{
+
+const size_t XdrStream::BoundarySize = sizeof(int32_t);
+
+XdrStream::XdrStream()
+: internalBuffer(), readPosition(0), writePosition(0)
+{}
+
+XdrStream::~XdrStream()
+{}
+
+XdrStream::XdrStream(const std::string &instr)
+: internalBuffer(instr), readPosition(0), writePosition(0)
+{}
+
+XdrStream::XdrStream(const XdrStream &copy)
+: internalBuffer(copy.internalBuffer.str()), readPosition(copy.readPosition),
+  writePosition(copy.writePosition)
+{}
+
+XdrStream &XdrStream::operator=(const XdrStream &equal)
+{
+	internalBuffer.str(equal.internalBuffer.str());
+	readPosition = equal.readPosition;
+	writePosition = equal.writePosition;
+}
+
+XdrStream &XdrStream::operator>>(int32_t &val)
+{
+	size_t round = sizeof(int32_t);
+	char buf[round];
+	internalBuffer.seekg(readPosition, std::ios::beg);
+	std::streamsize numread = internalBuffer.readsome(buf, round);
+	readPosition += numread;
+
+	if (numread != round)
+	{
+		throw XdrStreamException(L"Buffer size too small to read int32.");
+	}
+
+	val = ntohl(*(reinterpret_cast<int32_t *>(buf)));
+	return *this;
+}
+
+XdrStream &XdrStream::operator>>(uint32_t &val)
+{
+	int32_t signedval;
+	(*this) >> signedval;
+	val = static_cast<uint32_t>(signedval);
+	return *this;
+}
+
+XdrStream &XdrStream::operator>>(int64_t &val)
+{
+	size_t round = sizeof(int64_t);
+	char buf[round];
+	internalBuffer.seekg(readPosition, std::ios::beg);
+	std::streamsize numread = internalBuffer.readsome(buf, round);
+	readPosition += numread; 
+
+	if (numread != round)
+	{
+		throw XdrStreamException(L"Buffer size too small to read int64.");
+	}
+
+	val = ntohll(*(reinterpret_cast<int64_t *>(buf)));
+	return *this;
+}
+
+XdrStream &XdrStream::operator>>(uint64_t &val)
+{
+	int64_t signedval;
+	(*this) >> signedval;
+	val = static_cast<uint64_t>(signedval);	
+	return *this;
+}
+
+XdrStream &XdrStream::operator>>(std::string &val)
+{
+	int32_t len;
+	(*this) >> len;
+
+	size_t round = roundToBoundary(len);
+	size_t lastpos = static_cast<size_t>(internalBuffer.tellp());
+	if ((lastpos - readPosition) < round)
+	{
+		throw XdrStreamException(L"Buffer to small to read string");
+	}
+
+	char buf[round];
+	internalBuffer.seekg(readPosition, std::ios::beg);
+	std::streamsize numread = internalBuffer.readsome(buf, round);
+	readPosition += numread;
+
+	if (numread != round)
+	{
+		throw XdrStreamException(L"Buffer too small to read string");
+	}
+
+	val = std::string(buf, len);
+	return *this;
+}
+
+XdrStream &XdrStream::operator>>(float &val)
+{
+	size_t round = sizeof(float);
+	char buf[round];
+	internalBuffer.seekg(readPosition, std::ios::beg);
+	std::streamsize numread = internalBuffer.readsome(buf, round);
+	readPosition += numread;
+
+	if (numread != round)
+	{
+		throw XdrStreamException(L"Buffer to small to read float");
+	}
+
+	val = *(reinterpret_cast<float *>(buf));
+	return *this;
+}
+
+XdrStream &XdrStream::operator>>(double &val)
+{
+	size_t round = sizeof(double);
+	char buf[round];
+	internalBuffer.seekg(readPosition, std::ios::beg);
+	std::streamsize numread = internalBuffer.readsome(buf, round);
+	readPosition += numread;
+
+	if (numread != round)
+	{
+		throw XdrStreamException(L"Buffer to small to read double");
+	}
+
+	val = *(reinterpret_cast<double *>(buf));
+	return *this;
+}
+
+XdrStream &XdrStream::operator>>(bool &val)
+{
+	int32_t bval;
+	(*this) >> bval;
+
+	if (bval == 1)
+		val = true;
+	else
+		val = false;
+	return *this;
+}
+
+XdrStream &XdrStream::operator>>(XdrStream &val)
+{
+	std::string mystr;
+	(*this) >> mystr;
+
+	//std::wcout << L"pulled xdr string that is " << mystr.size()
+	//	<< " chars long." << std::endl;
+	val.internalBuffer.str(mystr);
+	val.readPosition = 0;
+	val.writePosition = mystr.size();
+
+	return *this;
+}
+
+XdrStream &XdrStream::operator>>(std::wstring &val)
+{
+	std::string utf8;
+	(*this) >> utf8;
+	val = StringConversion::toUTF16(utf8);
+
+	return *this;
+}
+
+
+int64_t XdrStream::ntohll(int64_t val)
+{
+	if (htonl(1) != 1) 
+		return bswap_64(val);
+	else
+		return val;
+}
+
+int64_t XdrStream::htonll(int64_t val)
+{
+	if (htonl(1) != 1) 
+		return bswap_64(val);
+	else
+		return val;
+}
+
+size_t XdrStream::roundToBoundary(size_t insize)
+{
+	return
+	((size_t) ((insize + BoundarySize - 1) / BoundarySize)) * BoundarySize;
+}
+
+XdrStream &XdrStream::operator<<(int32_t val)
+{
+	size_t round = sizeof(int32_t);
+	char buf[round];
+	*(reinterpret_cast<int32_t *>(buf)) = htonl(val);
+	internalBuffer.seekp(writePosition, std::ios::beg);
+	internalBuffer.write(buf, round);
+	writePosition += round;
+	return *this;	
+}
+
+XdrStream &XdrStream::operator<<(uint32_t val)
+{
+	(*this) << static_cast<int32_t>(val);
+	return *this;
+}
+
+XdrStream &XdrStream::operator<<(int64_t val)
+{
+	size_t round = sizeof(int64_t);
+	char buf[round];
+	*(reinterpret_cast<int64_t *>(buf)) = htonll(val);
+	internalBuffer.seekp(writePosition, std::ios::beg);
+	internalBuffer.write(buf, round);
+	writePosition += round;
+	return *this;	
+}
+
+XdrStream &XdrStream::operator<<(uint64_t val)
+{
+	(*this) << static_cast<int64_t>(val);
+	return *this;
+}
+
+XdrStream &XdrStream::operator<<(const char *val)
+{
+	(*this) << std::string(val);
+	return *this;
+}
+
+XdrStream &XdrStream::operator<<(const std::string &val)
+{
+	internalBuffer.seekp(writePosition, std::ios::beg);
+	(*this) << static_cast<uint32_t>(val.size());
+
+	internalBuffer.write(val.c_str(), val.size());
+
+	size_t round = roundToBoundary(val.size());
+	for (size_t i = 0; i < round - val.size(); i++)
+	{
+		internalBuffer.write("\0", 1);
+	}
+	writePosition += round; 
+	return *this;	
+}
+
+XdrStream &XdrStream::operator<<(float val)
+{
+	size_t round = sizeof(float);
+	char buf[round];
+	*(reinterpret_cast<float *>(buf)) = val;
+	internalBuffer.seekp(writePosition, std::ios::beg);
+	internalBuffer.write(buf, round);
+	writePosition += round; 
+	return *this;	
+}
+
+XdrStream &XdrStream::operator<<(double val)
+{
+	size_t round = sizeof(double);
+	char buf[round];
+	*(reinterpret_cast<double *>(buf)) = val;
+	internalBuffer.seekp(writePosition, std::ios::beg);
+	internalBuffer.write(buf, round);
+	writePosition += round; 
+	return *this;	
+}
+
+XdrStream &XdrStream::operator<<(bool val)
+{
+	int32_t bval = (val) ? 1 : 0;
+	(*this) << bval;
+
+	return *this;
+}
+
+XdrStream &XdrStream::operator<<(const XdrStream &val)
+{
+	std::string mystr = val.internalBuffer.str();
+	//std::wcout << L"encoding xdrbuffer that is : " << mystr.size() << L" bytes long" << std::endl;
+	(*this) << val.internalBuffer.str();
+	return *this;
+}
+
+XdrStream &XdrStream::operator<<(const wchar_t *val)
+{
+	(*this) << std::wstring(val);
+	return *this;
+}
+
+XdrStream &XdrStream::operator<<(const std::wstring &val)
+{
+	(*this) << StringConversion::toUTF8(val);
+	return *this;
+}
+
+
+std::string XdrStream::getAndClearBuffer()
+{
+	std::string result = internalBuffer.str();
+	internalBuffer.clear();
+	internalBuffer.str("");
+	readPosition = 0;
+	writePosition = 0;
+	internalBuffer.seekp(0, std::ios::beg);
+	internalBuffer.seekg(0, std::ios::beg);
+	return result;
+}
+
+void XdrStream::reportSize()
+{
+	std::string result = internalBuffer.str();
+	std::wcout << "reportSize: " << result.size() << std::endl;
+	for (size_t i = 0; i < result.size(); i++)
+	{
+		std::wcout << L"result[" << i << L"]=" << (int) result[i]
+		<< std::endl;
+	}
+}
+
+void XdrStream::addBufferWithoutCounting(const std::string &val)
+{
+	internalBuffer.write(val.c_str(), val.size());
+}
+
+ClientSocket &operator<<(ClientSocket &soc, XdrStream &xdr)
+{
+	boost::mutex::scoped_lock lk(soc.getMutex());
+	std::string xdrstr = xdr.getAndClearBuffer();
+
+	char buf[sizeof(int32_t)];
+	*(reinterpret_cast<int32_t *>(buf)) = 
+		htonl(static_cast<int32_t>(xdrstr.size()));
+	soc.sendSocket(std::string(buf, sizeof(buf)));
+
+	soc.sendSocket(xdrstr);
+	return soc;
+}
+
+ClientSocket &operator>>(ClientSocket &soc, XdrStream &xdr)
+{
+	boost::mutex::scoped_lock lk(soc.getMutex());
+	std::string xdrsizestr = soc.recvSocket(sizeof(int32_t));
+	int32_t xdrsize = ntohl
+		(*(reinterpret_cast<const int32_t *>(xdrsizestr.c_str())));
+	
+	std::string xdrbuffer = 
+		soc.recvSocket(static_cast<size_t>(xdrsize));
+
+	xdr.addBufferWithoutCounting(xdrbuffer);
+	return soc;
+}
+
+}
+
+@
+
+
+1.9
+log
+@comment out cout/wcout statements.
+@
+text
+@a353 1
+	//std::wcout << "before recvSocket-1" << std::endl;
+a354 1
+	//std::wcout << "before ntohl" << std::endl;
+a357 1
+	//std::wcout << "before recvSocket-2" << std::endl;
+a361 1
+	//std::wcout << "after addBufferWithoutCounting" << std::endl;
+@
+
+
+1.8
+log
+@Cleanup of orb routines.  Mostly working the way I want now.
+@
+text
+@d161 2
+a162 2
+	std::wcout << L"pulled xdr string that is " << mystr.size()
+		<< " chars long." << std::endl;
+d291 1
+a291 1
+	std::wcout << L"encoding xdrbuffer that is : " << mystr.size() << L" bytes long" << std::endl;
+d354 1
+a354 1
+	std::wcout << "before recvSocket-1" << std::endl;
+d356 1
+a356 1
+	std::wcout << "before ntohl" << std::endl;
+d360 1
+a360 1
+	std::wcout << "before recvSocket-2" << std::endl;
+d365 1
+a365 1
+	std::wcout << "after addBufferWithoutCounting" << std::endl;
+@
+
+
+1.7
+log
+@Not completely fixed, but better at least!
+@
+text
+@d339 1
+d353 1
+@
+
+
+1.6
+log
+@Cleanup of XDR server code.  Getting closer to parking this.
+@
+text
+@d352 1
+d354 1
+d358 1
+d363 1
+@
+
+
+1.5
+log
+@Fixes for client orb stuff.
+@
+text
+@d22 12
+a52 1
+	//std::wcout << "unxdr uint32_t" << std::endl ;
+a55 1
+	//std::wcout << "   uint32_t val = " << val << std::endl ;
+a157 1
+	//std::wcout << "unxdr XdrStream" << std::endl ;
+a158 1
+//	return (*this) >> mystr;
+d160 4
+a163 1
+	val.internalBuffer.clear();
+d165 1
+a165 2
+	//std::wcout << "   mystr = " << StringConversion::toUTF16(mystr) << std::endl ;
+	val << mystr;
+a166 1
+	//std::wcout << "Leaving unxdr XdrStream" << std::endl ;
+a203 1
+	//std::wcout << "xdr int32_t = " << val << std::endl ;
+a214 1
+	//std::wcout << "xdr uint32_t = " << val << std::endl ;
+d236 6
+d245 2
+a246 1
+	(*this) << static_cast<int32_t>(val.size());
+d248 1
+d290 2
+a291 2
+	//std::wcout << "xdr XdrStream" << std::endl ;
+	//std::wcout << "    buffer = " << StringConversion::toUTF16(val.internalBuffer.str()) << std::endl ;
+d296 6
+d325 5
+@
+
+
+1.4
+log
+@Fix up english in exception error messages.
+@
+text
+@d12 1
+a12 1
+: internalBuffer(), readPosition(0)
+d19 1
+a19 1
+: internalBuffer(instr), readPosition(0)
+a75 1
+	//std::wcout << "unxdr string" << std::endl ;
+a78 1
+	//std::wcout << "len = " << len << std::endl ;
+d80 6
+a85 1
+	//std::wcout << "round = " << round << std::endl ;
+a96 1
+	//std::wcout << "   val = " << StringConversion::toUTF16(val) << std::endl ;
+d138 1
+a138 1
+	
+d199 1
+a199 1
+	internalBuffer.seekp(0, std::ios::end);
+d201 1
+d217 1
+a217 1
+	internalBuffer.seekp(0, std::ios::end);
+d219 1
+d231 1
+a231 4
+	int32_t len ;
+	//std::wcout << "xdr string" << std::endl ;
+	len = static_cast<int32_t>(val.size()) ;
+	//std::wcout << "   Writing string length of " << len << std::endl ;
+d234 2
+a235 2
+	//std::wcout << "   Writing the string " << StringConversion::toUTF16(val) << std::endl ;
+	for (size_t i = 0; i < roundToBoundary(val.size()) - val.size(); i++)
+d239 1
+d248 1
+a248 1
+	internalBuffer.seekp(0, std::ios::end);
+d250 1
+d259 1
+a259 1
+	internalBuffer.seekp(0, std::ios::end);
+d261 1
+d292 5
+d300 7
+a306 1
+void XdrStream::setBuffer(std::string what, int size)
+d308 1
+a308 2
+	internalBuffer.seekp(0, std::ios::end);
+	internalBuffer.write(what.c_str(), size);
+d314 1
+a317 2
+	//std::wcout << "CLI << Writing to socket a length of " << xdrstr.size() << std::endl ;
+	//std::wcout << "    string = " << StringConversion::toUTF16(std::string(buf, sizeof(buf))) << std::endl ;
+d321 1
+a328 1
+	//std::wcout << "CLI >> Reading into xdr a length of " << xdrsize << std::endl ;
+d332 3
+a334 3
+	xdr.setBuffer(xdrbuffer, xdrsize) ;
+	//std::wcout << "    Read the string " << StringConversion::toUTF16(xdrbuffer) << std::endl ;
+	//xdr << xdrbuffer;
+@
+
+
+1.3
+log
+@Fixed bugs to get Orb working
+@
+text
+@d32 1
+a32 1
+		throw XdrStreamException(L"Buffer size to small to read int32.");
+d59 1
+a59 1
+		throw XdrStreamException(L"Buffer size to small to read int64.");
+@
+
+
+1.2
+log
+@SSL Stuff + ORB stuff
+@
+text
+@d41 1
+d45 1
+d76 1
+d80 1
+d82 1
+d90 1
+a90 1
+		throw XdrStreamException(L"Buffer to small to read string");
+d94 1
+d146 1
+d148 2
+a149 1
+	return (*this) >> mystr;
+d152 1
+d155 1
+d193 1
+d204 1
+d227 4
+d233 1
+d271 2
+d291 6
+d303 2
+d315 1
+d319 3
+a321 1
+	xdr << xdrbuffer;
+@
+
+
+1.1
+log
+@Socket code, XDR and timers.
+@
+text
+@d1 1
+d39 8
+d64 7
+d138 20
+d191 6
+d207 6
+d251 13
+@
+

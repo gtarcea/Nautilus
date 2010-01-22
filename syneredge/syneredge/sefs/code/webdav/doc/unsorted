@@ -1,0 +1,66 @@
+Unsorted IDEAS regarding GROUP.lounge
+-------------------------------------
+
+1. make it project aware
+------------------------
+
+Usually when you're working (at last I am) you're working on not
+only one project but several. These project all have some data
+which belongs to it and should be accessible from every place
+inside it. These things are:
+    - important dates for the project
+    - important people for the project
+    - important URLs for the project
+    - the project's TODO list
+
+and so on.
+Thus we have data which should be available from every place inside
+the project's repository e.g. in a infobar or something similar.
+Some data might also be distributed across the repository as it might
+be the case with the TODO lists. You might have create some folders
+for sub projects (e.g. engine, web interface, gtk interface) and every
+folder has a TODO list inside it. You then should be able to automatically
+collect all TODO lists for the project, sort it be priority or whatever
+and print it on every page.
+
+
+2. make it workflow aware
+-------------------------
+
+Actually I don't have thought a lot about it but in general it should
+be possible to define which work has to be done before some other work
+can be started. This might also be defined as template. 
+An example: You are an ISP and people want to buy web space or other things.
+Then you first have to make a contract, then to register their domain (or
+let it register somewhere else), configure the web server, write the bills,
+etc. These actions should then be inside a template which automatically
+builds the framework you need for doing the job (and letting you fill in
+the details or distribute work to several people).
+
+I don't have an idea right now how that could look like but time will hopefully
+give it to me :)
+
+
+3. create agents
+----------------
+
+If a lot of people are active in your workspaces then you might lose track
+of what's going on. Here agents might help. The could track special users
+which are important or track objects for changing, etc.
+Of course they also could to a lot more and more intelligent things. They 
+just have to fill this info into my mind until I can write it here..
+
+
+
+4. a GTK interface
+------------------
+
+A web interface is cool as you have access from everywhere of the world
+to your workspace. But it's some sort of limited. You could do more
+interesting things if you would have a real GUI with flexilble list
+widgets etc. 
+Thus a GTK implementation for the client is needed. Should maybe also
+be written in Python to keep things simple :)
+
+
+

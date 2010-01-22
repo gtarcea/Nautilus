@@ -1,0 +1,45 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.06.06.18.39.33;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+commitid	f0842a4985939bb;
+kopt	kv;
+filename	@setupstorprovtest.sh@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Needed for sygstorprov unit tests.
+@
+text
+@#!/bin/sh
+
+SPCONFIG=/etc/syneredge/storprov.config
+
+if [ $1 = "START" ] ; then
+	rm -f /tmp/sputbf*
+	test -f $SPCONFIG && mv $SPCONFIG ${SPCONFIG}.bak
+	echo "localhost" > $SPCONFIG
+	echo "/tmp/sputbf" >> $SPCONFIG
+	echo "1" >> $SPCONFIG
+	echo "100" >> $SPCONFIG
+	echo "1024" >> $SPCONFIG
+else
+	rm -f $SPCONFIG
+	test -f ${SPCONFIG}.bak && mv ${SPCONFIG}.bak $SPCONFIG
+	rm -f /tmp/sputbf*
+fi
+@

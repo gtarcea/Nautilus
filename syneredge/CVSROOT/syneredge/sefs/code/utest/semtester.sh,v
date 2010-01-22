@@ -1,0 +1,35 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2005.04.26.14.34.21;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+commitid	dc4426e51507a64;
+kopt	kv;
+filename	@semtester.sh@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Moved unit tests out of storserv/fs to utest directory
+@
+text
+@#!/bin/sh
+
+PATH=$PATH:.
+export PATH
+
+syg_sema &
+syg_semb
+@

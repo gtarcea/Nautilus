@@ -1,0 +1,88 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.2
+date	2005.05.09.20.37.51;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	777;
+commitid	ea4427fca140890;
+kopt	kv;
+filename	runtests;
+
+1.1
+date	2005.04.26.14.34.21;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	777;
+commitid	dc4426e51507a64;
+kopt	kv;
+filename	runtests;
+
+
+desc
+@@
+
+
+1.2
+log
+@Full path to alltests
+@
+text
+@#!/bin/sh
+
+HERE=`pwd`
+PATH="$PATH:.:$HERE"
+export PATH
+
+run_test()
+{
+	echo "Running Test $1"
+	$1
+
+	if [ "$?" -ne 0 ] ; then
+		echo "Test '$1' failed"
+		return 1
+	fi
+
+	return 0
+}
+
+#make tests
+
+utblockssetup.sh
+
+cat $SYGHOME/code/utest/alltests | while read line
+do
+	utblocksclean.sh
+	run_test $line
+	STATUS=$?
+	if [ $STATUS -eq 1 ] ; then
+		echo "Unit test run FAILED"
+		exit 1
+	fi
+done
+
+utblocksreset.sh
+
+exit 0
+
+@
+
+
+1.1
+log
+@Moved unit tests out of storserv/fs to utest directory
+@
+text
+@d24 1
+a24 1
+cat alltests | while read line
+@
+

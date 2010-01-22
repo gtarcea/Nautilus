@@ -1,0 +1,63 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@ * @;
+
+
+1.1
+date	2005.04.26.14.34.27;	author gtarcea;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	dc4426e51507a64;
+kopt	kv;
+filename	@syg_semb.c@;
+
+
+desc
+@@
+
+
+1.1
+log
+@Moved unit tests out of storserv/fs to utest directory
+@
+text
+@
+#include <sys/types.h>
+#include "semaphore.h"
+
+main()
+{
+	SEMAPHOREP sem ;
+	int rc ;
+	int i ;
+
+	sem = semaphore_open(1234) ;
+
+	if (!sem) {
+		printf("semaphore_open() failed\n") ;
+		exit(1) ;
+	}
+
+	for (i = 0; i < 10; i++) {
+		printf("Releasing semaphore iteration %d\n", i) ;
+		rc = semaphore_increment(sem) ;
+		if (! rc) {
+			printf("semaphore_increment() failed\n") ;
+			exit(1) ;
+		}
+		sleep(1) ;
+	}
+
+	rc = semaphore_destroy(sem, 0) ;
+	if (! rc) {
+		printf("semaphore_destroy(sem, 0) failed\n") ;
+		exit(1) ;
+	}
+
+	exit(0) ;
+}
+@

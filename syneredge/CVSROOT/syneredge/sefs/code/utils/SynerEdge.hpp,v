@@ -1,0 +1,103 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@// @;
+
+
+1.3
+date	2005.04.30.21.18.11;	author gtarcea;	state Exp;
+branches;
+next	1.2;
+deltatype	text;
+permissions	666;
+commitid	86c4273f5fc6815;
+kopt	kv;
+filename	@SynerEdge.hpp@;
+
+1.2
+date	2005.04.22.19.01.29;	author gtarcea;	state Exp;
+branches;
+next	1.1;
+deltatype	text;
+permissions	666;
+commitid	9e042694a000e92;
+kopt	kv;
+filename	@SynerEdge.hpp@;
+
+1.1
+date	2005.04.09.22.20.58;	author rdesai;	state Exp;
+branches;
+next	;
+deltatype	text;
+permissions	666;
+commitid	648425855332f58;
+kopt	kv;
+filename	@SynerEdge.hpp@;
+
+
+desc
+@@
+
+
+1.3
+log
+@Added a uint64 type. Need to convert routines from int64 to uint64.
+@
+text
+@#ifndef SygSynerEdge_hpp
+#define SygSynerEdge_hpp
+
+#include <iostream>
+
+namespace SynerEdge
+{
+
+#ifdef _WIN32
+typedef size_t syg_ulong_ptr;
+#else
+typedef unsigned long syg_ulong_ptr;
+#endif
+
+#ifdef _WIN32
+#else
+typedef long long int64 ;
+typedef unsigned long long uint64 ;
+#endif
+
+class SynerEdgeException
+{
+public:
+        SynerEdgeException(const std::wstring &msg_) : msg(msg_) {}
+        virtual ~SynerEdgeException() {}
+
+        virtual std::wstring getMsg() const { return msg; }
+private:
+        const std::wstring msg;
+};
+
+std::wostream &operator<<(std::wostream &out, const SynerEdgeException &exp);
+
+}
+
+#endif
+@
+
+
+1.2
+log
+@Add int64 definition.
+@
+text
+@d18 1
+@
+
+
+1.1
+log
+@utils directory initial checkin
+@
+text
+@d15 5
+@
+
