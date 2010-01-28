@@ -77,15 +77,13 @@ until a message is available"))
 (defmethod on-exit ((actor actor) on-exit-func)
   "Appends the exit handler on to the list of handlers"
   (with-slots (handlers) actor
-    (setf handlers (append (list (assoc-if-not #'(lambda (what) (equal what :exit-handler)) handlers))
-                           `((:exit-handler ,on-exit-func))))))
+    (setf (getf handlers :exit-handler) on-exit-func)))
 
 (defmethod on-abort ((actor actor) on-abort-func)
   "Appends the abort handler on to the list of handlers"
   (with-slots (handlers) actor
-    (setf handlers (append (list (assoc-if-not #'(lambda (what) (equal what :abort-handler)) handlers))
-                           `((:abort-handler ,on-abort-func))))))
-
+    (setf (getf handlers :abort-handler) on-abort-func)))
+   
 ;; To call on-abort-func
 ;; (with-slots (handlers) actor
 ;;     (funcall (second (assoc :abort-func handlers))))
